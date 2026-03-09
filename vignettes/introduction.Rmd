@@ -10,8 +10,7 @@ vignette: >
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>",
-  eval = FALSE  # network calls — set to TRUE if running locally
+  comment = "#>"
 )
 library(taxodist)
 ```
@@ -147,26 +146,3 @@ All lineage data is sourced from **The Taxonomicon** (taxonomy.nl), based on
 > http://taxonomicon.taxonomy.nl.
 
 Please cite this resource in any published work using `taxodist`.
-
----
-
-## Mathematical background
-
-Each guess in a phylogenetic identification game — or each query in a
-taxonomic analysis — constitutes a query revealing the depth of the MRCA
-between the queried taxon and the target. If we model the target as a
-uniformly distributed random variable over a taxon set of size $n$, the
-expected number of queries for identification scales with the entropy
-$H = \log_2(n)$.
-
-The raw metric $d_{raw}(A,B) = \text{depth}(A) + \text{depth}(B) - 2 \cdot \text{depth}(\text{MRCA}(A,B))$
-satisfies three key properties:
-
-1. **Non-negativity**: $d(A,B) \geq 0$, with equality iff $A = B$
-2. **Symmetry**: $d(A,B) = d(B,A)$
-3. **Triangle inequality**: $d(A,C) \leq d(A,B) + d(B,C)$
-
-The normalized variants (`jaccard`, `norm`) preserve the correct biological
-ranking of distances while constraining values to $[0,1]$, making them
-suitable for clustering, ordination, and multivariate analyses where
-lineage depth should not bias results.
