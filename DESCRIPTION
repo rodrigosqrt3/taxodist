@@ -10,7 +10,7 @@ Description: Computes phylogenetic distances between any two taxa using
     (taxonomy.nl), a comprehensive curated classification of all life 
     based on Systema Naturae 2000. Given any two taxon names, taxodist 
     retrieves their full lineages, identifies their most recent common 
-    ancestor (MRCA), and computes a formal tree metric satisfying the 
+    ancestor (MRCA), and computes a tree metric satisfying the 
     triangle inequality. Functions support individual distance queries, 
     pairwise distance matrices, clade filtering, and lineage 
     visualization. Coverage spans all of Biota with particular depth 
