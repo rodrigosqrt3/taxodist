@@ -1,0 +1,172 @@
+---
+title: "Introduction to taxodist"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to taxodist}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE  # network calls — set to TRUE if running locally
+)
+library(taxodist)
+```
+
+## Overview
+
+`taxodist` computes phylogenetic distances between any two taxa using
+hierarchical lineage data from [The Taxonomicon](http://taxonomicon.taxonomy.nl),
+a comprehensive curated classification of all life based on *Systema Naturae 2000*
+(Brands, 1989 onwards).
+
+The default distance metric is the Jaccard-based taxonomic distance:
+
+$$d_{jaccard}(A, B) = 1 - \frac{\text{depth}(\text{MRCA}(A,B))}{\text{depth}(A) + \text{depth}(B) - \text{depth}(\text{MRCA}(A,B))}$$
+
+This returns a value between 0 (identical lineages) and 1 (no shared ancestry
+beyond root), normalized for lineage depth so that deeply resolved taxa such as
+mammals are not penalized relative to shallowly resolved ones. Three methods
+are available via the `method` argument: `"jaccard"` (default), `"norm"`, and
+`"raw"`.
+
+---
+
+## Basic usage
+
+### Getting a lineage
+
+```{r lineage}
+lin <- get_lineage("Tyrannosaurus")
+print(lin)
+```
+
+### Computing distance between two taxa
+
+```{r distance}
+result <- taxo_distance("Tyrannosaurus", "Velociraptor")
+print(result)
+```
+
+### Finding the most recent common ancestor
+
+```{r mrca}
+mrca("Tyrannosaurus", "Triceratops")   # Dinosauria
+mrca("Tyrannosaurus", "Homo")          # Amniota
+mrca("Tyrannosaurus", "Quercus")       # discaria
+```
+
+---
+
+## Working with multiple taxa
+
+### Pairwise distance matrix
+
+```{r matrix}
+theropods <- c("Tyrannosaurus", "Velociraptor", "Spinosaurus",
+               "Allosaurus", "Carnotaurus")
+
+mat <- distance_matrix(theropods)
+print(mat)
+```
+
+### Finding the closest relative
+
+```{r closest}
+closest_relative(
+  "Tyrannosaurus",
+  c("Velociraptor", "Triceratops", "Brachiosaurus", "Allosaurus")
+)
+```
+
+---
+
+## Lineage utilities
+
+### Comparing lineages side by side
+
+```{r compare}
+compare_lineages("Tyrannosaurus", "Triceratops")
+```
+
+### Listing shared clades
+
+```{r shared}
+shared_clades("Tyrannosaurus", "Velociraptor")
+```
+
+### Testing clade membership
+
+```{r membership}
+is_member("Tyrannosaurus", "Theropoda")    # TRUE
+is_member("Triceratops",   "Theropoda")    # FALSE
+is_member("Homo",          "Amniota")      # TRUE
+```
+
+### Filtering a list of taxa by clade
+
+```{r filter}
+taxa <- c("Tyrannosaurus", "Triceratops", "Velociraptor",
+          "Brachiosaurus", "Homo", "Quercus")
+
+filter_clade(taxa, "Dinosauria")
+filter_clade(taxa, "Theropoda")
+```
+
+---
+
+## Coverage and caching
+
+### Checking coverage
+
+```{r coverage}
+check_coverage(c("Tyrannosaurus", "Velociraptor", "Fakeosaurus"))
+```
+
+### Caching
+
+Lineages are automatically cached in memory during an R session to avoid
+redundant network requests. Clear the cache with:
+
+```{r cache}
+clear_cache()
+```
+
+---
+
+## Data source and citation
+
+All lineage data is sourced from **The Taxonomicon** (taxonomy.nl), based on
+*Systema Naturae 2000*:
+
+> Brands, S.J. (1989 onwards). *Systema Naturae 2000*. Amsterdam,
+> The Netherlands. Retrieved from The Taxonomicon,
+> http://taxonomicon.taxonomy.nl.
+
+Please cite this resource in any published work using `taxodist`.
+
+---
+
+## Mathematical background
+
+Each guess in a phylogenetic identification game — or each query in a
+taxonomic analysis — constitutes a query revealing the depth of the MRCA
+between the queried taxon and the target. If we model the target as a
+uniformly distributed random variable over a taxon set of size $n$, the
+expected number of queries for identification scales with the entropy
+$H = \log_2(n)$.
+
+The raw metric $d_{raw}(A,B) = \text{depth}(A) + \text{depth}(B) - 2 \cdot \text{depth}(\text{MRCA}(A,B))$
+satisfies three key properties:
+
+1. **Non-negativity**: $d(A,B) \geq 0$, with equality iff $A = B$
+2. **Symmetry**: $d(A,B) = d(B,A)$
+3. **Triangle inequality**: $d(A,C) \leq d(A,B) + d(B,C)$
+
+The normalized variants (`jaccard`, `norm`) preserve the correct biological
+ranking of distances while constraining values to $[0,1]$, making them
+suitable for clustering, ordination, and multivariate analyses where
+lineage depth should not bias results.

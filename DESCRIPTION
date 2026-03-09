@@ -1,0 +1,44 @@
+Package: taxodist
+Title: Taxonomic Distance and Phylogenetic Lineage Computation
+Version: 0.1.0
+Authors@R: person("Rodrigo Fonseca", "Villa", email = "rodrigo03.villa@gmail.com",
+           role = c("aut", "cre"),
+           comment = c(ORCID = "0009-0005-2938-2270"))
+Maintainer: Rodrigo Fonseca Villa <rodrigo03.villa@gmail.com>
+Description: Computes phylogenetic distances between any two taxa using 
+    hierarchical lineage data retrieved from The Taxonomicon 
+    (taxonomy.nl), a comprehensive curated classification of all life 
+    based on Systema Naturae 2000. Given any two taxon names, taxodist 
+    retrieves their full lineages, identifies their most recent common 
+    ancestor (MRCA), and computes a formal tree metric satisfying the 
+    triangle inequality. Functions support individual distance queries, 
+    pairwise distance matrices, clade filtering, and lineage 
+    visualization. Coverage spans all of Biota with particular depth 
+    for Dinosauria and other well-studied clades.
+License: CC BY-NC 4.0
+URL: https://github.com/rodrigosqrt3/taxodist
+BugReports: https://github.com/rodrigosqrt3/taxodist/issues
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Depends:
+    R (>= 4.0.0)
+Imports:
+    httr (>= 1.4.0),
+    rvest (>= 1.0.0),
+    stringr (>= 1.4.0),
+    purrr (>= 0.3.0),
+    furrr (>= 0.3.0),
+    future (>= 1.20.0),
+    cli (>= 3.0.0),
+    utils,
+    stats
+Suggests:
+    testthat (>= 3.0.0),
+    mockery,
+    knitr,
+    rmarkdown,
+    ggplot2,
+    igraph
+VignetteBuilder: knitr
+Config/testthat/edition: 3

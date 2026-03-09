@@ -1,0 +1,236 @@
+#' @import httr
+#' @import rvest
+#' @import stringr
+NULL
+
+# -- Internal cache -----------------------------------------------------------
+
+.taxodist_cache <- new.env(parent = emptyenv())
+
+#' Clear the taxodist lineage cache
+#'
+#' Clears all cached lineages stored in the current R session. Useful when
+#' you suspect cached data is stale or want to force fresh retrieval.
+#'
+#' @return Invisibly returns `NULL`.
+#' @export
+#' @examples
+#' \dontrun{
+#' clear_cache()
+#' }
+clear_cache <- function() {
+  rm(list = ls(.taxodist_cache), envir = .taxodist_cache)
+  invisible(NULL)
+}
+
+# -- ID lookup ----------------------------------------------------------------
+
+#' Find the Taxonomicon ID for a taxon name
+#'
+#' Queries The Taxonomicon (taxonomy.nl) to retrieve the internal numeric
+#' identifier for a given taxon name. The search filters out non-biological
+#' entities such as astronomical objects that may share the same name.
+#'
+#' @param taxon A character string giving the taxon name to search for.
+#'   Typically a genus name (e.g., `"Tyrannosaurus"`) but species and higher
+#'   ranks are also supported.
+#' @param verbose Logical. If `TRUE`, prints status messages during retrieval.
+#'   Default is `FALSE`.
+#'
+#' @return A character string containing the Taxonomicon numeric ID, or `NULL`
+#'   if the taxon is not found.
+#'
+#' @details
+#' The function queries the static search endpoint at
+#' `taxonomicon.taxonomy.nl/TaxonList.aspx` and parses the resulting HTML
+#' to extract the taxon ID from the hierarchy link. When multiple matches
+#' exist (e.g., a genus name shared with an astronomical object), biological
+#' entries are prioritised by filtering for entries annotated as dinosaur,
+#' reptile, archosaur, animal, plant, fungus, or bacterium.
+#'
+#' @seealso [get_lineage()], [taxo_distance()]
+#'
+#' @export
+#' @examples
+#' \dontrun{
+#' get_taxonomicon_id("Tyrannosaurus")   # returns "50841"
+#' get_taxonomicon_id("Homo")
+#' get_taxonomicon_id("Quercus")
+#' }
+get_taxonomicon_id <- function(taxon, verbose = FALSE) {
+  cache_key <- paste0("id_", taxon)
+  if (exists(cache_key, envir = .taxodist_cache)) {
+    if (verbose) cli::cli_alert_info("Using cached ID for {taxon}")
+    return(get(cache_key, envir = .taxodist_cache))
+  }
+
+  if (verbose) cli::cli_alert_info("Searching Taxonomicon for {taxon}...")
+
+  url <- paste0(
+    "http://taxonomicon.taxonomy.nl/TaxonList.aspx",
+    "?subject=Entity&by=ScientificName&search=",
+    utils::URLencode(taxon)
+  )
+
+  res <- tryCatch(
+    httr::GET(url, httr::add_headers("User-Agent" = "taxodist R package/0.1")),
+    error = function(e) NULL
+  )
+
+  if (is.null(res) || httr::status_code(res) != 200) {
+    if (verbose) cli::cli_alert_warning("Could not reach Taxonomicon for {taxon}")
+    return(NULL)
+  }
+
+  page <- rvest::read_html(httr::content(res, "text", encoding = "UTF-8"))
+  rows <- rvest::html_nodes(page, "tr")
+
+  # biological keywords to identify valid taxon entries
+  bio_keywords <- paste(
+    "dinosaur", "reptile", "archosaur", "animal", "plant", "fungus",
+    "bacterium", "bacteria", "bird", "mammal", "fish", "insect",
+    "amphibian", "protist", "alga", "virus",
+    sep = "|"
+  )
+
+  for (row in rows) {
+    text  <- rvest::html_text(row, trim = TRUE)
+    hrefs <- rvest::html_attr(rvest::html_nodes(row, "a"), "href")
+
+    # skip non-biological entries
+    if (!grepl(bio_keywords, text, ignore.case = TRUE)) next
+    if (grepl("astronomical|planet|Minor planet|comet|asteroid",
+              text, ignore.case = TRUE)) next
+
+    tree_links <- hrefs[grepl("TaxonTree\\.aspx.*id=[1-9]", hrefs)]
+    if (length(tree_links) > 0) {
+      id <- stringr::str_remove(
+        stringr::str_extract(tree_links[1], "id=([0-9]+)"), "id="
+      )
+      assign(cache_key, id, envir = .taxodist_cache)
+      if (verbose) cli::cli_alert_success("Found {taxon} with ID {id}")
+      return(id)
+    }
+  }
+
+  if (verbose) cli::cli_alert_warning("{taxon} not found in Taxonomicon")
+  NULL
+}
+
+# -- Lineage retrieval --------------------------------------------------------
+
+#' Retrieve the full taxonomic lineage of a taxon
+#'
+#' Given a Taxonomicon numeric ID, retrieves and parses the complete
+#' hierarchical lineage from root (Natura) to the taxon itself. The lineage
+#' is returned as a character vector ordered from root to tip.
+#'
+#' @param taxon_id A numeric or character string giving the Taxonomicon ID.
+#'   Obtain this with [get_taxonomicon_id()].
+#' @param clean Logical. If `TRUE` (default), removes philosophical root nodes
+#'   above `Biota` (i.e., Natura, actualia, Mundus, naturalia) and strips
+#'   dagger and superscript markers from names.
+#' @param verbose Logical. If `TRUE`, prints status messages. Default `FALSE`.
+#'
+#' @return A character vector of clade names from root to tip, or `NULL` if
+#'   retrieval fails.
+#'
+#' @details
+#' Lineage data is sourced from The Taxonomicon, which is based on
+#' Systema Naturae 2000 (Brands, S.J., 1989 onwards). The depth of lineages
+#' in The Taxonomicon substantially exceeds that of other programmatic sources
+#' such as the Open Tree of Life, particularly for well-studied clades such
+#' as Dinosauria, where intermediate clades at the level of superfamilies,
+#' tribes, and named subclades are fully resolved.
+#'
+#' @seealso [get_lineage()], [taxo_distance()]
+#'
+#' @export
+#' @examples
+#' \dontrun{
+#' id <- get_taxonomicon_id("Tyrannosaurus")
+#' lin <- get_lineage_by_id(id)
+#' print(lin)
+#' }
+get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
+  cache_key <- paste0("lin_", taxon_id)
+  if (exists(cache_key, envir = .taxodist_cache)) {
+    if (verbose) cli::cli_alert_info("Using cached lineage for ID {taxon_id}")
+    return(get(cache_key, envir = .taxodist_cache))
+  }
+
+  url <- paste0(
+    "http://taxonomicon.taxonomy.nl/TaxonTree.aspx?id=",
+    taxon_id, "&src=0"
+  )
+
+  res <- tryCatch(
+    httr::GET(url, httr::add_headers("User-Agent" = "taxodist R package/0.1")),
+    error = function(e) NULL
+  )
+
+  if (is.null(res) || httr::status_code(res) != 200) {
+    if (verbose) cli::cli_alert_warning("Could not retrieve lineage for ID {taxon_id}")
+    return(NULL)
+  }
+
+  page  <- rvest::read_html(httr::content(res, "text", encoding = "UTF-8"))
+  links <- rvest::html_nodes(page, "a[href*='src=0']")
+  texts <- rvest::html_text(links, trim = TRUE)
+
+  # clean rank prefixes and author strings
+  lineage <- texts %>%
+    stringr::str_remove("^(Clade |Kingdom |Phylum |Class |Order |Suborder |Infraorder |Family |Subfamily |Tribe |Subtribe |Genus |Species |Subkingdom |Infrakingdom |Superclass |Subclass |Infraclass |Superorder |Superfamily |Domain |Superkingdom |\\[crown\\] Clade )") %>%
+    stringr::str_remove("\\s+[A-Z][a-z\u00e1\u00e0\u00e2\u00e3\u00e9\u00e8\u00ea\u00ed\u00ef\u00f3\u00f4\u00f5\u00f6\u00fa\u00fc\u00e7].*$") %>%
+    stringr::str_remove("\\s+[A-Z]\\.[A-Z]\\..*$") %>%
+    stringr::str_remove("\\s+von.*$") %>%
+    stringr::str_remove_all("[\u2020\u1D40]") %>%
+    stringr::str_trim()
+
+  # remove bare rank names and empty strings
+  bare_ranks <- c(
+    "Subphylum", "Infraphylum", "Subfamily", "Suborder",
+    "Infraorder", "Superclass", "Subclass", "Superfamily", ""
+  )
+  lineage <- lineage[!lineage %in% bare_ranks]
+  lineage <- lineage[lineage != "" & !grepl("^\\s*$", lineage)]
+
+  if (clean) {
+    # remove philosophical nodes above Biota
+    phil_nodes <- c("Natura - nature", "actualia - actual entities",
+                    "Mundus", "naturalia - natural bodies")
+    lineage <- lineage[!lineage %in% phil_nodes]
+  }
+
+  if (length(lineage) == 0) return(NULL)
+
+  assign(cache_key, lineage, envir = .taxodist_cache)
+  lineage
+}
+
+#' Retrieve the full taxonomic lineage of a taxon by name
+#'
+#' A convenience wrapper that combines [get_taxonomicon_id()] and
+#' [get_lineage_by_id()] into a single call. Given a taxon name, returns
+#' its complete lineage from root to tip.
+#'
+#' @param taxon A character string giving the taxon name.
+#' @param clean Logical. If `TRUE` (default), removes philosophical root nodes
+#'   and cleans formatting markers.
+#' @param verbose Logical. If `TRUE`, prints progress messages. Default `FALSE`.
+#'
+#' @return A character vector of clade names ordered from root to tip, or
+#'   `NULL` if the taxon cannot be found.
+#'
+#' @export
+#' @examples
+#' \dontrun{
+#' get_lineage("Tyrannosaurus")
+#' get_lineage("Homo sapiens")
+#' get_lineage("Quercus robur")
+#' }
+get_lineage <- function(taxon, clean = TRUE, verbose = FALSE) {
+  id <- get_taxonomicon_id(taxon, verbose = verbose)
+  if (is.null(id)) return(NULL)
+  get_lineage_by_id(id, clean = clean, verbose = verbose)
+}
