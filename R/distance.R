@@ -191,7 +191,7 @@ closest_relative <- function(taxon, candidates, method = "jaccard", verbose = FA
   oplan <- future::plan(future::multisession)
   on.exit(future::plan(oplan), add = TRUE)
 
-  results <- furrr::future_map_dfr(
+  results <- do.call(rbind, furrr::future_map(
     candidates,
     function(cand) {
       cand_lin <- get_lineage(cand, verbose = verbose)
@@ -203,7 +203,7 @@ closest_relative <- function(taxon, candidates, method = "jaccard", verbose = FA
       data.frame(taxon = cand, distance = dist_result$distance)
     },
     .options = furrr::furrr_options(seed = NULL)
-  )
+  ))
 
   results[order(results$distance, na.last = TRUE), ]
 }
@@ -285,7 +285,7 @@ check_coverage <- function(taxa, verbose = FALSE) {
     stop("method must be 'raw', 'norm', or 'jaccard'")
   )
 
-  list(
+  result <- list(
     distance   = distance,
     method     = method,
     mrca       = mrca_name,
@@ -295,4 +295,6 @@ check_coverage <- function(taxa, verbose = FALSE) {
     taxon_a    = name_a,
     taxon_b    = name_b
   )
+  class(result) <- "taxodist_result"
+  result
 }
