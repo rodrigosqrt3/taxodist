@@ -39,7 +39,7 @@ filter_clade(taxa, "Dinosauria")
 
 The default metric is the Jaccard-based taxonomic distance:
 
-$$d_{\text{jaccard}}(A, B) = 1 - \frac{\text{depth}(\text{MRCA}(A,B))}{\text{depth}(A) + \text{depth}(B) - \text{depth}(\text{MRCA}(A,B))}$$
+  $$d_{\text{jaccard}}(A, B) = 1 - \frac{\text{depth}(\text{MRCA}(A,B))}{\text{depth}(A) + \text{depth}(B) - \text{depth}(\text{MRCA}(A,B))}$$
 
 Returns a value between 0 (identical) and 1 (no shared ancestry beyond root),
 normalized for lineage depth. Three methods available via `method` argument:
@@ -48,12 +48,8 @@ triangle inequality.
 
 ## Data source
 
-All lineage data is sourced from **The Taxonomicon** (taxonomy.nl), based on *Systema Naturae 2000* by S.J. Brands (1989 onwards). The Taxonomicon provides exceptionally deep lineage resolution — typically 50–80 nodes for well-studied taxa — substantially exceeding other programmatic sources such as the Open Tree of Life.
+All lineage data is sourced from **The Taxonomicon** (taxonomy.nl), based on *Systema Naturae 2000* by S.J. Brands (1989 onwards). The Taxonomicon provides exceptionally deep lineage resolution, substantially exceeding other programmatic sources.
 
 Please cite The Taxonomicon in any published work:
 
 > Brands, S.J. (1989 onwards). *Systema Naturae 2000*. Amsterdam, The Netherlands. Retrieved from The Taxonomicon, http://taxonomicon.taxonomy.nl.
-
-## License
-
-CC BY-NC 4.0 — free for non-commercial use with attribution.
