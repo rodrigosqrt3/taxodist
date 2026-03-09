@@ -2,7 +2,7 @@
 
 **Taxonomic distance and phylogenetic lineage computation for any taxon on Earth.**
 
-`taxodist` retrieves full hierarchical lineages from [The Taxonomicon](http://taxonomicon.taxonomy.nl) and computes a formal tree metric distance between any two taxa.
+`taxodist` retrieves full hierarchical lineages from [The Taxonomicon](http://taxonomicon.taxonomy.nl) and computes a tree metric distance between any two taxa.
 
 ## Installation
 
