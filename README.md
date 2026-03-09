@@ -39,7 +39,7 @@ filter_clade(taxa, "Dinosauria")
 
 The default metric is the Jaccard-based taxonomic distance:
 
-$$d_{jaccard}(A, B) = 1 - \frac{\text{depth}(\text{MRCA}(A,B))}{\text{depth}(A) + \text{depth}(B) - \text{depth}(\text{MRCA}(A,B))}$$
+$$d_{\text{jaccard}}(A, B) = 1 - \frac{\text{depth}(\text{MRCA}(A,B))}{\text{depth}(A) + \text{depth}(B) - \text{depth}(\text{MRCA}(A,B))}$$
 
 Returns a value between 0 (identical) and 1 (no shared ancestry beyond root),
 normalized for lineage depth. Three methods available via `method` argument:
