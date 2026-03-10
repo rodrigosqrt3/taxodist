@@ -601,6 +601,7 @@ test_that("get_lineage passes clean and verbose through to get_lineage_by_id", {
 # ── Network tests (skipped on CRAN) ──────────────────────────────────────────
 
 test_that("get_lineage returns correct lineage for Velociraptor", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   lin <- get_lineage("Velociraptor")
@@ -612,6 +613,7 @@ test_that("get_lineage returns correct lineage for Velociraptor", {
 })
 
 test_that("get_lineage returns correct lineage for Tyrannosaurus", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   lin <- get_lineage("Tyrannosaurus")
@@ -621,6 +623,7 @@ test_that("get_lineage returns correct lineage for Tyrannosaurus", {
 })
 
 test_that("get_lineage returns correct lineage for Carnotaurus", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   lin <- get_lineage("Carnotaurus")
@@ -630,6 +633,7 @@ test_that("get_lineage returns correct lineage for Carnotaurus", {
 })
 
 test_that("get_lineage returns correct lineage for Homo", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   lin <- get_lineage("Homo")
@@ -638,6 +642,7 @@ test_that("get_lineage returns correct lineage for Homo", {
 })
 
 test_that("get_lineage returns correct lineage for Drosophila", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   lin <- get_lineage("Drosophila")
@@ -646,12 +651,14 @@ test_that("get_lineage returns correct lineage for Drosophila", {
 })
 
 test_that("get_lineage returns NULL for unknown taxon", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   expect_null(get_lineage("Fakeosaurus"))
 })
 
 test_that("taxo_distance returns valid result for Tyrannosaurus vs Velociraptor", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   result <- taxo_distance("Tyrannosaurus", "Velociraptor")
@@ -662,6 +669,7 @@ test_that("taxo_distance returns valid result for Tyrannosaurus vs Velociraptor"
 })
 
 test_that("taxo_distance returns 0 when one taxon is ancestor of other", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   expect_equal(taxo_distance("Tyrannosaurus", "Dinosauria")$distance, 0)
@@ -669,6 +677,7 @@ test_that("taxo_distance returns 0 when one taxon is ancestor of other", {
 })
 
 test_that("taxo_distance between Carnotaurus and Triceratops is valid", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   result <- taxo_distance("Carnotaurus", "Triceratops")
@@ -677,6 +686,7 @@ test_that("taxo_distance between Carnotaurus and Triceratops is valid", {
 })
 
 test_that("taxo_distance is larger between distant taxa than close ones", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   d_close  <- taxo_distance("Carnotaurus", "Tyrannosaurus")$distance
@@ -685,24 +695,28 @@ test_that("taxo_distance is larger between distant taxa than close ones", {
 })
 
 test_that("mrca of Tyrannosaurus and Triceratops is Dinosauria", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   expect_equal(mrca("Tyrannosaurus", "Triceratops"), "Dinosauria")
 })
 
 test_that("mrca of Tyrannosaurus and Homo is Amniota", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   expect_equal(mrca("Tyrannosaurus", "Homo"), "Amniota")
 })
 
 test_that("mrca of Velociraptor and Triceratops is Dinosauria", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   expect_equal(mrca("Velociraptor", "Triceratops"), "Dinosauria")
 })
 
 test_that("mrca of Carnotaurus and Tyrannosaurus is within Theropoda", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   ancestor <- mrca("Carnotaurus", "Tyrannosaurus")
@@ -711,6 +725,7 @@ test_that("mrca of Carnotaurus and Tyrannosaurus is within Theropoda", {
 })
 
 test_that("is_member correctly identifies clade membership", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   expect_true(is_member("Tyrannosaurus", "Theropoda"))
@@ -718,12 +733,14 @@ test_that("is_member correctly identifies clade membership", {
 })
 
 test_that("lineage_depth for Carnotaurus is reasonable", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   expect_gt(lineage_depth("Carnotaurus"), 10)
 })
 
 test_that("get_taxonomicon_id finds real ID and caches it", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   id <- get_taxonomicon_id("Carnotaurus", verbose = TRUE)
@@ -733,6 +750,7 @@ test_that("get_taxonomicon_id finds real ID and caches it", {
 })
 
 test_that("get_lineage_by_id parses and caches lineage for Drosophila", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   id <- get_taxonomicon_id("Drosophila")
@@ -743,6 +761,7 @@ test_that("get_lineage_by_id parses and caches lineage for Drosophila", {
 })
 
 test_that("get_lineage_by_id clean = FALSE keeps more nodes than clean = TRUE", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   id <- get_taxonomicon_id("Carnotaurus")
@@ -753,6 +772,7 @@ test_that("get_lineage_by_id clean = FALSE keeps more nodes than clean = TRUE", 
 })
 
 test_that("get_lineage verbose wrapper works for Quercus", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   result <- get_lineage("Quercus", verbose = TRUE)
@@ -761,12 +781,14 @@ test_that("get_lineage verbose wrapper works for Quercus", {
 })
 
 test_that("get_taxonomicon_id returns NULL for genuinely unknown taxon", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   expect_null(get_taxonomicon_id("Zzzznotarealgenus99999", verbose = TRUE))
 })
 
 test_that("get_taxonomicon_id skips astronomical objects", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   id <- get_taxonomicon_id("Venus", verbose = TRUE)
@@ -779,6 +801,7 @@ test_that("get_taxonomicon_id skips astronomical objects", {
 })
 
 test_that("get_lineage_by_id works directly with verbose", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   id <- get_taxonomicon_id("Carnotaurus")
@@ -786,18 +809,21 @@ test_that("get_lineage_by_id works directly with verbose", {
 })
 
 test_that("get_taxonomicon_id works with verbose for real taxon", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   expect_no_error(get_taxonomicon_id("Drosophila", verbose = TRUE))
 })
 
 test_that("get_taxonomicon_id verbose prints not found warning", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   expect_null(get_taxonomicon_id("Zzzzfakeosaurus99999", verbose = TRUE))
 })
 
 test_that("get_lineage_by_id verbose success message fires on real taxon", {
+  skip_if(Sys.getenv("TAXODIST_NETWORK_TESTS") != "true")
   skip_if_offline()
   clear_cache()
   id <- get_taxonomicon_id("Carnotaurus")
@@ -889,3 +915,4 @@ test_that("get_lineage_by_id returns NULL when all links are filtered out", {
   result <- get_lineage_by_id("99999")
   expect_null(result)
 })
+
