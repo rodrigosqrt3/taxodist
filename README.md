@@ -1,8 +1,7 @@
 # taxodist
 
-[![R-CMD-check](https://github.com/rodrigosqrt3/taxodist/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/rodrigosqrt3/taxodist/actions)
+[![R-CMD-check](https://github.com/rodrigosqrt3/taxodist/actions/workflows/r.yml/badge.svg)](https://github.com/rodrigosqrt3/taxodist/actions/workflows/r.yml)
 [![Coverage](https://codecov.io/gh/rodrigosqrt3/taxodist/branch/main/graph/badge.svg)](https://codecov.io/gh/rodrigosqrt3/taxodist)
-[![CRAN status](https://www.r-pkg.org/badges/version/taxodist)](https://CRAN.R-project.org/package=taxodist)
 
 **Taxonomic distance and phylogenetic lineage computation for any taxon on Earth.**
 
@@ -58,3 +57,4 @@ All lineage data is sourced from **The Taxonomicon** (taxonomy.nl), based on *Sy
 
 Found a taxon with an incorrect lineage? Please [open an issue](https://github.com/rodrigosqrt3/taxodist/issues),
 lineage corrections are the most valuable contribution to this package.
+
