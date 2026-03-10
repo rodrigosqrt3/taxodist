@@ -1,13 +1,16 @@
 # taxodist
 
+[![R-CMD-check](https://github.com/rodrigosqrt3/taxodist/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/rodrigosqrt3/taxodist/actions)
+[![Coverage](https://codecov.io/gh/rodrigosqrt3/taxodist/branch/main/graph/badge.svg)](https://codecov.io/gh/rodrigosqrt3/taxodist)
+[![CRAN status](https://www.r-pkg.org/badges/version/taxodist)](https://CRAN.R-project.org/package=taxodist)
+
 **Taxonomic distance and phylogenetic lineage computation for any taxon on Earth.**
 
-`taxodist` retrieves full hierarchical lineages from [The Taxonomicon](http://taxonomicon.taxonomy.nl) and computes a tree metric distance between any two taxa.
+`taxodist` retrieves full hierarchical lineages from [The Taxonomicon](http://taxonomicon.taxonomy.nl) and computes a tree metric distance between any two taxa: a pair of dinosaurs, a dinosaur and a fungus, two species of fly, or an oak tree and a human.
 
 ## Installation
 
 ```r
-# Development version
 devtools::install_github("rodrigosqrt3/taxodist")
 ```
 
@@ -37,19 +40,21 @@ filter_clade(taxa, "Dinosauria")
 
 ## The distance metric
 
-The default metric is the Jaccard-based taxonomic distance:
+`taxodist` measures relatedness by asking a single question: how deep is the most recent common ancestor (MRCA)?
 
-  $$d_{\text{jaccard}}(A, B) = 1 - \frac{\text{depth}(\text{MRCA}(A,B))}{\text{depth}(A) + \text{depth}(B) - \text{depth}(\text{MRCA}(A,B))}$$
+$$d(A, B) = \frac{1}{\text{depth}(\text{MRCA}(A, B))}$$
 
-Returns a value between 0 (identical) and 1 (no shared ancestry beyond root),
-normalized for lineage depth. Three methods available via `method` argument:
-`"jaccard"` (default), `"norm"`, and `"raw"`. The raw metric satisfies the
-triangle inequality.
+The deeper the shared ancestor, the smaller the distance and the more related the two taxa are. A shallow MRCA means the two taxa diverged early; a deep MRCA means they share a long common history. The metric returns 0 when one taxon is ancestral to the other, and satisfies the triangle inequality.
+
+The Taxonomicon provides substantially deeper lineage resolution than other programmatic sources, e.g., `Tyrannosaurus` has over 70 nodes in its lineage, which is what makes the distances meaningful across all of life.
 
 ## Data source
 
-All lineage data is sourced from **The Taxonomicon** (taxonomy.nl), based on *Systema Naturae 2000* by S.J. Brands (1989 onwards). The Taxonomicon provides exceptionally deep lineage resolution, substantially exceeding other programmatic sources.
-
-Please cite The Taxonomicon in any published work:
+All lineage data is sourced from **The Taxonomicon** (taxonomy.nl), based on *Systema Naturae 2000* by Sheila J. Brands (1989 onwards). Please cite this resource in any published work using `taxodist`:
 
 > Brands, S.J. (1989 onwards). *Systema Naturae 2000*. Amsterdam, The Netherlands. Retrieved from The Taxonomicon, http://taxonomicon.taxonomy.nl.
+
+## Contributing
+
+Found a taxon with an incorrect lineage? Please [open an issue](https://github.com/rodrigosqrt3/taxodist/issues),
+lineage corrections are the most valuable contribution to this package.

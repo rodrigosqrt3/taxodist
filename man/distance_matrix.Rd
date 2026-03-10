@@ -4,13 +4,10 @@
 \alias{distance_matrix}
 \title{Compute pairwise taxonomic distances for a set of taxa}
 \usage{
-distance_matrix(taxa, method = "jaccard", verbose = FALSE, progress = TRUE)
+distance_matrix(taxa, verbose = FALSE, progress = TRUE)
 }
 \arguments{
 \item{taxa}{A character vector of taxon names.}
-
-\item{method}{Character. Distance method passed to \code{\link[=taxo_distance]{taxo_distance()}}.
-One of \code{"jaccard"} (default), \code{"norm"}, or \code{"raw"}.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints progress for each pair.
 Default \code{FALSE}.}

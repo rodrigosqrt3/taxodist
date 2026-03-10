@@ -1,6 +1,6 @@
-#' @import httr
-#' @import rvest
-#' @import stringr
+#' @importFrom httr GET content status_code add_headers
+#' @importFrom rvest read_html html_nodes html_text html_attr
+#' @importFrom stringr str_remove str_remove_all str_extract str_trim
 NULL
 
 # -- Internal cache -----------------------------------------------------------
@@ -85,20 +85,10 @@ get_taxonomicon_id <- function(taxon, verbose = FALSE) {
   page <- rvest::read_html(httr::content(res, "text", encoding = "UTF-8"))
   rows <- rvest::html_nodes(page, "tr")
 
-  # biological keywords to identify valid taxon entries
-  bio_keywords <- paste(
-    "dinosaur", "reptile", "archosaur", "animal", "plant", "fungus",
-    "bacterium", "bacteria", "bird", "mammal", "fish", "insect",
-    "amphibian", "protist", "alga", "virus",
-    sep = "|"
-  )
-
   for (row in rows) {
     text  <- rvest::html_text(row, trim = TRUE)
     hrefs <- rvest::html_attr(rvest::html_nodes(row, "a"), "href")
 
-    # skip non-biological entries
-    if (!grepl(bio_keywords, text, ignore.case = TRUE)) next
     if (grepl("astronomical|planet|Minor planet|comet|asteroid",
               text, ignore.case = TRUE)) next
 
@@ -107,6 +97,11 @@ get_taxonomicon_id <- function(taxon, verbose = FALSE) {
       id <- stringr::str_remove(
         stringr::str_extract(tree_links[1], "id=([0-9]+)"), "id="
       )
+
+      # verify this is a biological entry by checking lineage root
+      candidate_lin <- get_lineage_by_id(id, clean = TRUE, verbose = FALSE)
+      if (is.null(candidate_lin) || !"Biota" %in% candidate_lin) next
+
       assign(cache_key, id, envir = .taxodist_cache)
       if (verbose) cli::cli_alert_success("Found {taxon} with ID {id}")
       return(id)
@@ -158,52 +153,69 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
     if (verbose) cli::cli_alert_info("Using cached lineage for ID {taxon_id}")
     return(get(cache_key, envir = .taxodist_cache))
   }
-
   url <- paste0(
     "http://taxonomicon.taxonomy.nl/TaxonTree.aspx?id=",
     taxon_id, "&src=0"
   )
-
   res <- tryCatch(
     httr::GET(url, httr::add_headers("User-Agent" = "taxodist R package/0.1")),
     error = function(e) NULL
   )
-
   if (is.null(res) || httr::status_code(res) != 200) {
     if (verbose) cli::cli_alert_warning("Could not retrieve lineage for ID {taxon_id}")
     return(NULL)
   }
-
   page  <- rvest::read_html(httr::content(res, "text", encoding = "UTF-8"))
-  links <- rvest::html_nodes(page, "a[href*='src=0']")
+  links <- rvest::html_nodes(page, "a[href*='TaxonTree']")
+
+  # remove navigation/menu links — these have no numeric id parameter
+  hrefs_all <- rvest::html_attr(links, "href")
+  links <- links[grepl("id=[0-9]", hrefs_all)]
+  hrefs_all <- hrefs_all[grepl("id=[0-9]", hrefs_all)]
+
+  # drop genus/species child entries
+  texts_raw <- rvest::html_text(links, trim = TRUE)
+  is_child <- grepl("^(\\[plesion.*\\] )?Genus |^(\\[plesion.*\\] )?Species |incertae sedis", texts_raw)
+  first_child <- which(is_child)[1]
+  if (!is.na(first_child)) {
+    links <- links[seq_len(first_child - 1)]
+  }
+
+  hrefs <- rvest::html_attr(links, "href")
+  own_pattern <- paste0("id=", taxon_id, "($|&)")
+  own_idx <- which(grepl(own_pattern, hrefs))
+  if (length(own_idx) > 0) {
+    links <- links[seq_len(max(own_idx))]
+  }
+
   texts <- rvest::html_text(links, trim = TRUE)
-
-  # clean rank prefixes and author strings
-  lineage <- texts %>%
-    stringr::str_remove("^(Clade |Kingdom |Phylum |Class |Order |Suborder |Infraorder |Family |Subfamily |Tribe |Subtribe |Genus |Species |Subkingdom |Infrakingdom |Superclass |Subclass |Infraclass |Superorder |Superfamily |Domain |Superkingdom |\\[crown\\] Clade )") %>%
-    stringr::str_remove("\\s+[A-Z][a-z\u00e1\u00e0\u00e2\u00e3\u00e9\u00e8\u00ea\u00ed\u00ef\u00f3\u00f4\u00f5\u00f6\u00fa\u00fc\u00e7].*$") %>%
-    stringr::str_remove("\\s+[A-Z]\\.[A-Z]\\..*$") %>%
-    stringr::str_remove("\\s+von.*$") %>%
-    stringr::str_remove_all("[\u2020\u1D40]") %>%
+  lineage <- texts |>
+    stringr::str_remove("^(Clade |Kingdom |Phylum |Class |Order |Suborder |Infraorder |Family |Subfamily |Tribe |Subtribe |Genus |Species |Subkingdom |Infrakingdom |Superclass |Subclass |Infraclass |Superorder |Superfamily |Domain |Superkingdom |\\[crown\\] Clade )") |>
+    stringr::str_remove("\\s+[A-Z][a-z\u00e1\u00e0\u00e2\u00e3\u00e9\u00e8\u00ea\u00ed\u00ef\u00f3\u00f4\u00f5\u00f6\u00fa\u00fc\u00e7].*$") |>
+    stringr::str_remove("\\s+[A-Z]\\.[A-Z]\\..*$") |>
+    stringr::str_remove("\\s+von.*$") |>
+    stringr::str_remove_all("[\u2020\u1D40]") |>
+    stringr::str_remove("\\s+\\([A-Z][a-z].*$") |>
+    stringr::str_remove("\\s+\\(\\d{4}\\).*$") |>
+    stringr::str_remove("\\s+\\[.*$") |>
+    stringr::str_remove("\\s+[A-Z]\\.$") |>
+    stringr::str_remove("\\s+\\([a-z].*$") |>
+    stringr::str_remove("^\".*") |>
     stringr::str_trim()
-
-  # remove bare rank names and empty strings
   bare_ranks <- c(
     "Subphylum", "Infraphylum", "Subfamily", "Suborder",
     "Infraorder", "Superclass", "Subclass", "Superfamily", ""
   )
   lineage <- lineage[!lineage %in% bare_ranks]
   lineage <- lineage[lineage != "" & !grepl("^\\s*$", lineage)]
-
+  lineage <- lineage[!grepl("^\"", lineage)]
+  lineage <- lineage[!grepl("^Population", lineage)]
   if (clean) {
-    # remove philosophical nodes above Biota
     phil_nodes <- c("Natura - nature", "actualia - actual entities",
                     "Mundus", "naturalia - natural bodies")
     lineage <- lineage[!lineage %in% phil_nodes]
   }
-
   if (length(lineage) == 0) return(NULL)
-
   assign(cache_key, lineage, envir = .taxodist_cache)
   lineage
 }
@@ -232,5 +244,30 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
 get_lineage <- function(taxon, clean = TRUE, verbose = FALSE) {
   id <- get_taxonomicon_id(taxon, verbose = verbose)
   if (is.null(id)) return(NULL)
-  get_lineage_by_id(id, clean = clean, verbose = verbose)
+  lineage <- get_lineage_by_id(id, clean = clean, verbose = verbose)
+  if (is.null(lineage)) return(NULL)
+
+  if (!grepl("\\s", taxon)) {
+    lineage <- lineage[!grepl(" ", lineage)]
+    lineage <- lineage[!grepl("^\\[", lineage)]
+    # truncate at taxon if present, otherwise append it
+    target_idx <- which(lineage == taxon)
+    if (length(target_idx) > 0) {
+      lineage <- lineage[seq_len(target_idx[length(target_idx)])]
+    } else {
+      lineage <- c(lineage, taxon)
+    }
+  } else {
+    lineage <- lineage[!grepl(" ", lineage) | lineage == taxon]
+    target_idx <- which(lineage == taxon)
+    if (length(target_idx) > 0) {
+      lineage <- lineage[seq_len(target_idx[1])]
+    } else {
+      lineage <- c(lineage, taxon) # nocov
+    }
+  }
+
+  if (length(lineage) == 0) return(NULL) # nocov
+  lineage
 }
+

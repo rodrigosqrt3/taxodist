@@ -4,16 +4,13 @@
 \alias{closest_relative}
 \title{Find the closest relative of a taxon among a set of candidates}
 \usage{
-closest_relative(taxon, candidates, method = "jaccard", verbose = FALSE)
+closest_relative(taxon, candidates, verbose = FALSE)
 }
 \arguments{
 \item{taxon}{A character string giving the query taxon name.}
 
 \item{candidates}{A character vector of candidate taxon names to compare
 against.}
-
-\item{method}{Character. Distance method passed to \code{\link[=taxo_distance]{taxo_distance()}}.
-One of \code{"jaccard"} (default), \code{"norm"}, or \code{"raw"}.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages. Default \code{FALSE}.}
 }

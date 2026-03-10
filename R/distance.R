@@ -14,9 +14,6 @@
 #'
 #' @param taxon_a A character string giving the first taxon name.
 #' @param taxon_b A character string giving the second taxon name.
-#' @param method Character. Distance method: `"jaccard"` (default, normalized
-#'   0-1), `"norm"` (raw divided by total depth, 0-1), or `"raw"` (integer
-#'   tree metric).
 #' @param verbose Logical. If `TRUE`, prints progress messages. Default `FALSE`.
 #'
 #' @return A named list with the following elements:
@@ -52,7 +49,7 @@
 #' # Distance between two oviraptorid genera
 #' taxo_distance("Nomingia", "Huanansaurus")
 #' }
-taxo_distance <- function(taxon_a, taxon_b, method = "jaccard", verbose = FALSE) {
+taxo_distance <- function(taxon_a, taxon_b, verbose = FALSE) {
   lin_a <- get_lineage(taxon_a, verbose = verbose)
   lin_b <- get_lineage(taxon_b, verbose = verbose)
 
@@ -65,7 +62,7 @@ taxo_distance <- function(taxon_a, taxon_b, method = "jaccard", verbose = FALSE)
     return(NULL)
   }
 
-  .compute_distance(lin_a, lin_b, taxon_a, taxon_b, method = method)
+  .compute_distance(lin_a, lin_b, taxon_a, taxon_b)
 }
 
 #' Compute the most recent common ancestor of two taxa
@@ -100,8 +97,6 @@ mrca <- function(taxon_a, taxon_b, verbose = FALSE) {
 #' retrieval to minimise redundant network requests.
 #'
 #' @param taxa A character vector of taxon names.
-#' @param method Character. Distance method passed to [taxo_distance()].
-#'   One of `"jaccard"` (default), `"norm"`, or `"raw"`.
 #' @param verbose Logical. If `TRUE`, prints progress for each pair.
 #'   Default `FALSE`.
 #' @param progress Logical. If `TRUE`, shows a progress bar. Default `TRUE`.
@@ -120,34 +115,26 @@ mrca <- function(taxon_a, taxon_b, verbose = FALSE) {
 #' mat <- distance_matrix(theropods)
 #' print(mat)
 #' }
-distance_matrix <- function(taxa, method = "jaccard", verbose = FALSE, progress = TRUE) {
+distance_matrix <- function(taxa, verbose = FALSE, progress = TRUE) {
   n <- length(taxa)
   mat <- matrix(NA_real_, nrow = n, ncol = n,
                 dimnames = list(taxa, taxa))
   diag(mat) <- 0
 
-  # pre-fetch all lineages in parallel
-  if (progress) cli::cli_alert_info("Fetching {n} lineages in parallel...")
-  oplan <- future::plan(future::multisession)
-  on.exit(future::plan(oplan), add = TRUE)
-
-  lineages <- furrr::future_map(
-    taxa,
-    function(t) get_lineage(t, verbose = verbose),
-    .options = furrr::furrr_options(seed = NULL)
-  )
+  # fetch lineages sequentially in main process (cache is shared)
+  if (progress) cli::cli_alert_info("Fetching {n} lineages...")
+  lineages <- lapply(taxa, function(t) get_lineage(t, verbose = verbose))
   names(lineages) <- taxa
   if (progress) cli::cli_alert_success("Lineages fetched.")
 
   # compute pairwise distances
   total_pairs <- n * (n - 1) / 2
   if (progress) cli::cli_progress_bar("Computing distances", total = total_pairs)
-
   for (i in seq_len(n - 1)) {
     for (j in (i + 1):n) {
       if (!is.null(lineages[[i]]) && !is.null(lineages[[j]])) {
         result <- .compute_distance(
-          lineages[[i]], lineages[[j]], taxa[i], taxa[j], method = method
+          lineages[[i]], lineages[[j]], taxa[i], taxa[j]
         )
         mat[i, j] <- mat[j, i] <- result$distance
       }
@@ -155,7 +142,6 @@ distance_matrix <- function(taxa, method = "jaccard", verbose = FALSE, progress 
     }
   }
   if (progress) cli::cli_progress_done()
-
   stats::as.dist(mat)
 }
 
@@ -167,8 +153,6 @@ distance_matrix <- function(taxa, method = "jaccard", verbose = FALSE, progress 
 #' @param taxon A character string giving the query taxon name.
 #' @param candidates A character vector of candidate taxon names to compare
 #'   against.
-#' @param method Character. Distance method passed to [taxo_distance()].
-#'   One of `"jaccard"` (default), `"norm"`, or `"raw"`.
 #' @param verbose Logical. If `TRUE`, prints progress messages. Default `FALSE`.
 #'
 #' @return A data frame with columns `taxon` (candidate name) and `distance`
@@ -181,28 +165,23 @@ distance_matrix <- function(taxa, method = "jaccard", verbose = FALSE, progress 
 #' closest_relative("Tyrannosaurus",
 #'   c("Velociraptor", "Triceratops", "Brachiosaurus", "Allosaurus"))
 #' }
-closest_relative <- function(taxon, candidates, method = "jaccard", verbose = FALSE) {
+closest_relative <- function(taxon, candidates, verbose = FALSE) {
   query_lin <- get_lineage(taxon, verbose = verbose)
   if (is.null(query_lin)) {
     cli::cli_alert_danger("Could not retrieve lineage for {taxon}")
     return(NULL)
   }
 
-  oplan <- future::plan(future::multisession)
-  on.exit(future::plan(oplan), add = TRUE)
-
-  results <- do.call(rbind, furrr::future_map(
+  results <- do.call(rbind, purrr::map(
     candidates,
     function(cand) {
       cand_lin <- get_lineage(cand, verbose = verbose)
       if (is.null(cand_lin)) {
         return(data.frame(taxon = cand, distance = NA_real_))
       }
-      dist_result <- .compute_distance(query_lin, cand_lin, taxon, cand,
-                                       method = method)
+      dist_result <- .compute_distance(query_lin, cand_lin, taxon, cand)
       data.frame(taxon = cand, distance = dist_result$distance)
-    },
-    .options = furrr::furrr_options(seed = NULL)
+    }
   ))
 
   results[order(results$distance, na.last = TRUE), ]
@@ -259,42 +238,40 @@ check_coverage <- function(taxa, verbose = FALSE) {
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 #' @keywords internal
-.compute_distance <- function(lin_a, lin_b, name_a = "A", name_b = "B",
-                               method = "jaccard") {
-  # find longest common prefix (MRCA)
-  min_len    <- min(length(lin_a), length(lin_b))
-  mrca_depth <- 0L
+.compute_distance <- function(lin_a, lin_b, name_a = "A", name_b = "B") {
+  depth_a <- length(lin_a)
+  depth_b <- length(lin_b)
 
-  for (i in seq_len(min_len)) {
-    if (lin_a[i] == lin_b[i]) {
-      mrca_depth <- i
-    } else {
-      break
-    }
+  # find deepest shared node (MRCA) using set intersection
+  shared <- intersect(lin_a, lin_b)
+
+  if (length(shared) == 0) {
+    return(structure(list(
+      distance   = Inf,
+      mrca       = NA_character_,
+      mrca_depth = 0L,
+      depth_a    = depth_a,
+      depth_b    = depth_b,
+      taxon_a    = name_a,
+      taxon_b    = name_b
+    ), class = "taxodist_result"))
   }
 
-  depth_a   <- length(lin_a)
-  depth_b   <- length(lin_b)
-  mrca_name <- if (mrca_depth > 0L) lin_a[mrca_depth] else NA_character_
-  d_raw     <- depth_a + depth_b - 2L * mrca_depth
+  # find position of each shared node in lin_a, take the deepest
+  positions_in_a <- match(shared, lin_a)
+  mrca_idx       <- which.max(positions_in_a)
+  mrca_depth     <- positions_in_a[mrca_idx]
+  mrca_name      <- lin_a[mrca_depth]
+  is_ancestral <- (mrca_name == lin_a[depth_a]) || (mrca_name == lin_b[depth_b])
+  distance <- if (is_ancestral) 0 else 1 / mrca_depth
 
-  distance <- switch(method,
-    raw     = d_raw,
-    norm    = d_raw / (depth_a + depth_b),
-    jaccard = 1 - mrca_depth / (depth_a + depth_b - mrca_depth),
-    stop("method must be 'raw', 'norm', or 'jaccard'")
-  )
-
-  result <- list(
+  structure(list(
     distance   = distance,
-    method     = method,
     mrca       = mrca_name,
     mrca_depth = mrca_depth,
     depth_a    = depth_a,
     depth_b    = depth_b,
     taxon_a    = name_a,
     taxon_b    = name_b
-  )
-  class(result) <- "taxodist_result"
-  result
+  ), class = "taxodist_result")
 }

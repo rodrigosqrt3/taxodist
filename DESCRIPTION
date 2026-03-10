@@ -8,28 +8,27 @@ Maintainer: Rodrigo Fonseca Villa <rodrigo03.villa@gmail.com>
 Description: Computes phylogenetic distances between any two taxa using 
     hierarchical lineage data retrieved from The Taxonomicon 
     (taxonomy.nl), a comprehensive curated classification of all life 
-    based on Systema Naturae 2000. Given any two taxon names, taxodist 
-    retrieves their full lineages, identifies their most recent common 
-    ancestor (MRCA), and computes a tree metric satisfying the 
-    triangle inequality. Functions support individual distance queries, 
-    pairwise distance matrices, clade filtering, and lineage 
-    visualization. Coverage spans all of Biota with particular depth 
-    for Dinosauria and other well-studied clades.
-License: CC BY-NC 4.0
+    based on Systema Naturae 2000 (Brands 1989). Given any two taxon 
+    names, retrieves their full lineages, identifies the most recent 
+    common ancestor (MRCA), and computes a dissimilarity index based on 
+    the depth of the most recent common ancestor. Supports individual 
+    distance queries, pairwise distance matrices, clade filtering, and 
+    lineage utilities. Coverage spans all of Biota with particular depth 
+    for well-studied clades.
+License: GPL-3
 URL: https://github.com/rodrigosqrt3/taxodist
 BugReports: https://github.com/rodrigosqrt3/taxodist/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
+SystemRequirements: internet access
 Depends:
-    R (>= 4.0.0)
+    R (>= 4.1.0)
 Imports:
     httr (>= 1.4.0),
     rvest (>= 1.0.0),
     stringr (>= 1.4.0),
     purrr (>= 0.3.0),
-    furrr (>= 0.3.0),
-    future (>= 1.20.0),
     cli (>= 3.0.0),
     utils,
     stats
@@ -38,7 +37,7 @@ Suggests:
     mockery,
     knitr,
     rmarkdown,
-    ggplot2,
-    igraph
+    xml2,
+    ape
 VignetteBuilder: knitr
 Config/testthat/edition: 3

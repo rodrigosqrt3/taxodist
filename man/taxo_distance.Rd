@@ -4,16 +4,12 @@
 \alias{taxo_distance}
 \title{Compute the phylogenetic distance between two taxa}
 \usage{
-taxo_distance(taxon_a, taxon_b, method = "jaccard", verbose = FALSE)
+taxo_distance(taxon_a, taxon_b, verbose = FALSE)
 }
 \arguments{
 \item{taxon_a}{A character string giving the first taxon name.}
 
 \item{taxon_b}{A character string giving the second taxon name.}
-
-\item{method}{Character. Distance method: \code{"jaccard"} (default, normalized
-0-1), \code{"norm"} (raw divided by total depth, 0-1), or \code{"raw"} (integer
-tree metric).}
 
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages. Default \code{FALSE}.}
 }

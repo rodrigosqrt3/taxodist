@@ -130,7 +130,7 @@ shared_clades <- function(taxon_a, taxon_b, verbose = FALSE) {
 is_member <- function(taxon, clade, verbose = FALSE) {
   lin <- get_lineage(taxon, verbose = verbose)
   if (is.null(lin)) return(NULL)
-  clade %in% lin
+  any(grepl(paste0("^", clade), lin, ignore.case = TRUE))
 }
 
 #' Filter a vector of taxa to those belonging to a given clade
