@@ -46,6 +46,8 @@ jobs:
           extra-packages: any::covr, any::xml2
           needs: coverage
       - name: Test coverage
+        env:
+          TAXODIST_NETWORK_TESTS: true
         run: |
           cov <- covr::package_coverage(
             quiet = FALSE,
