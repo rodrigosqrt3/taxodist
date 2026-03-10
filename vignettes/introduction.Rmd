@@ -16,22 +16,50 @@ knitr::opts_chunk$set(
 library(taxodist)
 ```
 
-## Overview
+## What is taxodist?
 
-`taxodist` computes phylogenetic distances between any two taxa using
-hierarchical lineage data from [The Taxonomicon](http://taxonomicon.taxonomy.nl),
-a comprehensive curated classification of all life based on *Systema Naturae 2000*
-(Brands, 1989 onwards).
+`taxodist` answers a simple question: *how related are any two living things?*
 
-The default distance metric is the Jaccard-based taxonomic distance:
+Given any two taxon names, a pair of dinosaurs, a dinosaur and a fungus, two
+species of fly, or an oak tree and a human, `taxodist` retrieves their full
+hierarchical lineages from [The Taxonomicon](http://taxonomicon.taxonomy.nl) and
+computes a dissimilarity index between them.
 
-$$d_{jaccard}(A, B) = 1 - \frac{\text{depth}(\text{MRCA}(A,B))}{\text{depth}(A) + \text{depth}(B) - \text{depth}(\text{MRCA}(A,B))}$$
+The Taxonomicon is based on *Systema Naturae 2000* (Brands, 1989 onwards) and
+provides exceptionally deep lineage resolution, substantially exceeding other programmatic sources.
 
-This returns a value between 0 (identical lineages) and 1 (no shared ancestry
-beyond root), normalized for lineage depth so that deeply resolved taxa such as
-mammals are not penalized relative to shallowly resolved ones. Three methods
-are available via the `method` argument: `"jaccard"` (default), `"norm"`, and
-`"raw"`.
+Searches work at any taxonomic level: genus, species, family, order, or
+any clade. Both `"Tyrannosaurus"` and `"Tyrannosaurus rex"` are valid inputs, as
+are `"Drosophila melanogaster"`, `"Homo sapiens"`, or `"Araucaria angustifolia"`.
+
+---
+
+## The distance metric
+
+`taxodist` measures how related two taxa are by asking a single question:
+*how deep is their most recent common ancestor?*
+
+$$d(A, B) = \frac{1}{\text{depth}(\text{MRCA}(A,B))}$$
+
+The deeper the shared ancestor, the smaller the distance, meaning the more
+related the two taxa are. A shallow MRCA (close to the root) means the two
+taxa diverged early and are distantly related; a deep MRCA means they share
+a long common history and are closely related.
+
+This has a key property: taxa that diverged at the same point
+in the tree are always equidistant from any third taxon, regardless of how
+many nodes each has in its lineage below the split. For example:
+
+- *Tyrannosaurus* and *Velociraptor* are both Tetanurae: they diverged from
+  *Carnotaurus* (Ceratosauria) at the same node (Averostra), so both have
+  exactly the same distance to Carnotaurus;
+  
+- All dinosaurs diverged from the mammal lineage at the same
+  node (Amniota), so *Homo sapiens* is equally distant from *Tyrannosaurus*, *Triceratops*, *Carnotaurus* and *Cyanocorax*.
+
+The distance is not bounded to $[0, 1]$, it depends on the depth of the
+MRCA in The Taxonomicon's classification. Deeper, more finely resolved
+clades will have smaller distances between their members.
 
 ---
 
@@ -41,7 +69,18 @@ are available via the `method` argument: `"jaccard"` (default), `"norm"`, and
 
 ```{r lineage}
 lin <- get_lineage("Tyrannosaurus")
-print(lin)
+tail(lin, 8)
+#> [1] "Avetheropoda"     "Coelurosauria"    "Tyrannoraptora"   "Tyrannosauroidea"
+#> [5] "Tyrannosauridae"  "Tyrannosaurinae"  "Tyrannosaurini"   "Tyrannosaurus" 
+```
+
+Species-level searches also work:
+
+```{r lineage-species}
+lin <- get_lineage("Drosophila melanogaster")
+tail(lin, 4)
+#> [1] "Ephydroidea"             "Drosophilidae"           "Drosophilinae"          
+#> [4] "Drosophila melanogaster"
 ```
 
 ### Computing distance between two taxa
@@ -49,14 +88,32 @@ print(lin)
 ```{r distance}
 result <- taxo_distance("Tyrannosaurus", "Velociraptor")
 print(result)
+#> -- Taxonomic Distance --
+#> 
+#> * Tyrannosaurus vs Velociraptor
+#>   Distance : 0.0153846153846154
+#>   MRCA : Tyrannoraptora (depth 65)
+#>   Depth A : 70
+#>   Depth B : 73
+```
+
+The distance between a dinosaur and a mammal or a bacteria and a human is larger:
+
+```{r distance-far}
+taxo_distance("Tyrannosaurus", "Homo")$distance        # 0.02777778
+taxo_distance("Tyrannosaurus", "Drosophila")$distance  # 0.06666667
+taxo_distance("Tyrannosaurus", "Quercus")$distance     # 0.25
+taxo_distance("Escherichia", "Homo")$distance          # 1
 ```
 
 ### Finding the most recent common ancestor
 
 ```{r mrca}
-mrca("Tyrannosaurus", "Triceratops")   # Dinosauria
-mrca("Tyrannosaurus", "Homo")          # Amniota
-mrca("Tyrannosaurus", "Quercus")       # discaria
+mrca("Tyrannosaurus", "Velociraptor")  # "Tyrannoraptora"
+mrca("Tyrannosaurus", "Triceratops")   # "Dinosauria"
+mrca("Tyrannosaurus", "Homo")          # "Amniota"
+mrca("Tyrannosaurus", "Drosophila")    # "Nephrozoa"
+mrca("Tyrannosaurus", "Quercus")       # "discaria"
 ```
 
 ---
@@ -66,20 +123,42 @@ mrca("Tyrannosaurus", "Quercus")       # discaria
 ### Pairwise distance matrix
 
 ```{r matrix}
-theropods <- c("Tyrannosaurus", "Velociraptor", "Spinosaurus",
-               "Allosaurus", "Carnotaurus")
-
-mat <- distance_matrix(theropods)
+taxa <- c("Tyrannosaurus", "Carnotaurus", "Velociraptor",
+          "Triceratops", "Homo", "Drosophila melanogaster")
+mat <- distance_matrix(taxa)
 print(mat)
+
+#>                         Tyrannosaurus Carnotaurus Velociraptor Triceratops       Homo
+#> Carnotaurus                0.01666667                                                
+#> Velociraptor               0.01538462  0.01666667                                    
+#> Triceratops                0.01818182  0.01818182   0.01818182                       
+#> Homo                       0.02777778  0.02777778   0.02777778  0.02777778           
+#> Drosophila melanogaster    0.06666667  0.06666667   0.06666667  0.06666667 0.06666667
+```
+
+The matrix is symmetric with zeros on the diagonal. Taxa are ordered so that
+closely related pairs appear near each other when clustered:
+
+```{r cluster}
+tree <- ape::as.phylo(hclust(mat, method = "average"))
+plot(tree, main = "Taxonomic clustering")
 ```
 
 ### Finding the closest relative
 
 ```{r closest}
 closest_relative(
-  "Tyrannosaurus",
-  c("Velociraptor", "Triceratops", "Brachiosaurus", "Allosaurus")
+  "Carnotaurus",
+  c("Aucasaurus", "Velociraptor", "Triceratops",
+    "Brachiosaurus", "Homo sapiens", "Apis mellifera")
 )
+#>            taxon   distance
+#> 1     Aucasaurus 0.01515152
+#> 2   Velociraptor 0.01666667
+#> 4  Brachiosaurus 0.01754386
+#> 3    Triceratops 0.01818182
+#> 5   Homo sapiens 0.02777778
+#> 6 Apis mellifera 0.06666667
 ```
 
 ---
@@ -89,51 +168,105 @@ closest_relative(
 ### Comparing lineages side by side
 
 ```{r compare}
-compare_lineages("Tyrannosaurus", "Triceratops")
+compare_lineages("Carnotaurus", "Tyrannosaurus")
+#> -- Lineage Comparison --
+#> MRCA: Averostra at depth 60
+#>
+#> Shared lineage (60 nodes):
+#>   Biota ... Theropoda
+#>
+#> Carnotaurus only (7 nodes):
+#> Ceratosauria
+#> Neoceratosauria
+#> Abelisauroidea
+#> Abelisauria
+#> Abelisauridae
+#> Carnotaurinae
+#> Carnotaurus
+#>
+#> Tyrannosaurus only (10 nodes):
+#> Tetanurae
+#> Orionides
+#> ...
 ```
 
 ### Listing shared clades
 
 ```{r shared}
-shared_clades("Tyrannosaurus", "Velociraptor")
+# what do a fly and a beetle have in common?
+shared_clades("Drosophila melanogaster", "Tribolium castaneum")
+# returns their shared lineage from Biota down to their MRCA
+
+# what do T. rex and a rose share?
+shared_clades("Tyrannosaurus rex", "Rosa agrestis")
 ```
 
 ### Testing clade membership
 
 ```{r membership}
-is_member("Tyrannosaurus", "Theropoda")    # TRUE
-is_member("Triceratops",   "Theropoda")    # FALSE
-is_member("Homo",          "Amniota")      # TRUE
+is_member("Tyrannosaurus", "Theropoda")          # TRUE
+is_member("Carnotaurus", "Abelisauridae")        # TRUE
+is_member("Triceratops", "Theropoda")            # FALSE
+is_member("Homo sapiens", "Amniota")             # TRUE
+is_member("Drosophila melanogaster", "Insecta")  # TRUE
+is_member("Quercus robur", "Animalia")           # FALSE
 ```
 
 ### Filtering a list of taxa by clade
 
 ```{r filter}
-taxa <- c("Tyrannosaurus", "Triceratops", "Velociraptor",
-          "Brachiosaurus", "Homo", "Quercus")
+taxa <- c("Tyrannosaurus", "Carnotaurus", "Triceratops",
+          "Velociraptor", "Homo sapiens", "Drosophila melanogaster",
+          "Quercus robur", "Saccharomyces cerevisiae")
 
 filter_clade(taxa, "Dinosauria")
+#> [1] "Tyrannosaurus" "Carnotaurus"   "Triceratops"   "Velociraptor"
+
 filter_clade(taxa, "Theropoda")
+#> [1] "Tyrannosaurus" "Carnotaurus"   "Velociraptor"
+
+filter_clade(taxa, "Animalia")
+#> [1] "Tyrannosaurus"          "Carnotaurus"
+#> [3] "Triceratops"            "Velociraptor"
+#> [5] "Homo sapiens"           "Drosophila melanogaster"
 ```
 
 ---
 
 ## Coverage and caching
 
-### Checking coverage
+### Checking coverage before a large run
 
 ```{r coverage}
-check_coverage(c("Tyrannosaurus", "Velociraptor", "Fakeosaurus"))
+taxa <- c("Tyrannosaurus", "Velociraptor", "Apis mellifera", "Fakeosaurus")
+check_coverage(taxa)
+#>  Tyrannosaurus  Velociraptor  Apis mellifera    Fakeosaurus
+#>           TRUE          TRUE            TRUE          FALSE
 ```
+
+Use `check_coverage()` to pre-screen a list before running `distance_matrix()`
+on a large dataset — taxa that return `FALSE` will produce `NA` distances.
 
 ### Caching
 
 Lineages are automatically cached in memory during an R session to avoid
-redundant network requests. Clear the cache with:
+redundant network requests. This means the second call to `get_lineage()` for
+the same taxon is instantaneous. Clear the cache with:
 
 ```{r cache}
 clear_cache()
 ```
+
+---
+
+## A note on lineage depth
+
+The Taxonomicon provides substantially deeper lineage resolution than most
+other programmatic sources. For example, *Tyrannosaurus* has 70 nodes
+in its lineage, capturing intermediate clades at the level of superfamilies,
+tribes, and named subclades that are absent from most sources. This depth is 
+what makes the distance metric meaningful, shallower sources would produce 
+coarser distances that conflate distantly related groups.
 
 ---
 
