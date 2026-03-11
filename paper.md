@@ -55,10 +55,7 @@ standard tool for phylogenetic analysis in R, but requires a formal `phylo`
 object constructed from sequence data or a pre-existing tree. `taxize`
 [@chamberlain2013] provides programmatic access to multiple taxonomic
 databases and can retrieve lineage information, but does not compute pairwise
-dissimilarity indices directly. The Open Tree of Life API [@hinchliff2015]
-offers a synthetic phylogeny covering all life, but its lineage resolution is
-substantially shallower than The Taxonomicon for many clades, particularly
-fossil groups.
+dissimilarity indices directly. 
 
 `taxodist` differs from these tools in two key ways. First, it requires no
 pre-built tree: distances are computed directly from hierarchical lineage
@@ -124,4 +121,5 @@ decades of dedicated work on *Systema Naturae 2000*. This work received no
 financial support.
 
 # References
+
 
