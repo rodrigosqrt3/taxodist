@@ -45,7 +45,7 @@ $$d(A, B) = \frac{1}{\text{depth}(\text{MRCA}(A, B))}$$
 
 The deeper the shared ancestor, the smaller the distance and the more related the two taxa are. A shallow MRCA means the two taxa diverged early; a deep MRCA means they share a long common history. The metric returns 0 when one taxon is ancestral to the other, and satisfies the triangle inequality.
 
-The Taxonomicon provides substantially deeper lineage resolution than other programmatic sources, e.g., `Tyrannosaurus` has over 70 nodes in its lineage, which is what makes the distances meaningful across all of life.
+The Taxonomicon provides substantially deeper lineage resolution than other programmatic sources, e.g., *Tyrannosaurus* has over 70 nodes in its lineage, which is what makes the distances meaningful across all of life.
 
 ## Data source
 
@@ -57,4 +57,5 @@ All lineage data is sourced from **The Taxonomicon** (taxonomy.nl), based on *Sy
 
 Found a taxon with an incorrect lineage? Please [open an issue](https://github.com/rodrigosqrt3/taxodist/issues),
 lineage corrections are the most valuable contribution to this package.
+
 
