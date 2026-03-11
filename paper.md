@@ -53,9 +53,10 @@ clades have been described below the split point. This property makes
 taxonomic resolution, such as fossil and extant clades.
 
 The Taxonomicon provides substantially deeper lineage resolution than other
-programmatic sources such as the Open Tree of Life [@hinchliff2015], for example, the genus *Tyrannosaurus* has over 70 nodes
-in its lineage in The Taxonomicon, compared to far fewer in sources such as
-NCBI Taxonomy or the Open Tree of Life.
+programmatic sources such as the Open Tree of Life [@hinchliff2015].
+For example, the genus *Tyrannosaurus* has over 70 nodes in its lineage
+in The Taxonomicon, compared to far fewer in sources such as NCBI Taxonomy
+or the Open Tree of Life.
 
 # Methodology
 
@@ -91,4 +92,3 @@ extraordinary curated resource that makes this work possible, and for her
 decades of dedicated work on *Systema Naturae 2000*.
 
 # References
-
