@@ -108,7 +108,7 @@ coverage, and is documented with a full vignette.
 # AI Usage Disclosure
 
 Generative AI tools were used during the development of `taxodist` for iterative debugging 
-of the HTML parser, test suite development. All AI-generated code and text was 
+of the HTML parser and test suite development. All AI-generated code and text was 
 reviewed, tested, and verified by the author. The dissimilarity index, the scraping 
 architecture, and the scientific design decisions are the author's own. No AI-generated 
 content was used without verification against primary sources or direct empirical testing.
@@ -121,5 +121,6 @@ decades of dedicated work on *Systema Naturae 2000*. This work received no
 financial support.
 
 # References
+
 
 
