@@ -22,8 +22,8 @@ bibliography: paper.bib
 `taxodist` is an R package that computes dissimilarity indices between any two
 taxa using hierarchical lineage data retrieved from The Taxonomicon
 [@brands1989], a comprehensive curated classification of all life based on
-*Systema Naturae 2000*. Given any two taxon names, at any taxonomic level,
-from species to order, `taxodist` retrieves their full lineages, identifies
+*Systema Naturae 2000*. Given any two taxon names — at any taxonomic level,
+from species to order — `taxodist` retrieves their full lineages, identifies
 their most recent common ancestor (MRCA), and returns a dissimilarity index
 reflecting their shared evolutionary history. The package supports individual
 distance queries, pairwise distance matrices, clade membership testing,
@@ -45,50 +45,90 @@ formal phylogeny or rely on manual inspection of lineage data.
 `taxodist` fills this gap by providing a lightweight, tree-free interface for
 taxonomic distance computation. It requires only taxon names as input and
 returns a dissimilarity index that correctly reflects the depth of shared
-ancestry. Crucially, the index used by `taxodist` is independent of
-post-divergence lineage resolution: two taxa that diverged at the same node are
-always equidistant from any third taxon, regardless of how many intermediate
-clades have been described below the split point. This property makes
-`taxodist` particularly well-suited for comparisons across groups with uneven
-taxonomic resolution, such as fossil and extant clades.
+ancestry. The package is particularly useful for exploratory analyses,
+educational contexts, and research in paleontology and macroecology where
+formal phylogenetic trees may not be available or necessary.
 
-The Taxonomicon provides substantially deeper lineage resolution than other
-programmatic sources such as the Open Tree of Life [@hinchliff2015].
-For example, the genus *Tyrannosaurus* has over 70 nodes in its lineage
-in The Taxonomicon, compared to far fewer in sources such as NCBI Taxonomy
-or the Open Tree of Life.
+# State of the Field
 
-# Methodology
+Several R packages address related needs. `ape` [@paradis2004] is the
+standard tool for phylogenetic analysis in R, but requires a formal `phylo`
+object constructed from sequence data or a pre-existing tree. `taxize`
+[@chamberlain2013] provides programmatic access to multiple taxonomic
+databases and can retrieve lineage information, but does not compute pairwise
+dissimilarity indices directly. The Open Tree of Life API [@hinchliff2015]
+offers a synthetic phylogeny covering all life, but its lineage resolution is
+substantially shallower than The Taxonomicon for many clades, particularly
+fossil groups.
 
-For two taxa A and B with lineages $L_A$ and $L_B$ ordered from root to tip,
-`taxodist` identifies the most recent common ancestor as the deepest node
-shared by both lineages:
+`taxodist` differs from these tools in two key ways. First, it requires no
+pre-built tree — distances are computed directly from hierarchical lineage
+strings retrieved at query time. Second, it uses The Taxonomicon as its data
+source, which provides substantially deeper lineage resolution than other
+programmatic sources. For example, the genus *Tyrannosaurus* has over 70
+nodes in its lineage in The Taxonomicon, capturing intermediate clades at
+the level of superfamilies, tribes, and named subclades that are absent from
+sources such as NCBI Taxonomy or the Open Tree of Life. This depth makes the
+dissimilarity index meaningful for fine-grained comparisons within
+well-studied clades.
 
-$$\text{MRCA}(A, B) = \underset{n \,\in\, L_A \cap L_B}{\arg\max}\; \text{depth}(n)$$
+# Software Design
 
-The dissimilarity index is then defined as:
+The core design decision in `taxodist` was to define a dissimilarity index
+based solely on the depth of the MRCA, rather than on the full path length
+between taxa:
 
 $$d(A, B) = \frac{1}{\text{depth}(\text{MRCA}(A, B))}$$
 
-where depth is measured as the position of the MRCA node in the lineage ordered
-from root to tip. The index returns 0 when one taxon is directly ancestral to
-the other, and decreases toward 0 as the MRCA becomes deeper (more recent
-in the classification hierarchy). When two taxa share only the root node Biota
-at depth 1, the index returns its maximum value of 1. The index is symmetric
-and respects the intuition that more deeply nested shared ancestry implies
-greater relatedness.
+This choice was made deliberately to achieve independence from post-divergence
+lineage resolution. A path-length metric — counting edges between two taxa on
+the tree — penalises taxa whose lineages are more finely resolved, producing
+artifactually larger distances for well-studied groups. The MRCA-depth index
+avoids this: two taxa that diverged at the same node are always equidistant
+from any third taxon, regardless of how many intermediate clades have been
+described below the split point.
 
-Lineages are retrieved by querying The Taxonomicon's web interface and parsing
-the resulting HTML. The parser filters navigation elements and *incertae sedis*
-child taxa that appear in the page alongside the true ancestor chain, ensuring
-that only genuine ancestral nodes are included in the lineage. A session-level
-cache prevents redundant network requests when the same taxon is queried
-multiple times within an R session.
+The tradeoff is that the index is a dissimilarity measure rather than a
+formal metric in the mathematical sense, as the triangle inequality is not
+guaranteed for all possible lineage configurations. This is documented
+explicitly in the package.
+
+A session-level in-memory cache is used to avoid redundant network requests.
+Lineage retrieval involves HTML parsing of The Taxonomicon's tree pages, which
+required careful handling of navigation elements, *incertae sedis* child taxa,
+and rank-prefix strings that appear alongside the true ancestor chain. The
+parser truncates the link list at the first child-level entry, ensuring that
+only genuine ancestral nodes are included in the returned lineage.
+
+# Research Impact Statement
+
+`taxodist` was developed to address a concrete gap identified during research
+in vertebrate paleontology and macroecology, where pairwise taxonomic
+distances between taxa from diverse groups — including extinct and extant
+clades — are needed without the overhead of constructing formal phylogenies.
+The package is currently in its initial release (version 0.1.0) and has not
+yet been cited in published work. However, it addresses a gap that is not
+filled by any existing R package, and its coverage of all of Biota — from
+bacteria to mammals to plants — makes it applicable across a wide range of
+biological disciplines. The package passes R CMD check on Windows, macOS, and
+Ubuntu across four R versions, has 100% test coverage, and is documented with
+a full vignette.
+
+# AI Usage Disclosure
+
+Generative AI tools were used during the development of `taxodist`, primarily
+for iterative debugging of the HTML parser, test suite development, and
+drafting of documentation. All AI-generated code and text was reviewed,
+tested, and verified by the author. The dissimilarity index, the scraping
+architecture, and the scientific design decisions are the author's own. No
+AI-generated content was used without verification against primary sources
+or direct empirical testing.
 
 # Acknowledgements
 
 The author thanks Sheila J. Brands for maintaining The Taxonomicon, an
 extraordinary curated resource that makes this work possible, and for her
-decades of dedicated work on *Systema Naturae 2000*.
+decades of dedicated work on *Systema Naturae 2000*. This work received no
+financial support.
 
 # References
