@@ -7,14 +7,14 @@ Authors@R: person("Rodrigo Fonseca", "Villa", email = "rodrigo03.villa@gmail.com
 Maintainer: Rodrigo Fonseca Villa <rodrigo03.villa@gmail.com>
 Description: Computes phylogenetic distances between any two taxa using 
     hierarchical lineage data retrieved from The Taxonomicon 
-    (taxonomy.nl), a comprehensive curated classification of all life 
-    based on Systema Naturae 2000 (Brands 1989). Given any two taxon 
-    names, retrieves their full lineages, identifies the most recent 
-    common ancestor (MRCA), and computes a dissimilarity index based on 
-    the depth of the most recent common ancestor. Supports individual 
-    distance queries, pairwise distance matrices, clade filtering, and 
-    lineage utilities. Coverage spans all of Biota with particular depth 
-    for well-studied clades.
+    <http://taxonomicon.taxonomy.nl>, a comprehensive curated classification 
+    of all life based on Systema Naturae 2000 (Brands, 1989 
+    <http://taxonomicon.taxonomy.nl>). Given any two taxon names, retrieves 
+    their full lineages, identifies the most recent common ancestor (MRCA), 
+    and computes a dissimilarity index based on the depth of the most recent 
+    common ancestor. Supports individual distance queries, pairwise distance 
+    matrices, clade filtering, and lineage utilities.
+Language: en-US
 License: GPL-3
 URL: https://github.com/rodrigosqrt3/taxodist
 BugReports: https://github.com/rodrigosqrt3/taxodist/issues

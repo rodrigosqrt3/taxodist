@@ -24,7 +24,7 @@ A convenience wrapper that combines \code{\link[=get_taxonomicon_id]{get_taxonom
 its complete lineage from root to tip.
 }
 \examples{
-\dontrun{
+\donttest{
 get_lineage("Tyrannosaurus")
 get_lineage("Homo sapiens")
 get_lineage("Quercus robur")

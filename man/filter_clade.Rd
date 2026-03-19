@@ -21,7 +21,7 @@ Given a vector of taxon names and a clade name, returns only those taxa
 whose lineage includes the specified clade.
 }
 \examples{
-\dontrun{
+\donttest{
 taxa <- c("Tyrannosaurus", "Triceratops", "Velociraptor",
           "Brachiosaurus", "Homo")
 filter_clade(taxa, "Theropoda")

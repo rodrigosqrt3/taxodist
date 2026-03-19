@@ -2,6 +2,7 @@
 #'
 #' @param x A list returned by [taxo_distance()].
 #' @param ... Additional arguments (ignored).
+#' @return Invisibly returns \code{x}. Called for side effects (printing).
 #' @export
 print.taxodist_result <- function(x, ...) {
   cli::cli_h2("Taxonomic Distance")
@@ -29,7 +30,7 @@ print.taxodist_result <- function(x, ...) {
 #'
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' compare_lineages("Tyrannosaurus", "Velociraptor")
 #' compare_lineages("Tyrannosaurus", "Triceratops")
 #' }
@@ -95,7 +96,7 @@ compare_lineages <- function(taxon_a, taxon_b, verbose = FALSE) {
 #'
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' shared_clades("Tyrannosaurus", "Velociraptor")
 #' shared_clades("Tyrannosaurus", "Homo")
 #' }
@@ -122,7 +123,7 @@ shared_clades <- function(taxon_a, taxon_b, verbose = FALSE) {
 #'
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' is_member("Tyrannosaurus", "Theropoda")    # TRUE
 #' is_member("Triceratops", "Theropoda")      # FALSE
 #' is_member("Homo", "Amniota")               # TRUE
@@ -146,7 +147,7 @@ is_member <- function(taxon, clade, verbose = FALSE) {
 #'
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' taxa <- c("Tyrannosaurus", "Triceratops", "Velociraptor",
 #'           "Brachiosaurus", "Homo")
 #' filter_clade(taxa, "Theropoda")

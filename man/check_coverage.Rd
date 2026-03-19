@@ -21,7 +21,7 @@ whether the taxon was found. Useful for pre-screening a list of names
 before running distance computations.
 }
 \examples{
-\dontrun{
+\donttest{
 check_coverage(c("Tyrannosaurus", "Velociraptor", "Fakeosaurus"))
 }
 }

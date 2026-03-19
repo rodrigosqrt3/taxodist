@@ -15,7 +15,7 @@ NULL
 #' @return Invisibly returns `NULL`.
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' clear_cache()
 #' }
 clear_cache <- function() {
@@ -52,7 +52,7 @@ clear_cache <- function() {
 #'
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' get_taxonomicon_id("Tyrannosaurus")   # returns "50841"
 #' get_taxonomicon_id("Homo")
 #' get_taxonomicon_id("Quercus")
@@ -142,7 +142,7 @@ get_taxonomicon_id <- function(taxon, verbose = FALSE) {
 #'
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' id <- get_taxonomicon_id("Tyrannosaurus")
 #' lin <- get_lineage_by_id(id)
 #' print(lin)
@@ -236,7 +236,7 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
 #'
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' get_lineage("Tyrannosaurus")
 #' get_lineage("Homo sapiens")
 #' get_lineage("Quercus robur")

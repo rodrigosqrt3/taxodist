@@ -20,7 +20,7 @@ Returns the number of nodes in the lineage of a taxon, from root to tip.
 This reflects how deeply nested the taxon is within the taxonomic hierarchy.
 }
 \examples{
-\dontrun{
+\donttest{
 lineage_depth("Tyrannosaurus")   # deep — many intermediate clades
 lineage_depth("Biota")           # shallow — near root
 }

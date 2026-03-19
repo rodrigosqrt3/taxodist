@@ -14,11 +14,10 @@ taxo_distance(taxon_a, taxon_b, verbose = FALSE)
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages. Default \code{FALSE}.}
 }
 \value{
-A named list with the following elements:
+A named list of class \code{"taxodist_result"} with the following elements:
 \describe{
-\item{\code{distance}}{Numeric. The distance between the two taxa (0-1 for
-jaccard/norm, integer for raw).}
-\item{\code{method}}{Character. The method used.}
+\item{\code{distance}}{Numeric. The distance between the two taxa. Returns 0
+if one taxon is an ancestor of the other.}
 \item{\code{mrca}}{Character. The name of the most recent common ancestor.}
 \item{\code{mrca_depth}}{Integer. The depth of the MRCA node.}
 \item{\code{depth_a}}{Integer. The lineage depth of taxon A.}
@@ -30,20 +29,19 @@ Returns \code{NULL} if either taxon cannot be found.
 }
 \description{
 Given two taxon names, retrieves their lineages from The Taxonomicon and
-computes a normalized taxonomic distance. The default method is the
-Jaccard-based distance:
+computes a taxonomic distance based on the depth of their most recent
+common ancestor (MRCA):
 }
 \details{
-\deqn{d_{jaccard}(A, B) = 1 - \frac{\text{depth}(\text{MRCA}(A,B))}
-{\text{depth}(A) + \text{depth}(B) - \text{depth}(\text{MRCA}(A,B))}}
+\deqn{d(A, B) = \frac{1}{\text{depth}(\text{MRCA}(A,B))}}
 
-This returns a value in \eqn{[0,1]}, normalized for lineage depth so that
-deeply resolved taxa such as mammals are not penalized relative to shallowly
-resolved ones. The underlying raw metric satisfies the triangle inequality
-\eqn{d(A,C) \leq d(A,B) + d(B,C)}.
+The deeper the shared ancestor, the smaller (closer to zero) the distance.
+This metric ensures that taxa diverging at the same node are always
+equidistant from any third taxon, regardless of lineage depth differences
+below the split.
 }
 \examples{
-\dontrun{
+\donttest{
 # Distance between two theropods
 taxo_distance("Tyrannosaurus", "Velociraptor")
 

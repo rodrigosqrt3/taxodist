@@ -37,7 +37,7 @@
 #'
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' # Distance between two theropods
 #' taxo_distance("Tyrannosaurus", "Velociraptor")
 #'
@@ -77,7 +77,7 @@ taxo_distance <- function(taxon_a, taxon_b, verbose = FALSE) {
 #'
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' mrca("Tyrannosaurus", "Velociraptor")   # "Tyrannoraptora"
 #' mrca("Tyrannosaurus", "Triceratops")    # "Dinosauria"
 #' mrca("Tyrannosaurus", "Homo")           # "Amniota"
@@ -107,7 +107,7 @@ mrca <- function(taxon_a, taxon_b, verbose = FALSE) {
 #'
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' theropods <- c("Tyrannosaurus", "Velociraptor", "Spinosaurus",
 #'                "Allosaurus", "Carnotaurus")
 #' mat <- distance_matrix(theropods)
@@ -159,7 +159,7 @@ distance_matrix <- function(taxa, verbose = FALSE, progress = TRUE) {
 #'
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' closest_relative("Tyrannosaurus",
 #'   c("Velociraptor", "Triceratops", "Brachiosaurus", "Allosaurus"))
 #' }
@@ -198,7 +198,7 @@ closest_relative <- function(taxon, candidates, verbose = FALSE) {
 #'
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' lineage_depth("Tyrannosaurus")   # deep — many intermediate clades
 #' lineage_depth("Biota")           # shallow — near root
 #' }
@@ -222,7 +222,7 @@ lineage_depth <- function(taxon, verbose = FALSE) {
 #'
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' check_coverage(c("Tyrannosaurus", "Velociraptor", "Fakeosaurus"))
 #' }
 check_coverage <- function(taxa, verbose = FALSE) {

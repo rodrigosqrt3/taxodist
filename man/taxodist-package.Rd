@@ -29,17 +29,15 @@ based on Systema Naturae 2000.
 
 \subsection{Mathematical background}{
 
-The default metric is the Jaccard-based taxonomic distance:
+The distance metric is based on the depth of the most recent common
+ancestor (MRCA):
 
-\deqn{d_{jaccard}(A, B) = 1 - \frac{\text{depth}(\text{MRCA}(A,B))}
-{\text{depth}(A) + \text{depth}(B) - \text{depth}(\text{MRCA}(A,B))}}
+\deqn{d(A, B) = \frac{1}{\text{depth}(\text{MRCA}(A,B))}}
 
-This returns a value in \eqn{[0,1]}, normalized for lineage depth so that
-deeply resolved taxa are not penalized. The underlying raw metric
-\eqn{d_{raw}(A,B) = \text{depth}(A) + \text{depth}(B) -
-2 \cdot \text{depth}(\text{MRCA}(A,B))} satisfies the triangle inequality.
-Three methods are available: \code{"jaccard"} (default), \code{"norm"},
-and \code{"raw"}.
+The deeper the shared ancestor, the smaller the distance. This metric
+ensures that taxa sharing the same MRCA are always equidistant from any
+third taxon, regardless of lineage depth below the split — a key
+biological correctness property absent from Jaccard-based approaches.
 }
 
 \subsection{Data source}{

@@ -32,7 +32,7 @@ entries are prioritised by filtering for entries annotated as dinosaur,
 reptile, archosaur, animal, plant, fungus, or bacterium.
 }
 \examples{
-\dontrun{
+\donttest{
 get_taxonomicon_id("Tyrannosaurus")   # returns "50841"
 get_taxonomicon_id("Homo")
 get_taxonomicon_id("Quercus")

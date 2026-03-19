@@ -25,7 +25,7 @@ and returns a symmetric distance matrix. Lineages are cached after first
 retrieval to minimise redundant network requests.
 }
 \examples{
-\dontrun{
+\donttest{
 theropods <- c("Tyrannosaurus", "Velociraptor", "Spinosaurus",
                "Allosaurus", "Carnotaurus")
 mat <- distance_matrix(theropods)

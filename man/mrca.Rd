@@ -22,8 +22,8 @@ Retrieves the lineages of two taxa and returns the name of their most
 recent common ancestor (MRCA) — the deepest node shared by both lineages.
 }
 \examples{
-\dontrun{
-mrca("Tyrannosaurus", "Velociraptor")   # "Coelurosauria"
+\donttest{
+mrca("Tyrannosaurus", "Velociraptor")   # "Tyrannoraptora"
 mrca("Tyrannosaurus", "Triceratops")    # "Dinosauria"
 mrca("Tyrannosaurus", "Homo")           # "Amniota"
 }

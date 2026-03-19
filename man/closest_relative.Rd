@@ -24,7 +24,7 @@ Given a query taxon and a vector of candidate taxa, returns the candidate
 with the smallest phylogenetic distance to the query.
 }
 \examples{
-\dontrun{
+\donttest{
 closest_relative("Tyrannosaurus",
   c("Velociraptor", "Triceratops", "Brachiosaurus", "Allosaurus"))
 }

@@ -11,6 +11,9 @@
 
 \item{...}{Additional arguments (ignored).}
 }
+\value{
+Invisibly returns \code{x}. Called for side effects (printing).
+}
 \description{
 Print method for taxodist distance results
 }

@@ -21,7 +21,7 @@ Returns \code{TRUE} if \code{taxon} is a member of \code{clade} — i.e., if the
 appears in the taxon's lineage.
 }
 \examples{
-\dontrun{
+\donttest{
 is_member("Tyrannosaurus", "Theropoda")    # TRUE
 is_member("Triceratops", "Theropoda")      # FALSE
 is_member("Homo", "Amniota")               # TRUE

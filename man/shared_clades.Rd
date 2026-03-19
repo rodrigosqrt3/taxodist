@@ -22,7 +22,7 @@ Returns the vector of clade names forming the shared trunk of two taxa's
 lineages, from root down to (and including) their MRCA.
 }
 \examples{
-\dontrun{
+\donttest{
 shared_clades("Tyrannosaurus", "Velociraptor")
 shared_clades("Tyrannosaurus", "Homo")
 }

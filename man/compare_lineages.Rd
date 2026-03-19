@@ -22,7 +22,7 @@ Prints the lineages of two taxa aligned at their most recent common
 ancestor, making the point of divergence easy to identify.
 }
 \examples{
-\dontrun{
+\donttest{
 compare_lineages("Tyrannosaurus", "Velociraptor")
 compare_lineages("Tyrannosaurus", "Triceratops")
 }

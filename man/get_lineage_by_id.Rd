@@ -34,7 +34,7 @@ as Dinosauria, where intermediate clades at the level of superfamilies,
 tribes, and named subclades are fully resolved.
 }
 \examples{
-\dontrun{
+\donttest{
 id <- get_taxonomicon_id("Tyrannosaurus")
 lin <- get_lineage_by_id(id)
 print(lin)
