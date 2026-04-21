@@ -123,25 +123,62 @@ mrca("Tyrannosaurus", "Quercus")       # "discaria"
 ### Pairwise distance matrix
 
 ```{r matrix}
-taxa <- c("Tyrannosaurus", "Carnotaurus", "Velociraptor",
-          "Triceratops", "Homo", "Drosophila melanogaster")
+taxa <- c(
+  "Tyrannosaurus", "Carnotaurus", "Triceratops",
+  "Parasaurolophus", "Stegosaurus", "Brachiosaurus",
+  "Homo sapiens", "Homo neanderthalensis", "Pan troglodytes",
+  "Panthera leo", "Canis lupus",
+  "Ornithorhynchus anatinus",
+  "Loxodonta africana",       
+  "Struthio camelus",           
+  "Aptenodytes forsteri",       
+  "Ara ararauna",            
+  "Crocodylus niloticus",
+  "Chelonia mydas",
+  "Ambystoma mexicanum",
+  "Octopus vulgaris",
+  "Carcharodon carcharias",    
+  "Balaenoptera musculus",   
+  "Drosophila melanogaster",
+  "Apis mellifera",
+  "Arabidopsis thaliana",
+  "Quercus robur",
+  "Ginkgo biloba",
+  "Welwitschia mirabilis",
+  "Saccharomyces cerevisiae",
+  "Escherichia coli",
+  "Bacillus subtilis",
+  "Plasmodium falciparum"
+)
 mat <- distance_matrix(taxa)
 print(mat)
-
-#>                         Tyrannosaurus Carnotaurus Velociraptor Triceratops       Homo
-#> Carnotaurus                0.01666667                                                
-#> Velociraptor               0.01538462  0.01666667                                    
-#> Triceratops                0.01818182  0.01818182   0.01818182                       
-#> Homo                       0.02777778  0.02777778   0.02777778  0.02777778           
-#> Drosophila melanogaster    0.06666667  0.06666667   0.06666667  0.06666667 0.06666667
 ```
 
-The matrix is symmetric with zeros on the diagonal. Taxa are ordered so that
-closely related pairs appear near each other when clustered:
+The matrix is symmetric with zeros on the diagonal. 
 
-```{r cluster}
-tree <- ape::as.phylo(hclust(mat, method = "average"))
-plot(tree, main = "Taxonomic clustering")
+### Built-in Clustering and Ordination
+
+`taxodist` has wrapper functions for basic multivariate exploration of these matrices, saving you from manually writing boilerplate code:
+
+#### Hierarchical Clustering
+
+```{r clustering}
+cl <- taxo_cluster(taxa)
+plot(cl)
+```
+
+#### PCoA
+
+```{r PCoA}
+ord <- taxo_ordinate(taxa)
+summary(ord)
+plot(ord)
+```
+
+#### Heatmap visualization
+
+```{r}
+taxo_heatmap(taxa)
 ```
 
 ### Finding the closest relative
@@ -257,6 +294,22 @@ the same taxon is instantaneous. Clear the cache with:
 clear_cache()
 ```
 
+### Persisting the cache across sessions
+
+By default the cache lives only in memory and is lost when you close R.
+If you have retrieved lineages for a large set of taxa, you can save the
+cache to disk and reload it in a future session to avoid hitting the network
+again:
+
+```{r save-cache}
+save_cache("my_taxa_cache.rds") # at the end of a session
+
+load_cache("my_taxa_cache.rds") # at the start of the next session, before any distance calls
+```
+
+This is especially useful before running `distance_matrix()` on a large
+dataset.
+
 ---
 
 ## A note on lineage depth
@@ -272,7 +325,7 @@ coarser distances that conflate distantly related groups.
 
 ## Data source and citation
 
-All lineage data is sourced from **The Taxonomicon** (taxonomy.nl), based on
+All lineage data is sourced from The Taxonomicon (taxonomy.nl), based on
 *Systema Naturae 2000*:
 
 > Brands, S.J. (1989 onwards). *Systema Naturae 2000*. Amsterdam,

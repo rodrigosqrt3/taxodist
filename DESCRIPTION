@@ -1,6 +1,6 @@
 Package: taxodist
 Title: Taxonomic Distance and Phylogenetic Lineage Computation
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: person("Rodrigo Fonseca", "Villa", email = "rodrigo03.villa@gmail.com",
            role = c("aut", "cre"),
            comment = c(ORCID = "0009-0005-2938-2270"))
@@ -9,13 +9,15 @@ Description: Computes phylogenetic distances between any two taxa using
     hierarchical lineage data retrieved from The Taxonomicon 
     <http://taxonomicon.taxonomy.nl>, a comprehensive curated classification 
     of all life based on Systema Naturae 2000 (Brands, 1989 
-    <http://taxonomicon.taxonomy.nl>). Given any two taxon names, retrieves 
-    their full lineages, identifies the most recent common ancestor (MRCA), 
-    and computes a dissimilarity index based on the depth of the most recent 
-    common ancestor. Supports individual distance queries, pairwise distance 
-    matrices, clade filtering, and lineage utilities.
+    <http://taxonomicon.taxonomy.nl>). Given any two taxon names, retrieves their 
+    full lineages, identifies the most recent common ancestor (MRCA), 
+    and computes a dissimilarity index based on lineage depth. Outputs 
+    native dist objects, enabling direct integration with the R statistical 
+    ecosystem for hierarchical clustering, principal coordinate analysis (PCoA), 
+    and multivariate ecological analyses. Supports individual distance queries, 
+    pairwise distance matrices, clade filtering, and lineage utilities.
 Language: en-US
-License: GPL-3
+License: GPL (>= 3)
 URL: https://github.com/rodrigosqrt3/taxodist
 BugReports: https://github.com/rodrigosqrt3/taxodist/issues
 Encoding: UTF-8
@@ -31,13 +33,15 @@ Imports:
     purrr (>= 0.3.0),
     cli (>= 3.0.0),
     utils,
-    stats
+    stats,
+    graphics
 Suggests:
     testthat (>= 3.0.0),
     mockery,
     knitr,
     rmarkdown,
     xml2,
-    ape
+    ape,
+    vegan
 VignetteBuilder: knitr
 Config/testthat/edition: 3

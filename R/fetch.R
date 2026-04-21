@@ -23,6 +23,58 @@ clear_cache <- function() {
   invisible(NULL)
 }
 
+#' Save the taxodist lineage cache to disk
+#'
+#' Serialises the current session cache to an `.rds` file so it can be
+#' restored in a future session with [load_cache()]. Useful for
+#' reproducibility and for avoiding repeated network requests.
+#'
+#' @param file Path to the `.rds` file to write.
+#'
+#' @return Invisibly returns `NULL`.
+#' @seealso [load_cache()], [clear_cache()]
+#' @export
+#' @examples
+#' \donttest{
+#' tmp <- tempfile(fileext = ".rds")
+#' save_cache(tmp)
+#' unlink(tmp)
+#' }
+save_cache <- function(file) {
+  data <- as.list(.taxodist_cache)
+  saveRDS(data, file = file)
+  cli::cli_alert_success("Cache saved to {.file {file}} ({length(data)} entries).")
+  invisible(NULL)
+}
+
+#' Load a previously saved taxodist cache from disk
+#'
+#' Restores lineage data saved with [save_cache()] into the current session
+#' cache, avoiding network requests for taxa already retrieved in a previous
+#' session.
+#'
+#' @param file Path to an `.rds` file created by [save_cache()].
+#'
+#' @return Invisibly returns `NULL`.
+#' @seealso [save_cache()], [clear_cache()]
+#' @export
+#' @examples
+#' \donttest{
+#' tmp <- tempfile(fileext = ".rds")
+#' save_cache(tmp)
+#' load_cache(tmp)
+#' unlink(tmp)
+#' }
+load_cache <- function(file) {
+  if (!file.exists(file)) {
+    cli::cli_abort("Cache file not found: {.file {file}}")
+  }
+  data <- readRDS(file)
+  list2env(data, envir = .taxodist_cache)
+  cli::cli_alert_success("Cache loaded from {.file {file}} ({length(data)} entries).")
+  invisible(NULL)
+}
+
 # -- ID lookup ----------------------------------------------------------------
 
 #' Find the Taxonomicon ID for a taxon name
@@ -190,7 +242,8 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
 
   texts <- rvest::html_text(links, trim = TRUE)
   lineage <- texts |>
-    stringr::str_remove("^(Clade |Kingdom |Phylum |Class |Order |Suborder |Infraorder |Family |Subfamily |Tribe |Subtribe |Genus |Species |Subkingdom |Infrakingdom |Superclass |Subclass |Infraclass |Superorder |Superfamily |Domain |Superkingdom |\\[crown\\] Clade )") |>
+    stringr::str_remove("^\\[crown\\]\\s+(Clade|Grandorder|Order|Superorder|Infraorder|Suborder|Class|Superclass|Subclass|Infraclass|Family|Superfamily|Subfamily|Tribe|Subtribe|Kingdom|Subkingdom|Infrakingdom|Domain|Superkingdom|Phylum|Subphylum|Genus|Species)?\\s*") |>
+    stringr::str_remove("^(Clade |Kingdom |Phylum |Class |Order |Suborder |Infraorder |Parvorder |Grandorder |Magnorder |Cohort |Subcohort |Legion |Family |Subfamily |Tribe |Subtribe |Genus |Species |Subkingdom |Infrakingdom |Superclass |Subclass |Infraclass |Superorder |Superfamily |Domain |Superkingdom )") |>
     stringr::str_remove("\\s+[A-Z][a-z\u00e1\u00e0\u00e2\u00e3\u00e9\u00e8\u00ea\u00ed\u00ef\u00f3\u00f4\u00f5\u00f6\u00fa\u00fc\u00e7].*$") |>
     stringr::str_remove("\\s+[A-Z]\\.[A-Z]\\..*$") |>
     stringr::str_remove("\\s+von.*$") |>
@@ -204,7 +257,8 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
     stringr::str_trim()
   bare_ranks <- c(
     "Subphylum", "Infraphylum", "Subfamily", "Suborder",
-    "Infraorder", "Superclass", "Subclass", "Superfamily", ""
+    "Infraorder", "Superclass", "Subclass", "Superfamily",
+    "[crown]", ""
   )
   lineage <- lineage[!lineage %in% bare_ranks]
   lineage <- lineage[lineage != "" & !grepl("^\\s*$", lineage)]

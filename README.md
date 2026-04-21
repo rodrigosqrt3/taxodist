@@ -2,7 +2,7 @@
 
 [![CRAN status](https://www.r-pkg.org/badges/version/taxodist)](https://CRAN.R-project.org/package=taxodist)
 [![R-CMD-check](https://github.com/rodrigosqrt3/taxodist/actions/workflows/r.yml/badge.svg)](https://github.com/rodrigosqrt3/taxodist/actions/workflows/r.yml)
-[![Coverage](https://codecov.io/gh/rodrigosqrt3/taxodist/branch/main/graph/badge.svg)](https://codecov.io/gh/rodrigosqrt3/taxodist)
+[![Coverage](https://app.codecov.io/gh/rodrigosqrt3/taxodist/branch/main/graph/badge.svg)](https://app.codecov.io/gh/rodrigosqrt3/taxodist)
 
 **Taxonomic distance and phylogenetic lineage computation for any taxon on Earth.**
 
@@ -36,6 +36,13 @@ distance_matrix(theropods)
 # Filter taxa by clade
 taxa <- c("Tyrannosaurus", "Triceratops", "Homo", "Quercus")
 filter_clade(taxa, "Dinosauria")
+
+# Get the path between two taxa
+taxo_path("Tyrannosaurus", "Velociraptor")
+
+# Save and restore the lineage cache across sessions
+save_cache("my_cache.rds")
+load_cache("my_cache.rds")
 ```
 
 ## The distance metric
@@ -48,6 +55,12 @@ The deeper the shared ancestor, the smaller the distance and the more related th
 
 The Taxonomicon provides substantially deeper lineage resolution than other programmatic sources, e.g., *Tyrannosaurus* has over 70 nodes in its lineage, which is what makes the distances meaningful across all of life.
 
+## Caching
+
+Lineages are cached in memory automatically during a session. To persist the
+cache across sessions and avoid redundant network requests, use
+`save_cache("file.rds")` and `load_cache("file.rds")`.
+
 ## Data source
 
 All lineage data is sourced from **The Taxonomicon** (taxonomy.nl), based on *Systema Naturae 2000* by Sheila J. Brands (1989 onwards). Please cite this resource in any published work using `taxodist`:
@@ -58,5 +71,3 @@ All lineage data is sourced from **The Taxonomicon** (taxonomy.nl), based on *Sy
 
 Found a taxon with an incorrect lineage? Please [open an issue](https://github.com/rodrigosqrt3/taxodist/issues),
 lineage corrections are the most valuable contribution to this package.
-
-

@@ -233,6 +233,75 @@ check_coverage <- function(taxa, verbose = FALSE) {
   result
 }
 
+#' Cluster taxa by taxonomic distance
+#'
+#' Computes pairwise taxonomic distances and performs hierarchical clustering.
+#'
+#' @param taxa A character vector of taxon names, or a `dist` object from
+#'   [distance_matrix()].
+#' @param method Clustering method passed to [stats::hclust()]. Default
+#'   `"average"` (UPGMA), which works well with taxonomic distances.
+#' @param ... Additional arguments passed to [distance_matrix()] (e.g.
+#'   `verbose`, `progress`).
+#'
+#' @return An object of class `"taxodist_cluster"` — a list with:
+#' \describe{
+#'   \item{`hclust`}{The [stats::hclust()] result.}
+#'   \item{`dist`}{The underlying distance matrix.}
+#' }
+#'
+#' @seealso [taxo_ordinate()], [distance_matrix()]
+#' @export
+#' @examples
+#' \donttest{
+#' taxa <- c("Tyrannosaurus", "Velociraptor", "Triceratops", "Brachiosaurus")
+#' cl <- taxo_cluster(taxa)
+#' plot(cl)
+#' }
+taxo_cluster <- function(taxa, method = "average", ...) {
+  d <- if (inherits(taxa, "dist")) taxa else distance_matrix(taxa, ...)
+  hc <- stats::hclust(d, method = method)
+  structure(list(hclust = hc, dist = d), class = "taxodist_cluster")
+}
+
+#' Ordinate taxa in taxonomic distance space
+#'
+#' Computes pairwise taxonomic distances and applies classical multidimensional
+#' scaling (PCoA) to project taxa into a low-dimensional space.
+#'
+#' @param taxa A character vector of taxon names, or a `dist` object from
+#'[distance_matrix()].
+#' @param k Number of dimensions. Default `2`.
+#' @param ... Additional arguments passed to [distance_matrix()].
+#'
+#' @return An object of class `"taxodist_ord"` — a list with:
+#' \describe{
+#'   \item{`points`}{A matrix of coordinates (taxa x k dimensions).}
+#'   \item{`dist`}{The underlying distance matrix.}
+#'   \item{`GOF`}{Goodness-of-fit from [stats::cmdscale()].}
+#'   \item{`eig`}{The eigenvalues computed during PCoA.}
+#' }
+#'
+#' @seealso [taxo_cluster()], [distance_matrix()]
+#' @export
+#' @examples
+#' \donttest{
+#' taxa <- c("Tyrannosaurus", "Velociraptor", "Triceratops", "Brachiosaurus")
+#' ord <- taxo_ordinate(taxa)
+#' plot(ord$points, type = "n")
+#' text(ord$points, labels = rownames(ord$points))
+#' }
+taxo_ordinate <- function(taxa, k = 2, ...) {
+  d <- if (inherits(taxa, "dist")) taxa else distance_matrix(taxa, ...)
+  cmd <- stats::cmdscale(d, k = k, eig = TRUE)
+  structure(list(
+    points = cmd$points,
+    dist   = d,
+    GOF    = cmd$GOF,
+    eig    = cmd$eig
+  ), class = "taxodist_ord")
+}
+
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 #' @keywords internal
