@@ -125,43 +125,81 @@ get_taxonomicon_id <- function(taxon, verbose = FALSE) {
   )
 
   res <- tryCatch(
-    httr::GET(url, httr::add_headers("User-Agent" = "taxodist R package/0.1")),
+    httr::GET(url, httr::add_headers("User-Agent" = "taxodist R package/0.3"), httr::timeout(30)),
     error = function(e) NULL
   )
 
   if (is.null(res) || httr::status_code(res) != 200) {
-    if (verbose) cli::cli_alert_warning("Could not reach Taxonomicon for {taxon}")
+    cli::cli_warn(c(
+      "!" = "Cannot reach The Taxonomicon server.",
+      "x" = "The website (taxonomy.nl) appears to be offline or unreachable.",
+      "i" = "Please try again later."
+    ))
     return(NULL)
   }
 
   page <- rvest::read_html(httr::content(res, "text", encoding = "UTF-8"))
   rows <- rvest::html_nodes(page, "tr")
+  bio_ids <- list()
 
   for (row in rows) {
-    text  <- rvest::html_text(row, trim = TRUE)
-    hrefs <- rvest::html_attr(rvest::html_nodes(row, "a"), "href")
-
+    text <- rvest::html_text(row, trim = TRUE)
     if (grepl("astronomical|planet|Minor planet|comet|asteroid",
               text, ignore.case = TRUE)) next
 
-    tree_links <- hrefs[grepl("TaxonTree\\.aspx.*id=[1-9]", hrefs)]
-    if (length(tree_links) > 0) {
-      id <- stringr::str_remove(
-        stringr::str_extract(tree_links[1], "id=([0-9]+)"), "id="
-      )
+    links_nodes <- rvest::html_nodes(row, "a[href*='TaxonTree']")
+    if (length(links_nodes) == 0) next
 
-      # verify this is a biological entry by checking lineage root
-      candidate_lin <- get_lineage_by_id(id, clean = TRUE, verbose = FALSE)
-      if (is.null(candidate_lin) || !"Biota" %in% candidate_lin) next
+    classes <- rvest::html_attr(links_nodes, "class")
+    valid_idx <- which(!is.na(classes) & classes == "Valid")
+    if (length(valid_idx) == 0) next
 
-      assign(cache_key, id, envir = .taxodist_cache)
-      if (verbose) cli::cli_alert_success("Found {taxon} with ID {id}")
-      return(id)
-    }
+    target_link <- links_nodes[[valid_idx[1]]]
+
+    id <- stringr::str_remove(
+      stringr::str_extract(
+        rvest::html_attr(target_link, "href"), "id=([0-9]+)"
+      ), "id="
+    )
+    if (is.na(id)) next
+
+    text_entry <- trimws(gsub("\\s+", " ", text))
+    text_entry <- stringr::str_remove(text_entry, "^N\\|T\\|P\\|R\\|B\\|L\\s*")
+
+    candidate_lin <- get_lineage_by_id(id, clean = TRUE, verbose = FALSE)
+    if (is.null(candidate_lin) || !"Biota" %in% candidate_lin) next
+
+    bio_ids <- c(bio_ids, list(list(id = id, text = text_entry)))
   }
 
-  if (verbose) cli::cli_alert_warning("{taxon} not found in Taxonomicon")
-  NULL
+  if (length(bio_ids) == 0L) {
+    if (verbose) cli::cli_alert_warning("{taxon} not found in Taxonomicon")
+    return(NULL)
+  }
+
+  unique_ids <- unique(sapply(bio_ids, function(x) x$id))
+  bio_ids <- lapply(unique_ids, function(uid) {
+    matches <- bio_ids[sapply(bio_ids, function(x) x$id == uid)]
+    matches[[1]]
+  })
+
+  if (length(bio_ids) > 1L) {
+    warn_msg <- c(
+      "!" = "Multiple valid biological entries found for {.val {taxon}}.",
+      "i" = paste0("Using: ", bio_ids[[1]]$text, " (ID: ", bio_ids[[1]]$id, ")"),
+      "i" = paste0("To use a different entry, pass its numeric ID directly, e.g. `get_lineage(\"", bio_ids[[2]]$id, "\")`."),
+      "i" = "Other available IDs:"
+    )
+    for (i in 2:length(bio_ids)) {
+      warn_msg <- c(warn_msg, "*" = paste0("ID ", bio_ids[[i]]$id, ": ", bio_ids[[i]]$text))
+    }
+    cli::cli_warn(warn_msg)
+  }
+
+  id <- bio_ids[[1]]$id
+  assign(cache_key, id, envir = .taxodist_cache)
+  if (verbose) cli::cli_alert_success("Found {taxon} with ID {id}")
+  return(id)
 }
 
 # -- Lineage retrieval --------------------------------------------------------
@@ -200,6 +238,9 @@ get_taxonomicon_id <- function(taxon, verbose = FALSE) {
 #' print(lin)
 #' }
 get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
+  if (is.null(taxon_id) || is.na(taxon_id) || taxon_id == "" || !grepl("^[0-9]+$", as.character(taxon_id))) {
+    return(NULL)
+  }
   cache_key <- paste0("lin_", taxon_id)
   if (exists(cache_key, envir = .taxodist_cache)) {
     if (verbose) cli::cli_alert_info("Using cached lineage for ID {taxon_id}")
@@ -210,7 +251,11 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
     taxon_id, "&src=0"
   )
   res <- tryCatch(
-    httr::GET(url, httr::add_headers("User-Agent" = "taxodist R package/0.1")),
+    httr::GET(
+      url,
+      httr::add_headers("User-Agent" = "taxodist R package/0.3"),
+      httr::timeout(30)
+    ),
     error = function(e) NULL
   )
   if (is.null(res) || httr::status_code(res) != 200) {
@@ -225,14 +270,6 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
   links <- links[grepl("id=[0-9]", hrefs_all)]
   hrefs_all <- hrefs_all[grepl("id=[0-9]", hrefs_all)]
 
-  # drop genus/species child entries
-  texts_raw <- rvest::html_text(links, trim = TRUE)
-  is_child <- grepl("^(\\[plesion.*\\] )?Genus |^(\\[plesion.*\\] )?Species |incertae sedis", texts_raw)
-  first_child <- which(is_child)[1]
-  if (!is.na(first_child)) {
-    links <- links[seq_len(first_child - 1)]
-  }
-
   hrefs <- rvest::html_attr(links, "href")
   own_pattern <- paste0("id=", taxon_id, "($|&)")
   own_idx <- which(grepl(own_pattern, hrefs))
@@ -243,7 +280,7 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
   texts <- rvest::html_text(links, trim = TRUE)
   lineage <- texts |>
     stringr::str_remove("^\\[crown\\]\\s+(Clade|Grandorder|Order|Superorder|Infraorder|Suborder|Class|Superclass|Subclass|Infraclass|Family|Superfamily|Subfamily|Tribe|Subtribe|Kingdom|Subkingdom|Infrakingdom|Domain|Superkingdom|Phylum|Subphylum|Genus|Species)?\\s*") |>
-    stringr::str_remove("^(Clade |Kingdom |Phylum |Class |Order |Suborder |Infraorder |Parvorder |Grandorder |Magnorder |Cohort |Subcohort |Legion |Family |Subfamily |Tribe |Subtribe |Genus |Species |Subkingdom |Infrakingdom |Superclass |Subclass |Infraclass |Superorder |Superfamily |Domain |Superkingdom )") |>
+    stringr::str_remove("^(Clade |Kingdom |Phylum |Superphylum |Class |Order |Suborder |Infraorder |Parvorder |Grandorder |Magnorder |Cohort |Subcohort |Legion |Family |Subfamily |Tribe |Subtribe |Genus |Species |Subkingdom |Infrakingdom |Superclass |Subclass |Infraclass |Superorder |Superfamily |Domain |Superkingdom |Grade |Subgrade |Supergrade )") |>
     stringr::str_remove("\\s+[A-Z][a-z\u00e1\u00e0\u00e2\u00e3\u00e9\u00e8\u00ea\u00ed\u00ef\u00f3\u00f4\u00f5\u00f6\u00fa\u00fc\u00e7].*$") |>
     stringr::str_remove("\\s+[A-Z]\\.[A-Z]\\..*$") |>
     stringr::str_remove("\\s+von.*$") |>
@@ -253,21 +290,27 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
     stringr::str_remove("\\s+\\[.*$") |>
     stringr::str_remove("\\s+[A-Z]\\.$") |>
     stringr::str_remove("\\s+\\([a-z].*$") |>
+    stringr::str_remove('\\s+".*$') |>
     stringr::str_remove("^\".*") |>
     stringr::str_trim()
   bare_ranks <- c(
-    "Subphylum", "Infraphylum", "Subfamily", "Suborder",
+    "Go to", "Subphylum", "Infraphylum", "Superphylum", "Subfamily", "Suborder",
     "Infraorder", "Superclass", "Subclass", "Superfamily",
+    "Subgenus", "Section", "Division", "Candidatus", "Parvphylum",
+    "Branch", "Supercohort", "Infracohort", "Subdivision", "Subsection",
+    "Grade", "[unranked]", "(Supercluster)", "(Region)",
     "[crown]", ""
   )
   lineage <- lineage[!lineage %in% bare_ranks]
   lineage <- lineage[lineage != "" & !grepl("^\\s*$", lineage)]
   lineage <- lineage[!grepl("^\"", lineage)]
   lineage <- lineage[!grepl("^Population", lineage)]
+  lineage <- unique(lineage)
   if (clean) {
-    phil_nodes <- c("Natura - nature", "actualia - actual entities",
-                    "Mundus", "naturalia - natural bodies")
-    lineage <- lineage[!lineage %in% phil_nodes]
+    idx_biota <- which(lineage == "Biota")
+    if (length(idx_biota) > 0) {
+      lineage <- lineage[idx_biota[1]:length(lineage)]
+    }
   }
   if (length(lineage) == 0) return(NULL)
   assign(cache_key, lineage, envir = .taxodist_cache)
@@ -296,32 +339,122 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
 #' get_lineage("Quercus robur")
 #' }
 get_lineage <- function(taxon, clean = TRUE, verbose = FALSE) {
-  id <- get_taxonomicon_id(taxon, verbose = verbose)
+  is_id <- grepl("^[0-9]+$", as.character(taxon))
+
+  if (is_id) {
+    id <- as.character(taxon)
+  } else {
+    id <- get_taxonomicon_id(taxon, verbose = verbose)
+  }
+
   if (is.null(id)) return(NULL)
+
   lineage <- get_lineage_by_id(id, clean = clean, verbose = verbose)
   if (is.null(lineage)) return(NULL)
 
-  if (!grepl("\\s", taxon)) {
-    lineage <- lineage[!grepl(" ", lineage)]
-    lineage <- lineage[!grepl("^\\[", lineage)]
-    # truncate at taxon if present, otherwise append it
-    target_idx <- which(lineage == taxon)
-    if (length(target_idx) > 0) {
-      lineage <- lineage[seq_len(target_idx[length(target_idx)])]
+  if (!is_id) {
+    if (!grepl("\\s", taxon)) {
+      lineage <- lineage[!grepl(" ", lineage)]
+      lineage <- lineage[!grepl("^\\[", lineage)]
+      target_idx <- which(lineage == taxon)
+      if (length(target_idx) > 0) {
+        lineage <- lineage[seq_len(target_idx[length(target_idx)])]
+      } else {
+        lineage <- c(lineage, taxon)
+      }
     } else {
-      lineage <- c(lineage, taxon)
-    }
-  } else {
-    lineage <- lineage[!grepl(" ", lineage) | lineage == taxon]
-    target_idx <- which(lineage == taxon)
-    if (length(target_idx) > 0) {
-      lineage <- lineage[seq_len(target_idx[1])]
-    } else {
-      lineage <- c(lineage, taxon) # nocov
+      lineage <- lineage[!grepl(" ", lineage) | lineage == taxon]
+      target_idx <- which(lineage == taxon)
+      if (length(target_idx) > 0) {
+        lineage <- lineage[seq_len(target_idx[1])]
+      } else {
+        lineage <- c(lineage, taxon) # nocov
+      }
     }
   }
 
   if (length(lineage) == 0) return(NULL) # nocov
   lineage
+}
+
+#' Search The Taxonomicon for a taxon name
+#'
+#' Queries The Taxonomicon database and returns a data frame of all available
+#' biological entries matching the search string. This is particularly useful
+#' for exploring homonyms, historical ranks, or taxonomic synonyms before
+#' computing distances.
+#'
+#' @param taxon A character string giving the taxon name to search for.
+#' @param verbose Logical. If `TRUE`, prints status messages. Default `FALSE`.
+#'
+#' @return A data frame of class `"data.frame"` with columns:
+#' \describe{
+#'   \item{`id`}{Character. The numeric Taxonomicon ID.}
+#'   \item{`name`}{Character. The full taxon description, including rank and author.}
+#' }
+#' Returns `NULL` if no matches are found.
+#'
+#' @seealso [get_lineage()], [taxo_distance()]
+#' @export
+#' @examples
+#' \donttest{
+#' taxo_search("Bacteria")
+#' taxo_search("Nereis")
+#' taxo_search("Tyrannosaurus")
+#' }
+taxo_search <- function(taxon, verbose = FALSE) {
+  if (verbose) cli::cli_alert_info("Searching Taxonomicon for {.val {taxon}}...")
+
+  url <- paste0(
+    "http://taxonomicon.taxonomy.nl/TaxonList.aspx",
+    "?subject=Entity&by=ScientificName&search=",
+    utils::URLencode(taxon)
+  )
+
+  res <- tryCatch(
+    httr::GET(url, httr::add_headers("User-Agent" = "taxodist R package/0.3"), httr::timeout(10)),
+    error = function(e) NULL
+  )
+
+  if (is.null(res) || httr::status_code(res) != 200) {
+    if (verbose) cli::cli_alert_warning("Could not reach Taxonomicon")
+    return(NULL)
+  }
+
+  page <- rvest::read_html(httr::content(res, "text", encoding = "UTF-8"))
+  rows <- rvest::html_nodes(page, "tr")
+
+  results <- list()
+  for (row in rows) {
+    text <- rvest::html_text(row, trim = TRUE)
+    if (grepl("astronomical|planet|Minor planet|comet|asteroid", text, ignore.case = TRUE)) next
+
+    links <- rvest::html_nodes(row, "a[href*='TaxonTree']")
+    if (length(links) == 0) next
+
+    classes <- rvest::html_attr(links, "class")
+    valid_idx <- which(!is.na(classes) & classes == "Valid")
+    if (length(valid_idx) == 0) next
+
+    id <- stringr::str_remove(stringr::str_extract(rvest::html_attr(links[[valid_idx[1]]], "href"), "id=([0-9]+)"), "id=")
+    if (is.na(id)) next
+
+    text_entry <- trimws(gsub("\\s+", " ", text))
+    text_entry <- stringr::str_remove(text_entry, "^N\\|T\\|P\\|R\\|B\\|L\\s*")
+
+    results <- c(results, list(data.frame(id = id, name = text_entry, stringsAsFactors = FALSE)))
+  }
+
+  if (length(results) == 0) {
+    if (verbose) cli::cli_alert_warning("No matches found.")
+    return(NULL)
+  }
+
+  df <- do.call(rbind, results)
+  df <- df[!duplicated(df$id), ]
+  rownames(df) <- NULL
+
+  if (verbose) cli::cli_alert_success("Found {nrow(df)} entries.")
+  return(df)
 }
 

@@ -1,6 +1,6 @@
 Package: taxodist
 Title: Taxonomic Distance and Phylogenetic Lineage Computation
-Version: 0.2.0
+Version: 0.3.0
 Authors@R: person("Rodrigo Fonseca", "Villa", email = "rodrigo03.villa@gmail.com",
            role = c("aut", "cre"),
            comment = c(ORCID = "0009-0005-2938-2270"))

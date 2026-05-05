@@ -181,8 +181,9 @@ filter_clade <- function(taxa, clade, verbose = FALSE) {
 #' }
 plot.taxodist_cluster <- function(x, main = "Taxonomic Clustering",
                                   xlab = "",
-                                  sub  = paste("Method:", x$hclust$method),
+                                  sub  = paste("Method:", if(!is.null(x$hclust)) x$hclust$method else "None"),
                                   ...) {
+  if (is.null(x$hclust)) return(invisible(x))
   plot(x$hclust, main = main, xlab = xlab, sub = sub, ...)
   invisible(x)
 }
@@ -209,8 +210,9 @@ plot.taxodist_cluster <- function(x, main = "Taxonomic Clustering",
 plot.taxodist_ord <- function(x, main   = "Taxonomic Ordination (PCoA)",
                               xlab   = "PC1",
                               ylab   = "PC2",
-                              labels = rownames(x$points),
+                              labels = if(!is.null(x$points)) rownames(x$points) else NULL,
                               ...) {
+  if (is.null(x$points)) return(invisible(x))
   gof <- round(x$GOF[1], 3)
   graphics::plot(x$points, type = "n",
                  main = paste0(main, "  (GOF = ", gof, ")"),
@@ -231,8 +233,9 @@ plot.taxodist_ord <- function(x, main   = "Taxonomic Ordination (PCoA)",
 #'   variance explained by each dimension.
 #' @export
 summary.taxodist_ord <- function(object, ...) {
-  cli::cli_h2("Taxonomic Ordination Summary (PCoA)")
+  if (is.null(object$points)) return(invisible(NULL))
 
+  cli::cli_h2("Taxonomic Ordination Summary (PCoA)")
   gof <- round(object$GOF[1] * 100, 2)
   cli::cli_text("Goodness-of-Fit (GOF): {gof}%")
   cli::cli_text("")
@@ -240,7 +243,6 @@ summary.taxodist_ord <- function(object, ...) {
   if (!is.null(object$eig)) {
     eig_pos <- object$eig[object$eig > 0]
     var_exp <- (eig_pos / sum(eig_pos)) * 100
-
     k <- ncol(object$points)
 
     df <- data.frame(
@@ -249,7 +251,6 @@ summary.taxodist_ord <- function(object, ...) {
       Variance_Pct   = var_exp[1:k],
       Cumulative_Pct = cumsum(var_exp)[1:k]
     )
-
     print(df, row.names = FALSE, digits = 4)
     invisible(df)
   } else {
@@ -278,6 +279,10 @@ summary.taxodist_ord <- function(object, ...) {
 #' }
 taxo_heatmap <- function(taxa, ...) {
   d <- if (inherits(taxa, "dist")) taxa else distance_matrix(taxa, ...)
+  if (any(is.na(d))) {
+    cli::cli_warn("Distance matrix contains NA values. Heatmap skipped.")
+    return(invisible(d))
+  }
   mat <- as.matrix(d)
   stats::heatmap(mat, symm = TRUE, margins = c(10, 10), ...)
   invisible(d)

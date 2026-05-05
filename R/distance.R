@@ -238,7 +238,7 @@ check_coverage <- function(taxa, verbose = FALSE) {
 #' Computes pairwise taxonomic distances and performs hierarchical clustering.
 #'
 #' @param taxa A character vector of taxon names, or a `dist` object from
-#'   [distance_matrix()].
+#'[distance_matrix()].
 #' @param method Clustering method passed to [stats::hclust()]. Default
 #'   `"average"` (UPGMA), which works well with taxonomic distances.
 #' @param ... Additional arguments passed to [distance_matrix()] (e.g.
@@ -250,16 +250,22 @@ check_coverage <- function(taxa, verbose = FALSE) {
 #'   \item{`dist`}{The underlying distance matrix.}
 #' }
 #'
-#' @seealso [taxo_ordinate()], [distance_matrix()]
+#' @seealso[taxo_ordinate()], [distance_matrix()]
 #' @export
 #' @examples
 #' \donttest{
 #' taxa <- c("Tyrannosaurus", "Velociraptor", "Triceratops", "Brachiosaurus")
 #' cl <- taxo_cluster(taxa)
-#' plot(cl)
+#' if (!is.null(cl$hclust)) {
+#'   plot(cl)
+#' }
 #' }
 taxo_cluster <- function(taxa, method = "average", ...) {
   d <- if (inherits(taxa, "dist")) taxa else distance_matrix(taxa, ...)
+  if (any(is.na(d))) {
+    cli::cli_warn("Distance matrix contains NA values (taxa not found or server offline). Clustering skipped.")
+    return(structure(list(hclust = NULL, dist = d), class = "taxodist_cluster"))
+  }
   hc <- stats::hclust(d, method = method)
   structure(list(hclust = hc, dist = d), class = "taxodist_cluster")
 }
@@ -278,7 +284,7 @@ taxo_cluster <- function(taxa, method = "average", ...) {
 #' \describe{
 #'   \item{`points`}{A matrix of coordinates (taxa x k dimensions).}
 #'   \item{`dist`}{The underlying distance matrix.}
-#'   \item{`GOF`}{Goodness-of-fit from [stats::cmdscale()].}
+#'   \item{`GOF`}{Goodness-of-fit from[stats::cmdscale()].}
 #'   \item{`eig`}{The eigenvalues computed during PCoA.}
 #' }
 #'
@@ -288,11 +294,17 @@ taxo_cluster <- function(taxa, method = "average", ...) {
 #' \donttest{
 #' taxa <- c("Tyrannosaurus", "Velociraptor", "Triceratops", "Brachiosaurus")
 #' ord <- taxo_ordinate(taxa)
-#' plot(ord$points, type = "n")
-#' text(ord$points, labels = rownames(ord$points))
+#' if (!is.null(ord$points)) {
+#'   plot(ord$points, type = "n")
+#'   text(ord$points, labels = rownames(ord$points))
+#' }
 #' }
 taxo_ordinate <- function(taxa, k = 2, ...) {
   d <- if (inherits(taxa, "dist")) taxa else distance_matrix(taxa, ...)
+  if (any(is.na(d))) {
+    cli::cli_warn("Distance matrix contains NA values. Ordination skipped.")
+    return(structure(list(points = NULL, dist = d, GOF = NULL, eig = NULL), class = "taxodist_ord"))
+  }
   cmd <- stats::cmdscale(d, k = k, eig = TRUE)
   structure(list(
     points = cmd$points,

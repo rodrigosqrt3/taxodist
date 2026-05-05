@@ -8,7 +8,7 @@
   x,
   main = "Taxonomic Clustering",
   xlab = "",
-  sub = paste("Method:", x$hclust$method),
+  sub = paste("Method:", if (!is.null(x$hclust)) x$hclust$method else "None"),
   ...
 )
 }

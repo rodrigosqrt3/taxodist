@@ -30,7 +30,9 @@ Computes pairwise taxonomic distances and performs hierarchical clustering.
 \donttest{
 taxa <- c("Tyrannosaurus", "Velociraptor", "Triceratops", "Brachiosaurus")
 cl <- taxo_cluster(taxa)
-plot(cl)
+if (!is.null(cl$hclust)) {
+  plot(cl)
+}
 }
 }
 \seealso{

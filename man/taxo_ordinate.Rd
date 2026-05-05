@@ -19,7 +19,7 @@ An object of class \code{"taxodist_ord"} — a list with:
 \describe{
 \item{\code{points}}{A matrix of coordinates (taxa x k dimensions).}
 \item{\code{dist}}{The underlying distance matrix.}
-\item{\code{GOF}}{Goodness-of-fit from \code{\link[stats:cmdscale]{stats::cmdscale()}}.}
+\item{\code{GOF}}{Goodness-of-fit from\code{\link[stats:cmdscale]{stats::cmdscale()}}.}
 \item{\code{eig}}{The eigenvalues computed during PCoA.}
 }
 }
@@ -31,8 +31,10 @@ scaling (PCoA) to project taxa into a low-dimensional space.
 \donttest{
 taxa <- c("Tyrannosaurus", "Velociraptor", "Triceratops", "Brachiosaurus")
 ord <- taxo_ordinate(taxa)
-plot(ord$points, type = "n")
-text(ord$points, labels = rownames(ord$points))
+if (!is.null(ord$points)) {
+  plot(ord$points, type = "n")
+  text(ord$points, labels = rownames(ord$points))
+}
 }
 }
 \seealso{

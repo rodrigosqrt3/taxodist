@@ -9,7 +9,7 @@
   main = "Taxonomic Ordination (PCoA)",
   xlab = "PC1",
   ylab = "PC2",
-  labels = rownames(x$points),
+  labels = if (!is.null(x$points)) rownames(x$points) else NULL,
   ...
 )
 }
