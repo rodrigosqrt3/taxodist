@@ -1404,3 +1404,39 @@ test_that("get_taxonomicon_id skips valid links missing numeric IDs", {
   result <- get_taxonomicon_id("Good taxon")
   expect_equal(result, "333")
 })
+
+# ── Fallback handling for NAs and NULLs ───────────────────────────────────────
+
+test_that("taxo_cluster handles NA in distance matrix gracefully", {
+  m <- matrix(c(0, NA, NA, 0), nrow = 2, dimnames = list(c("A", "B"), c("A", "B")))
+  d <- stats::as.dist(m)
+  expect_warning(res <- taxo_cluster(d), "Distance matrix contains NA values")
+  expect_null(res$hclust)
+  expect_s3_class(res, "taxodist_cluster")
+})
+
+test_that("taxo_ordinate handles NA in distance matrix gracefully", {
+  m <- matrix(c(0, NA, NA, 0), nrow = 2, dimnames = list(c("A", "B"), c("A", "B")))
+  d <- stats::as.dist(m)
+  expect_warning(res <- taxo_ordinate(d), "Distance matrix contains NA values")
+  expect_null(res$points)
+  expect_s3_class(res, "taxodist_ord")
+})
+
+test_that("taxo_heatmap handles NA in distance matrix gracefully", {
+  m <- matrix(c(0, NA, NA, 0), nrow = 2, dimnames = list(c("A", "B"), c("A", "B")))
+  d <- stats::as.dist(m)
+  pdf(file = NULL)
+  expect_warning(res <- taxo_heatmap(d), "Distance matrix contains NA values")
+  dev.off()
+  expect_equal(res, d)
+})
+
+test_that("plot and summary methods safely ignore NULL components", {
+  cl_null <- structure(list(hclust = NULL, dist = stats::dist(1:2)), class = "taxodist_cluster")
+  expect_invisible(plot(cl_null))
+
+  ord_null <- structure(list(points = NULL, dist = stats::dist(1:2), GOF = NULL, eig = NULL), class = "taxodist_ord")
+  expect_invisible(plot(ord_null))
+  expect_invisible(summary(ord_null))
+})
