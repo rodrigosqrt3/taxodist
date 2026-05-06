@@ -2,7 +2,7 @@
 
 [![CRAN status](https://www.r-pkg.org/badges/version/taxodist)](https://CRAN.R-project.org/package=taxodist)
 [![R-CMD-check](https://github.com/rodrigosqrt3/taxodist/actions/workflows/r.yml/badge.svg)](https://github.com/rodrigosqrt3/taxodist/actions/workflows/r.yml)
-[![Coverage](https://app.codecov.io/gh/rodrigosqrt3/taxodist/branch/main/graph/badge.svg)](https://app.codecov.io/gh/rodrigosqrt3/taxodist)
+[![Coverage](https://codecov.io/gh/rodrigosqrt3/taxodist/branch/main/graph/badge.svg)](https://codecov.io/gh/rodrigosqrt3/taxodist)
 
 **Taxonomic distance and phylogenetic lineage computation for any taxon on Earth.**
 
