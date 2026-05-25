@@ -834,6 +834,183 @@ test_that("taxo_search parses HTML, applies skips, dedups, and returns data.fram
   expect_equal(df$name[2], "Bacteria (Domain)")
 })
 
+# ── cache_info ────────────────────────────────────────────────────────────────
+
+test_that("cache_info returns invisible list with correct structure", {
+  clear_cache()
+  result <- cache_info()
+  expect_invisible(cache_info())
+  expect_type(result, "list")
+  expect_named(result, c("n_lineages", "n_ids", "taxa", "size_bytes"))
+})
+
+test_that("cache_info reports zero counts on empty cache", {
+  clear_cache()
+  result <- cache_info()
+  expect_equal(result$n_lineages, 0L)
+  expect_equal(result$n_ids, 0L)
+  expect_equal(result$taxa, character(0))
+})
+
+test_that("cache_info counts lineages and IDs correctly", {
+  clear_cache()
+  assign("id_Tyrannosaurus", "50841", envir = taxodist:::.taxodist_cache)
+  assign("id_Velociraptor",  "12345", envir = taxodist:::.taxodist_cache)
+  assign("lin_50841", c("Biota", "Animalia", "Dinosauria", "Tyrannosaurus"),
+         envir = taxodist:::.taxodist_cache)
+  result <- cache_info()
+  expect_equal(result$n_lineages, 1L)
+  expect_equal(result$n_ids, 2L)
+})
+
+test_that("cache_info taxa names strip the lin_ prefix", {
+  clear_cache()
+  assign("lin_50841", c("Biota", "Animalia", "Tyrannosaurus"),
+         envir = taxodist:::.taxodist_cache)
+  assign("lin_12345", c("Biota", "Animalia", "Velociraptor"),
+         envir = taxodist:::.taxodist_cache)
+  result <- cache_info()
+  expect_setequal(result$taxa, c("50841", "12345"))
+})
+
+test_that("cache_info size_bytes is numeric and positive when cache is populated", {
+  clear_cache()
+  assign("lin_50841", c("Biota", "Animalia", "Tyrannosaurus"),
+         envir = taxodist:::.taxodist_cache)
+  result <- cache_info()
+  expect_type(result$size_bytes, "double")
+  expect_gt(result$size_bytes, 0)
+})
+
+test_that("cache_info prints without error", {
+  clear_cache()
+  assign("lin_50841", c("Biota", "Animalia", "Tyrannosaurus"),
+         envir = taxodist:::.taxodist_cache)
+  expect_no_error(cache_info())
+})
+
+# ── focal_distances ───────────────────────────────────────────────────────────
+
+test_that("focal_distances returns NULL when focal taxon not found", {
+  mockery::stub(focal_distances, "get_lineage", function(...) NULL)
+  result <- focal_distances("Fakeosaurus", c("Velociraptor", "Triceratops"))
+  expect_null(result)
+})
+
+test_that("focal_distances returns correct S3 class", {
+  mockery::stub(focal_distances, "get_lineage", function(taxon, ...) {
+    lins <- list(
+      Tyrannosaurus = c("Biota", "Animalia", "Dinosauria", "Theropoda", "Tyrannosaurus"),
+      Velociraptor  = c("Biota", "Animalia", "Dinosauria", "Theropoda", "Velociraptor"),
+      Triceratops   = c("Biota", "Animalia", "Dinosauria", "Ornithischia", "Triceratops")
+    )
+    lins[[taxon]]
+  })
+  result <- focal_distances("Tyrannosaurus",
+                            c("Velociraptor", "Triceratops"),
+                            progress = FALSE)
+  expect_s3_class(result, "taxodist_focal")
+  expect_s3_class(result, "data.frame")
+})
+
+test_that("focal_distances result has correct columns", {
+  mockery::stub(focal_distances, "get_lineage", function(taxon, ...) {
+    lins <- list(
+      Tyrannosaurus = c("Biota", "Animalia", "Dinosauria", "Theropoda", "Tyrannosaurus"),
+      Velociraptor  = c("Biota", "Animalia", "Dinosauria", "Theropoda", "Velociraptor")
+    )
+    lins[[taxon]]
+  })
+  result <- focal_distances("Tyrannosaurus", "Velociraptor", progress = FALSE)
+  expect_named(result, c("taxon", "distance", "mrca", "mrca_depth"))
+})
+
+test_that("focal_distances is sorted by distance ascending", {
+  mockery::stub(focal_distances, "get_lineage", function(taxon, ...) {
+    lins <- list(
+      Tyrannosaurus = c("Biota", "Animalia", "Dinosauria", "Theropoda", "Tyrannosaurus"),
+      Velociraptor  = c("Biota", "Animalia", "Dinosauria", "Theropoda", "Velociraptor"),
+      Triceratops   = c("Biota", "Animalia", "Dinosauria", "Ornithischia", "Triceratops")
+    )
+    lins[[taxon]]
+  })
+  result <- focal_distances("Tyrannosaurus",
+                            c("Triceratops", "Velociraptor"),
+                            progress = FALSE)
+  expect_equal(result$taxon[1], "Velociraptor")
+})
+
+test_that("focal_distances handles focal in community with distance 0", {
+  mockery::stub(focal_distances, "get_lineage", function(taxon, ...) {
+    c("Biota", "Animalia", "Dinosauria", "Theropoda", "Tyrannosaurus")
+  })
+  result <- focal_distances("Tyrannosaurus",
+                            c("Tyrannosaurus", "Tyrannosaurus"),
+                            progress = FALSE)
+  expect_true(all(result$distance == 0))
+  expect_true(all(result$mrca == "Tyrannosaurus"))
+})
+
+test_that("focal_distances handles NULL candidate lineage with NA row", {
+  mockery::stub(focal_distances, "get_lineage", function(taxon, ...) {
+    if (taxon == "Tyrannosaurus")
+      c("Biota", "Animalia", "Dinosauria", "Theropoda", "Tyrannosaurus")
+    else
+      NULL
+  })
+  result <- focal_distances("Tyrannosaurus", "Fakeosaurus", progress = FALSE)
+  expect_true(is.na(result$distance[result$taxon == "Fakeosaurus"]))
+  expect_true(is.na(result$mrca[result$taxon == "Fakeosaurus"]))
+})
+
+test_that("focal_distances preserves focal attribute", {
+  mockery::stub(focal_distances, "get_lineage", function(taxon, ...) {
+    c("Biota", "Animalia", "Dinosauria", "Theropoda", "Tyrannosaurus")
+  })
+  result <- focal_distances("Tyrannosaurus", "Tyrannosaurus", progress = FALSE)
+  expect_equal(attr(result, "focal"), "Tyrannosaurus")
+})
+
+test_that("focal_distances with progress = TRUE runs without error", {
+  mockery::stub(focal_distances, "get_lineage", function(taxon, ...) {
+    lins <- list(
+      Tyrannosaurus = c("Biota", "Animalia", "Dinosauria", "Theropoda", "Tyrannosaurus"),
+      Velociraptor  = c("Biota", "Animalia", "Dinosauria", "Theropoda", "Velociraptor")
+    )
+    lins[[taxon]]
+  })
+  expect_no_error(
+    focal_distances("Tyrannosaurus", "Velociraptor", progress = FALSE)
+  )
+})
+
+test_that("focal_distances progress bar lines are executed", {
+  clear_cache()
+  assign("id_Tyrannosaurus", "50841", envir = taxodist:::.taxodist_cache)
+  assign("id_Velociraptor",  "12345", envir = taxodist:::.taxodist_cache)
+  assign("lin_50841", c("Biota", "Animalia", "Dinosauria", "Theropoda", "Tyrannosaurus"),
+         envir = taxodist:::.taxodist_cache)
+  assign("lin_12345", c("Biota", "Animalia", "Dinosauria", "Theropoda", "Velociraptor"),
+         envir = taxodist:::.taxodist_cache)
+
+  expect_no_error(
+    focal_distances("Tyrannosaurus", "Velociraptor", progress = TRUE)
+  )
+})
+
+test_that("print.taxodist_focal runs without error and returns invisibly", {
+  mockery::stub(focal_distances, "get_lineage", function(taxon, ...) {
+    lins <- list(
+      Tyrannosaurus = c("Biota", "Animalia", "Dinosauria", "Theropoda", "Tyrannosaurus"),
+      Velociraptor  = c("Biota", "Animalia", "Dinosauria", "Theropoda", "Velociraptor")
+    )
+    lins[[taxon]]
+  })
+  result <- focal_distances("Tyrannosaurus", "Velociraptor", progress = FALSE)
+  expect_no_error(print(result))
+  expect_invisible(print(result))
+})
+
 # ── Network tests (skipped on CRAN) ──────────────────────────────────────────
 
 skip_if_taxonomicon_down <- function() {

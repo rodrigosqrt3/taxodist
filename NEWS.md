@@ -74,3 +74,35 @@
 * Added validation to `get_lineage_by_id()` to silently return `NULL` for non-numeric              strings, preventing upstream server fallback errors.
 * Fixed a lineage parsing issue where the parent `Genus` was erroneously truncated from            species-level queries. Distances and Most Recent Common Ancestors (MRCAs) between congeneric     species are now computed accurately.
 * Fixed an issue where taxonomic author names enclosed in double quotes (e.g., `"Redtenbacher,     1906"`) were evading the lineage cleaning pipeline and being erroneously retained as part of     the clade name.
+
+# taxodist 0.4.0
+
+## New features
+
+* `cache_info()`: inspects the current session cache, reporting the number of
+  cached lineages and IDs, total memory used, and the names of all taxa whose
+  lineages are stored. Returns a named list invisibly for programmatic use.
+* `focal_distances()`: computes taxonomic distances from a single focal taxon
+  to all members of a community vector. Returns a sorted data frame with
+  columns `taxon`, `distance`, `mrca`, and `mrca_depth`, making it easy to
+  identify the closest and most distant relatives of a focal species in a
+  community context.
+
+## Bug fixes
+
+* Fixed a lineage parsing bug where taxa with `Subphylum` and `Infraphylum`
+  rank prefixes (e.g., Craniata, Vertebrata) were being incorrectly discarded.
+  The dagger symbol (`†`) is now stripped before rank prefixes are removed,
+  ensuring that prefixed names like `Subphylum † Craniata` are correctly
+  parsed to `Craniata` rather than falling through as bare rank tokens.
+  `Subphylum` and `Infraphylum` have been removed from `bare_ranks` accordingly.
+* Fixed parsing of `auct.` author annotations (e.g., `Subphylum Craniata auct.`)
+  that were preventing rank-prefixed names from being correctly cleaned.
+* Fixed intermediate clades being silently dropped from lineages when their
+  author strings contained ampersands, hyphens (e.g., Cavalier-Smith), or
+  trailing commas without a year (e.g., `Romeriida Gauthier,`). The author
+  removal pipeline now handles these patterns correctly.
+* Fixed a bug where the dagger extinction marker (`†`) appearing between a
+  rank prefix and a taxon name (e.g., `Family † Dromaeosauridae`) caused the
+  taxon to be lost entirely. Dagger removal now precedes all other cleaning
+  steps.

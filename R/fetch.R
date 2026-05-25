@@ -75,6 +75,66 @@ load_cache <- function(file) {
   invisible(NULL)
 }
 
+#' Inspect the current taxodist lineage cache
+#'
+#' Reports the number of cached entries, their total memory footprint, and
+#' the names of all taxa whose lineages are stored in the current session.
+#' Useful for understanding what has already been retrieved before running
+#' further computations.
+#'
+#' @return Invisibly returns a list with elements:
+#' \describe{
+#'   \item{`n_lineages`}{Integer. Number of cached lineages.}
+#'   \item{`n_ids`}{Integer. Number of cached taxon IDs.}
+#'   \item{`taxa`}{Character vector of taxa with cached lineages.}
+#'   \item{`size_bytes`}{Numeric. Total memory used by the cache.}
+#' }
+#'
+#' @seealso [save_cache()], [load_cache()], [clear_cache()]
+#' @export
+#' @examples
+#' \donttest{
+#' get_lineage("Tyrannosaurus")
+#' get_lineage("Velociraptor")
+#' cache_info()
+#' }
+cache_info <- function() {
+  keys <- ls(.taxodist_cache)
+
+  lin_keys <- keys[startsWith(keys, "lin_")]
+  id_keys  <- keys[startsWith(keys, "id_")]
+
+  taxa_names <- sub("^lin_", "", lin_keys)
+
+  size_bytes <- utils::object.size(as.list(.taxodist_cache))
+
+  cli::cli_h2("taxodist Cache")
+  cli::cli_bullets(c(
+    "*" = "Lineages cached : {length(lin_keys)}",
+    "*" = "IDs cached      : {length(id_keys)}",
+    "*" = "Memory used     : {format(size_bytes, units = 'auto')}"
+  ))
+
+  if (length(taxa_names) > 0) {
+    cli::cli_text("")
+    cli::cli_text("{.strong Cached taxa:}")
+    cli::cli_bullets(stats::setNames(
+      paste0("{.val ", taxa_names, "}"),
+      rep(" ", length(taxa_names))
+    ))
+  } else {
+    cli::cli_text("")
+    cli::cli_alert_info("No lineages cached yet.")
+  }
+
+  invisible(list(
+    n_lineages = length(lin_keys),
+    n_ids      = length(id_keys),
+    taxa       = taxa_names,
+    size_bytes = as.numeric(size_bytes)
+  ))
+}
+
 # -- ID lookup ----------------------------------------------------------------
 
 #' Find the Taxonomicon ID for a taxon name
@@ -279,12 +339,13 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
 
   texts <- rvest::html_text(links, trim = TRUE)
   lineage <- texts |>
+    stringr::str_remove_all("[\u2020\u1D40]") |>
     stringr::str_remove("^\\[crown\\]\\s+(Clade|Grandorder|Order|Superorder|Infraorder|Suborder|Class|Superclass|Subclass|Infraclass|Family|Superfamily|Subfamily|Tribe|Subtribe|Kingdom|Subkingdom|Infrakingdom|Domain|Superkingdom|Phylum|Subphylum|Genus|Species)?\\s*") |>
-    stringr::str_remove("^(Clade |Kingdom |Phylum |Superphylum |Class |Order |Suborder |Infraorder |Parvorder |Grandorder |Magnorder |Cohort |Subcohort |Legion |Family |Subfamily |Tribe |Subtribe |Genus |Species |Subkingdom |Infrakingdom |Superclass |Subclass |Infraclass |Superorder |Superfamily |Domain |Superkingdom |Grade |Subgrade |Supergrade )") |>
+    stringr::str_remove("^(Clade |Kingdom |Phylum |Superphylum |Subphylum |Infraphylum |Class |Order |Suborder |Infraorder |Parvorder |Grandorder |Magnorder |Cohort |Subcohort |Legion |Family |Subfamily |Tribe |Subtribe |Genus |Species |Subkingdom |Infrakingdom |Superclass |Subclass |Infraclass |Superorder |Superfamily |Domain |Superkingdom |Grade |Subgrade |Supergrade )") |>
     stringr::str_remove("\\s+[A-Z][a-z\u00e1\u00e0\u00e2\u00e3\u00e9\u00e8\u00ea\u00ed\u00ef\u00f3\u00f4\u00f5\u00f6\u00fa\u00fc\u00e7].*$") |>
     stringr::str_remove("\\s+[A-Z]\\.[A-Z]\\..*$") |>
+    stringr::str_remove("\\s+auct\\..*$") |>
     stringr::str_remove("\\s+von.*$") |>
-    stringr::str_remove_all("[\u2020\u1D40]") |>
     stringr::str_remove("\\s+\\([A-Z][a-z].*$") |>
     stringr::str_remove("\\s+\\(\\d{4}\\).*$") |>
     stringr::str_remove("\\s+\\[.*$") |>
@@ -294,7 +355,7 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
     stringr::str_remove("^\".*") |>
     stringr::str_trim()
   bare_ranks <- c(
-    "Go to", "Subphylum", "Infraphylum", "Superphylum", "Subfamily", "Suborder",
+    "Go to", "Superphylum", "Subfamily", "Suborder",
     "Infraorder", "Superclass", "Subclass", "Superfamily",
     "Subgenus", "Section", "Division", "Candidatus", "Parvphylum",
     "Branch", "Supercohort", "Infracohort", "Subdivision", "Subsection",
@@ -412,7 +473,7 @@ taxo_search <- function(taxon, verbose = FALSE) {
   )
 
   res <- tryCatch(
-    httr::GET(url, httr::add_headers("User-Agent" = "taxodist R package/0.3"), httr::timeout(10)),
+    httr::GET(url, httr::add_headers("User-Agent" = "taxodist R package/0.3"), httr::timeout(30)),
     error = function(e) NULL
   )
 

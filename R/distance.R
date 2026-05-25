@@ -185,6 +185,94 @@ closest_relative <- function(taxon, candidates, verbose = FALSE) {
   results[order(results$distance, na.last = TRUE), ]
 }
 
+#' Compute distances from a focal taxon to a community of taxa
+#'
+#' Given a focal taxon and a vector of community taxa, retrieves all lineages
+#' and computes the taxonomic distance from the focal taxon to each member of
+#' the community. Returns a sorted data frame that also reports the most recent
+#' common ancestor (MRCA) for each pair, making it easy to interpret *why* a
+#' taxon is close or distant.
+#'
+#' @param focal A character string giving the focal taxon name.
+#' @param community A character vector of community taxon names to compare
+#'   against. The focal taxon may be included — it will receive a distance
+#'   of `0`.
+#' @param verbose Logical. If `TRUE`, prints progress messages. Default `FALSE`.
+#' @param progress Logical. If `TRUE`, shows a progress bar. Default `TRUE`.
+#'
+#' @return A data frame of class `"taxodist_focal"` with columns:
+#' \describe{
+#'   \item{`taxon`}{Character. Community taxon name.}
+#'   \item{`distance`}{Numeric. Taxonomic distance to the focal taxon.}
+#'   \item{`mrca`}{Character. Name of the most recent common ancestor.}
+#'   \item{`mrca_depth`}{Integer. Depth of the MRCA node.}
+#' }
+#' Rows are sorted by `distance` ascending (closest relatives first).
+#' Returns `NULL` if the focal taxon cannot be found.
+#'
+#' @seealso [closest_relative()], [distance_matrix()], [taxo_distance()]
+#' @export
+#' @examples
+#' \donttest{
+#' community <- c("Velociraptor", "Triceratops", "Brachiosaurus",
+#'                "Allosaurus", "Homo", "Quercus")
+#' focal_distances("Tyrannosaurus", community)
+#' }
+focal_distances <- function(focal, community, verbose = FALSE, progress = TRUE) {
+  focal_lin <- get_lineage(focal, verbose = verbose)
+  if (is.null(focal_lin)) {
+    cli::cli_alert_danger("Could not retrieve lineage for {focal}")
+    return(NULL)
+  }
+
+  if (progress) cli::cli_progress_bar("Computing focal distances", total = length(community))
+
+  results <- vector("list", length(community))
+  for (i in seq_along(community)) {
+    taxon <- community[[i]]
+
+    if (identical(taxon, focal)) {
+      results[[i]] <- data.frame(
+        taxon      = taxon,
+        distance   = 0,
+        mrca       = focal,
+        mrca_depth = length(focal_lin),
+        stringsAsFactors = FALSE
+      )
+    } else {
+      cand_lin <- get_lineage(taxon, verbose = verbose)
+      if (is.null(cand_lin)) {
+        results[[i]] <- data.frame(
+          taxon      = taxon,
+          distance   = NA_real_,
+          mrca       = NA_character_,
+          mrca_depth = NA_integer_,
+          stringsAsFactors = FALSE
+        )
+      } else {
+        res <- .compute_distance(focal_lin, cand_lin, focal, taxon)
+        results[[i]] <- data.frame(
+          taxon      = taxon,
+          distance   = res$distance,
+          mrca       = res$mrca,
+          mrca_depth = res$mrca_depth,
+          stringsAsFactors = FALSE
+        )
+      }
+    }
+
+    if (progress) cli::cli_progress_update()
+  }
+
+  if (progress) cli::cli_progress_done()
+
+  out <- do.call(rbind, results)
+  out <- out[order(out$distance, na.last = TRUE), ]
+  rownames(out) <- NULL
+
+  structure(out, class = c("taxodist_focal", "data.frame"), focal = focal)
+}
+
 #' Get the lineage depth of a taxon
 #'
 #' Returns the number of nodes in the lineage of a taxon, from root to tip.

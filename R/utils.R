@@ -386,3 +386,18 @@ print.taxodist_path <- function(x, ...) {
   }
   invisible(x)
 }
+
+#' Print method for taxodist_focal objects
+#'
+#' @param x A `taxodist_focal` object from [focal_distances()].
+#' @param ... Additional arguments (ignored).
+#' @return Invisibly returns `x`. Called for side effects (printing).
+#' @export
+print.taxodist_focal <- function(x, ...) {
+  focal <- attr(x, "focal")
+  cli::cli_h2("Focal distances from {focal}")
+  cli::cli_text("{nrow(x)} taxa \u2022 sorted closest \u2192 most distant")
+  cli::cli_text("")
+  print.data.frame(x, ...)
+  invisible(x)
+}
