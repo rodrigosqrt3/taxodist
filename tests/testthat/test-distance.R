@@ -1,5 +1,6 @@
 library(testthat)
 library(taxodist)
+library(webmockr)
 
 # ── Pure logic tests ──────────────────────────────────────────────────────────
 
@@ -1535,7 +1536,6 @@ test_that("get_taxonomicon_id skips rows with no Valid links", {
   clear_cache()
   assign("lin_222", c("Biota", "Animalia"), envir = taxodist:::.taxodist_cache)
 
-  # HTML falso: A primeira linha NÃO tem classe Valid. O pacote deve pular (next).
   fake_html <- '
   <html><body><table>
     <tr>
@@ -1616,4 +1616,40 @@ test_that("plot and summary methods safely ignore NULL components", {
   ord_null <- structure(list(points = NULL, dist = stats::dist(1:2), GOF = NULL, eig = NULL), class = "taxodist_ord")
   expect_invisible(plot(ord_null))
   expect_invisible(summary(ord_null))
+})
+
+test_that("get_lineage_by_id parses #divPageContent path with nav header and ᵀ marker", {
+  clear_cache()
+
+  fake_html <- '
+  <html><body>
+    <div id="ctl00_divSubject"><b>Drosophila</b></div>
+    <div id="divPageContent">
+HierarchyNomenclature
+Classification by:
+Systema Naturae 2000 cactophilic {Drosophila} descriptions
+Natura - nature
+actualia - actual entities
+Clade Biota Wagner 2004
+Kingdom Animalia
+Phylum Arthropoda
+Class Insecta
+Order Diptera
+Family Drosophilidae Rondani, 1856
+Genus Drosophila\u1D40 Fall\u00e9n, 1823
+Drosophila melanogaster Meigen, 1830
+    </div>
+  </body></html>'
+
+  fake_response <- structure(list(status_code = 200L), class = "response")
+
+  mockery::stub(get_lineage_by_id, "httr::GET", function(...) fake_response)
+  mockery::stub(get_lineage_by_id, "httr::status_code", function(...) 200L)
+  mockery::stub(get_lineage_by_id, "httr::content", function(...) fake_html)
+
+  lin <- get_lineage_by_id("28940")
+
+  expect_true("Biota" %in% lin)
+  expect_true("Drosophila" %in% lin)
+  expect_false(any(grepl("melanogaster", lin)))
 })
