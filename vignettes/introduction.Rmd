@@ -57,9 +57,7 @@ many nodes each has in its lineage below the split. For example:
 - All dinosaurs diverged from the mammal lineage at the same
   node (Amniota), so *Homo sapiens* is equally distant from *Tyrannosaurus*, *Triceratops*, *Carnotaurus* and *Cyanocorax*.
 
-The distance is not bounded to $[0, 1]$, it depends on the depth of the
-MRCA in The Taxonomicon's classification. Deeper, more finely resolved
-clades will have smaller distances between their members.
+The distance is bounded to $[0, 1]$, where 0 means identical taxa, 1 means the taxa share only the root as their most recent common ancestor, and smaller values reflect increasingly recent shared ancestry.
 
 ---
 
