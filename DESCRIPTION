@@ -1,6 +1,7 @@
 Package: taxodist
 Title: Taxonomic Distance and Phylogenetic Lineage Computation
-Version: 0.4.0
+Version: 0.5.0
+LazyData: true
 Authors@R: person("Rodrigo Fonseca", "Villa", email = "rodrigo03.villa@gmail.com",
            role = c("aut", "cre"),
            comment = c(ORCID = "0009-0005-2938-2270"))
@@ -42,6 +43,7 @@ Suggests:
     rmarkdown,
     xml2,
     ape,
-    vegan
+    vegan,
+    webmockr
 VignetteBuilder: knitr
 Config/testthat/edition: 3

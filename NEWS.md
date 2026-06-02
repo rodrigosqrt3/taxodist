@@ -106,3 +106,21 @@
   rank prefix and a taxon name (e.g., `Family † Dromaeosauridae`) caused the
   taxon to be lost entirely. Dagger removal now precedes all other cleaning
   steps.
+  
+# taxodist 0.5.0
+
+## New features
+
+* `taxobase`: Added a built-in reference dataset containing 50 taxonomic clades. 
+   The dataset includes pre-computed distance matrices, lineage paths, search 
+   outputs, and coverage vectors. It acts as a complete offline fallback, allowing 
+   package examples, vignettes, and unit tests to run instantly without requiring 
+   a network connection to The Taxonomicon.
+
+## Bug fixes
+
+  * Fixed a bug where any taxon whose name contains the substring "planet" (e.g.               *Periplaneta*) was incorrectly discarded by the astronomical homonym filter in               `get_taxonomicon_id()` and `taxo_search()`. The filter now uses word boundaries              (`\bplanet\b`) so that genus names containing "planet" as an infix are no longer mistakenly   treated as non-biological entries.
+  * Fixed a lineage parsing bug affecting genera whose Taxonomicon page does not link back to   the genus itself (e.g. *Periplaneta*, which only links to its constituent species). The      lineage is now correctly truncated before child species entries, and the genus name is       appended if absent.
+  * Added `"Epifamily"` to the bare rank token filter so that unprefixed rank labels are not   retained as spurious lineage nodes.
+  * Fixed a lineage parsing bug where the superscript type-marker `ᵀ` (U+1D40) immediately     following a taxon name prevented word-boundary matching in the cutoff search, causing the    lineage to overshoot the target node and incorrectly include descendant taxa as ancestors.   This silently affected any type genus or type species (i.e. the majority of genera), and     was particularly visible in deep clades such as *Dinosauria* where several child clades      were being parsed as ancestor nodes. Higher-rank taxa (clades, orders, families — anything   above genus level) were disproportionately affected.
+  * Fixed a lineage parsing bug where navigation header text prepended to the                  `#divPageContent` block could contain the target taxon name (e.g. in a cited reference       title), causing the lineage cutoff to land in the junk header rather than the actual         taxonomic tree. Affected taxa received a garbage two- or three-line lineage and were         silently discarded by the `"Biota"` membership check in `get_taxonomicon_id()`.              *Drosophila* (the fly genus, ID 28940) was one such case.

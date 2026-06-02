@@ -3,6 +3,8 @@
 #' @importFrom stringr str_remove str_remove_all str_extract str_trim
 NULL
 
+regexEscape <- function(x) gsub("([.\\^$*+?{}\\[\\]|()])", "\\\\\\1", x)
+
 # -- Internal cache -----------------------------------------------------------
 
 .taxodist_cache <- new.env(parent = emptyenv())
@@ -204,7 +206,7 @@ get_taxonomicon_id <- function(taxon, verbose = FALSE) {
 
   for (row in rows) {
     text <- rvest::html_text(row, trim = TRUE)
-    if (grepl("astronomical|planet|Minor planet|comet|asteroid",
+    if (grepl("\\bastronomical\\b|\\bplanet\\b|\\bMinor planet\\b|\\bcomet\\b|\\basteroid\\b",
               text, ignore.case = TRUE)) next
 
     links_nodes <- rvest::html_nodes(row, "a[href*='TaxonTree']")
@@ -230,6 +232,16 @@ get_taxonomicon_id <- function(taxon, verbose = FALSE) {
     if (is.null(candidate_lin) || !"Biota" %in% candidate_lin) next
 
     bio_ids <- c(bio_ids, list(list(id = id, text = text_entry)))
+  }
+
+  if (length(bio_ids) > 1) {
+    matched <- Filter(function(x) {
+      lin <- get_lineage_by_id(x$id, clean = TRUE, verbose = FALSE)
+      !is.null(lin) && any(grepl(paste0("\\b", regexEscape(taxon), "\\b"), lin, ignore.case = TRUE))
+    }, bio_ids)
+    # nocov start
+    if (length(matched) > 0) bio_ids <- matched
+    # nocov end
   }
 
   if (length(bio_ids) == 0L) {
@@ -323,21 +335,32 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
     return(NULL)
   }
   page  <- rvest::read_html(httr::content(res, "text", encoding = "UTF-8"))
-  links <- rvest::html_nodes(page, "a[href*='TaxonTree']")
+  regexEscape <- function(x) gsub("([.\\^$*+?{}\\[\\]|()])", "\\\\\\1", x)
 
-  # remove navigation/menu links — these have no numeric id parameter
-  hrefs_all <- rvest::html_attr(links, "href")
-  links <- links[grepl("id=[0-9]", hrefs_all)]
-  hrefs_all <- hrefs_all[grepl("id=[0-9]", hrefs_all)]
+  current_name <- rvest::html_text(
+    rvest::html_node(page, "#ctl00_divSubject b"), trim = TRUE
+  )
+  content_node <- rvest::html_node(page, "#divPageContent")
 
-  hrefs <- rvest::html_attr(links, "href")
-  own_pattern <- paste0("id=", taxon_id, "($|&)")
-  own_idx <- which(grepl(own_pattern, hrefs))
-  if (length(own_idx) > 0) {
-    links <- links[seq_len(max(own_idx))]
+  if (!is.na(current_name) && !is.null(content_node)) {
+    tree_text <- rvest::html_text(content_node, trim = TRUE)
+    raw_lines <- strsplit(tree_text, "\n")[[1]]
+    raw_lines <- trimws(raw_lines)
+    raw_lines <- raw_lines[nzchar(raw_lines)]
+    tree_start <- grep("^Natura", raw_lines)[1]
+    if (!is.na(tree_start)) raw_lines <- raw_lines[tree_start:length(raw_lines)]
+    raw_lines_search <- stringr::str_remove_all(raw_lines, "[\u2020\u1D40]")
+    cutoff <- grep(paste0("\\b", regexEscape(current_name), "\\b"), raw_lines_search)[1]
+    texts <- if (!is.na(cutoff)) raw_lines[seq_len(cutoff)] else raw_lines
+  } else {
+    links <- rvest::html_nodes(page, "a[href*='TaxonTree']")
+    hrefs_all <- rvest::html_attr(links, "href")
+    links <- links[grepl("id=[0-9]", hrefs_all)]
+    hrefs <- rvest::html_attr(links, "href")
+    own_idx <- which(grepl(paste0("id=", taxon_id, "($|&)"), hrefs))
+    if (length(own_idx) > 0) links <- links[seq_len(max(own_idx))]
+    texts <- rvest::html_text(links, trim = TRUE)
   }
-
-  texts <- rvest::html_text(links, trim = TRUE)
   lineage <- texts |>
     stringr::str_remove_all("[\u2020\u1D40]") |>
     stringr::str_remove("^\\[crown\\]\\s+(Clade|Grandorder|Order|Superorder|Infraorder|Suborder|Class|Superclass|Subclass|Infraclass|Family|Superfamily|Subfamily|Tribe|Subtribe|Kingdom|Subkingdom|Infrakingdom|Domain|Superkingdom|Phylum|Subphylum|Genus|Species)?\\s*") |>
@@ -355,7 +378,7 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
     stringr::str_remove("^\".*") |>
     stringr::str_trim()
   bare_ranks <- c(
-    "Go to", "Superphylum", "Subfamily", "Suborder",
+    "Go to", "Superphylum", "Subfamily", "Suborder", "Epifamily",
     "Infraorder", "Superclass", "Subclass", "Superfamily",
     "Subgenus", "Section", "Division", "Candidatus", "Parvphylum",
     "Branch", "Supercohort", "Infracohort", "Subdivision", "Subsection",
@@ -488,7 +511,7 @@ taxo_search <- function(taxon, verbose = FALSE) {
   results <- list()
   for (row in rows) {
     text <- rvest::html_text(row, trim = TRUE)
-    if (grepl("astronomical|planet|Minor planet|comet|asteroid", text, ignore.case = TRUE)) next
+    if (grepl("\\bastronomical\\b|\\bplanet\\b|\\bMinor planet\\b|\\bcomet\\b|\\basteroid\\b", text, ignore.case = TRUE)) next
 
     links <- rvest::html_nodes(row, "a[href*='TaxonTree']")
     if (length(links) == 0) next

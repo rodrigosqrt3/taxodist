@@ -429,7 +429,7 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
   mrca_idx       <- which.max(positions_in_a)
   mrca_depth     <- positions_in_a[mrca_idx]
   mrca_name      <- lin_a[mrca_depth]
-  is_ancestral   <- (mrca_name == lin_a[depth_a]) || (mrca_name == lin_b[depth_b])
+  is_ancestral   <- (lin_a[depth_a] %in% lin_b) || (lin_b[depth_b] %in% lin_a)
   distance       <- if (is_ancestral) 0 else 1 / mrca_depth
 
   structure(list(
