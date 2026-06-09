@@ -1,26 +1,10 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="man/figures/taxodist_escuro.png">
-    <source media="(prefers-color-scheme: light)" srcset="man/figures/taxodist_sepia.png">
-    <img alt="taxodist logo" src="man/figures/taxodist_sepia.png" height="220">
-  </picture>
-</p>
+# taxodist <picture><source media="(prefers-color-scheme: dark)" srcset="man/figures/taxodist_dark.png"><source media="(prefers-color-scheme: light)" srcset="man/figures/taxodist_sepia.png"><img alt="taxodist logo" src="man/figures/taxodist_sepia.png" align="right" height="155"></picture>
 
-<h1 align="center">taxodist</h1>
+[![CRAN status](https://www.r-pkg.org/badges/version/taxodist)](https://CRAN.R-project.org/package=taxodist) &nbsp; [![R-CMD-check](https://github.com/rodrigosqrt3/taxodist/actions/workflows/r.yml/badge.svg)](https://github.com/rodrigosqrt3/taxodist/actions/workflows/r.yml) &nbsp; [![codecov](https://codecov.io/gh/rodrigosqrt3/taxodist/branch/main/graph/badge.svg)](https://codecov.io/gh/rodrigosqrt3/taxodist)
 
-<p align="center">
-  <a href="https://CRAN.R-project.org/package=taxodist"><img src="https://www.r-pkg.org/badges/version/taxodist" alt="CRAN status"></a> &nbsp;
-  <a href="https://github.com/rodrigosqrt3/taxodist/actions/workflows/r.yml"><img src="https://github.com/rodrigosqrt3/taxodist/actions/workflows/r.yml/badge.svg" alt="R-CMD-check"></a> &nbsp;
-  <a href="https://codecov.io/gh/rodrigosqrt3/taxodist"><img src="https://codecov.io/gh/rodrigosqrt3/taxodist/branch/main/graph/badge.svg" alt="codecov"></a>
-</p>
+**Taxonomic distance and phylogenetic lineage computation for any taxon on Earth.**
 
-<p align="center">
-  <strong>Taxonomic distance and phylogenetic lineage computation for any taxon on Earth.</strong>
-</p>
-
-<p align="center">
-  <code>taxodist</code> retrieves full hierarchical lineages from <a href="http://taxonomicon.taxonomy.nl">The Taxonomicon</a> and computes a tree metric distance between any two taxa: a pair of dinosaurs, a dinosaur and a fungus, two species of fly, or an oak tree and a human.
-</p>
+`taxodist` retrieves full hierarchical lineages from [The Taxonomicon](http://taxonomicon.taxonomy.nl) and computes a tree metric distance between any two taxa: a pair of dinosaurs, a dinosaur and a fungus, two species of fly, or an oak tree and a human.
 
 ## Installation
 
