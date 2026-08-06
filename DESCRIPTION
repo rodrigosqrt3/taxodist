@@ -1,22 +1,21 @@
 Package: taxodist
-Title: Taxonomic Distance and Phylogenetic Lineage Computation
-Version: 0.5.0
+Title: Taxonomic Hierarchy Distances and Lineage Analysis
+Version: 0.6.0
 LazyData: true
 Authors@R: person("Rodrigo Fonseca", "Villa", email = "rodrigo03.villa@gmail.com",
            role = c("aut", "cre"),
            comment = c(ORCID = "0009-0005-2938-2270"))
 Maintainer: Rodrigo Fonseca Villa <rodrigo03.villa@gmail.com>
-Description: Computes phylogenetic distances between any two taxa using 
-    hierarchical lineage data retrieved from The Taxonomicon 
-    <http://taxonomicon.taxonomy.nl>, a comprehensive curated classification 
-    of all life based on Systema Naturae 2000 (Brands, 1989 
-    <http://taxonomicon.taxonomy.nl>). Given any two taxon names, retrieves their 
-    full lineages, identifies the most recent common ancestor (MRCA), 
-    and computes a dissimilarity index based on lineage depth. Outputs 
-    native dist objects, enabling direct integration with the R statistical 
-    ecosystem for hierarchical clustering, principal coordinate analysis (PCoA), 
-    and multivariate ecological analyses. Supports individual distance queries, 
-    pairwise distance matrices, clade filtering, and lineage utilities.
+Description: Computes distances between taxonomic hierarchy nodes using lineage
+    data retrieved from The Taxonomicon <http://taxonomicon.taxonomy.nl>. For
+    distinct nodes, distance is defined as the reciprocal of the depth of their
+    most recent common ancestor; identical nodes have distance zero. This
+    definition yields an ultrametric within each connected hierarchy. Functions
+    are provided for lineage retrieval and comparison, clade membership,
+    pairwise and matrix distance calculation, hierarchical clustering,
+    principal coordinates analysis, and cache management. Distance matrices are
+    returned as base R 'dist' objects. The distances represent classification
+    depth rather than evolutionary time or phylogenetic branch length.
 Language: en-US
 License: GPL (>= 3)
 URL: https://github.com/rodrigosqrt3/taxodist
