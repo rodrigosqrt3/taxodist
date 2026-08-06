@@ -15,6 +15,7 @@ taxo_heatmap(taxa, ...)
 \value{
 Invisibly returns the underlying \code{dist} object.
 Called primarily for its side effect (plotting).
+If fewer than two taxa are supplied, plotting is skipped.
 }
 \description{
 Computes pairwise taxonomic distances and plots a heatmap with hierarchical

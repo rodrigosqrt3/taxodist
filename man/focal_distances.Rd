@@ -26,7 +26,8 @@ A data frame of class \code{"taxodist_focal"} with columns:
 \item{\code{mrca_depth}}{Integer. Depth of the MRCA node.}
 }
 Rows are sorted by \code{distance} ascending (closest relatives first).
-Returns \code{NULL} if the focal taxon cannot be found.
+Returns \code{NULL} if the focal taxon cannot be found. An empty community
+returns an empty object with the same columns and class.
 }
 \description{
 Given a focal taxon and a vector of community taxa, retrieves all lineages

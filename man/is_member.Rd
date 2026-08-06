@@ -17,8 +17,9 @@ is_member(taxon, clade, verbose = FALSE)
 A logical value, or \code{NULL} if the taxon cannot be found.
 }
 \description{
-Returns \code{TRUE} if \code{taxon} is a member of \code{clade} — i.e., if the clade name
-appears in the taxon's lineage.
+Returns \code{TRUE} if \code{taxon} is a member of \code{clade} — i.e., if the complete
+clade name appears in the taxon's lineage. Matching is case-insensitive and
+ignores leading and trailing whitespace.
 }
 \examples{
 \donttest{

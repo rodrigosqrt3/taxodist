@@ -16,12 +16,13 @@ against.}
 }
 \value{
 A data frame with columns \code{taxon} (candidate name) and \code{distance}
-(tree metric distance), sorted by distance ascending. Returns \code{NULL} if
-the query taxon cannot be found.
+(ultrametric distance), sorted by distance ascending. Returns \code{NULL} if
+the query taxon cannot be found. An empty candidate vector returns an
+empty data frame with the same columns.
 }
 \description{
 Given a query taxon and a vector of candidate taxa, returns the candidate
-with the smallest phylogenetic distance to the query.
+with the smallest taxonomic hierarchy distance to the query.
 }
 \examples{
 \donttest{

@@ -18,9 +18,10 @@ Default \code{FALSE}.}
 A symmetric numeric matrix of class \code{"dist"} containing pairwise
 distances. Row and column names are set to the input taxon names.
 Taxa that could not be found are included with \code{NA} distances.
+An empty input returns an empty \code{"dist"} object.
 }
 \description{
-Given a vector of taxon names, computes all pairwise phylogenetic distances
+Given a vector of taxon names, computes all pairwise taxonomic hierarchy distances
 and returns a symmetric distance matrix. Lineages are cached after first
 retrieval to minimise redundant network requests.
 }

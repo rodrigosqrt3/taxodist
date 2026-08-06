@@ -23,7 +23,8 @@ its side (or the shared lineage for the MRCA).}
 MRCA), \code{"mrca"} (the shared ancestor), or \code{"b"} (descending from MRCA
 to taxon B).}
 }
-Returns \code{NULL} if either taxon cannot be found.
+Returns \code{NULL} if either taxon cannot be found or if their lineages have no
+common ancestor.
 }
 \description{
 Returns the full node-by-node path from one taxon up to their most recent

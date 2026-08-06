@@ -15,7 +15,8 @@ Invisibly returns \code{NULL}.
 \description{
 Restores lineage data saved with \code{\link[=save_cache]{save_cache()}} into the current session
 cache, avoiding network requests for taxa already retrieved in a previous
-session.
+session. The file structure is validated before the current cache is
+modified.
 }
 \examples{
 \donttest{

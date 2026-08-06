@@ -2,7 +2,7 @@
 % Please edit documentation in R/distance.R
 \name{taxo_distance}
 \alias{taxo_distance}
-\title{Compute the phylogenetic distance between two taxa}
+\title{Compute the taxonomic hierarchy distance between two taxa}
 \usage{
 taxo_distance(taxon_a, taxon_b, verbose = FALSE)
 }
@@ -17,7 +17,7 @@ taxo_distance(taxon_a, taxon_b, verbose = FALSE)
 A named list of class \code{"taxodist_result"} with the following elements:
 \describe{
 \item{\code{distance}}{Numeric. The distance between the two taxa. Returns 0
-if one taxon is an ancestor of the other.}
+only when their complete lineages are identical.}
 \item{\code{mrca}}{Character. The name of the most recent common ancestor.}
 \item{\code{mrca_depth}}{Integer. The depth of the MRCA node.}
 \item{\code{depth_a}}{Integer. The lineage depth of taxon A.}
@@ -33,12 +33,15 @@ computes a taxonomic distance based on the depth of their most recent
 common ancestor (MRCA):
 }
 \details{
-\deqn{d(A, B) = \frac{1}{\text{depth}(\text{MRCA}(A,B))}}
+\deqn{d(A, A) = 0}
+\deqn{d(A, B) = \frac{1}{\text{depth}(\text{MRCA}(A,B))}, \quad A \ne B}
 
 The deeper the shared ancestor, the smaller (closer to zero) the distance.
-This metric ensures that taxa diverging at the same node are always
-equidistant from any third taxon, regardless of lineage depth differences
-below the split.
+Distinct nodes always have positive distance, including when one taxon is
+an ancestor of the other. This makes the measure an ultrametric on each
+connected taxonomic hierarchy. Use \code{\link[=is_member]{is_member()}} when the question is
+whether one taxon belongs to a clade rather than how far apart the two
+hierarchy nodes are.
 }
 \examples{
 \donttest{
@@ -58,5 +61,6 @@ Netherlands. Retrieved from The Taxonomicon,
 \url{http://taxonomicon.taxonomy.nl}.
 }
 \seealso{
-\code{\link[=mrca]{mrca()}}, \code{\link[=distance_matrix]{distance_matrix()}}, \code{\link[=get_lineage]{get_lineage()}}
+\code{\link[=mrca]{mrca()}}, \code{\link[=distance_matrix]{distance_matrix()}}, \code{\link[=get_lineage]{get_lineage()}}, \code{\link[=is_member]{is_member()}},
+\code{\link[=taxo_path]{taxo_path()}}
 }

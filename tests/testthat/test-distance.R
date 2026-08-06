@@ -118,11 +118,29 @@ test_that(".compute_distance distance is between 0 and 1 for asymmetric lineages
   expect_lte(result$distance, 1)
 })
 
-test_that(".compute_distance returns 0 when one taxon is ancestor of other", {
+test_that(".compute_distance is positive when one taxon is ancestor of other", {
   lin_a <- c("Biota", "Animalia", "Dinosauria")
   lin_b <- c("Biota", "Animalia", "Dinosauria", "Theropoda", "Carnotaurus")
   result <- taxodist:::.compute_distance(lin_a, lin_b)
-  expect_equal(result$distance, 0)
+  reverse <- taxodist:::.compute_distance(lin_b, lin_a)
+  expect_equal(result$distance, 1 / 3)
+  expect_equal(reverse$distance, result$distance)
+  expect_equal(result$mrca, "Dinosauria")
+})
+
+test_that(".compute_distance satisfies ultrametric inequality with ancestor nodes", {
+  ancestor <- c("Biota", "Animalia", "Dinosauria")
+  theropod <- c("Biota", "Animalia", "Dinosauria", "Theropoda")
+  ornithischian <- c("Biota", "Animalia", "Dinosauria", "Ornithischia")
+
+  d_ab <- taxodist:::.compute_distance(ancestor, theropod)$distance
+  d_ac <- taxodist:::.compute_distance(ancestor, ornithischian)$distance
+  d_bc <- taxodist:::.compute_distance(theropod, ornithischian)$distance
+
+  expect_gt(d_ab, 0)
+  expect_lte(d_ab, max(d_ac, d_bc))
+  expect_lte(d_ac, max(d_ab, d_bc))
+  expect_lte(d_bc, max(d_ab, d_ac))
 })
 
 test_that("clear_cache returns invisible NULL", {
@@ -1274,17 +1292,19 @@ test_that("taxo_distance returns valid result for Tyrannosaurus vs Velociraptor"
   expect_equal(result$mrca, "Tyrannoraptora")
 })
 
-test_that("taxo_distance returns 0 when one taxon is ancestor of other", {
+test_that("taxo_distance is positive when one taxon is ancestor of other", {
   skip_if_offline()
   skip_if_taxonomicon_down()
   clear_cache()
   res1 <- taxo_distance("Tyrannosaurus", "Dinosauria")
   skip_if(is.null(res1), "Taxonomicon unstable")
-  expect_equal(res1$distance, 0)
+  expect_gt(res1$distance, 0)
+  expect_equal(res1$distance, 1 / res1$mrca_depth)
 
   res2 <- taxo_distance("Carnotaurus", "Ceratosauria")
   skip_if(is.null(res2), "Taxonomicon unstable")
-  expect_equal(res2$distance, 0)
+  expect_gt(res2$distance, 0)
+  expect_equal(res2$distance, 1 / res2$mrca_depth)
 })
 
 test_that("taxo_distance between Carnotaurus and Triceratops is valid", {

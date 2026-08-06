@@ -22,6 +22,8 @@ An object of class \code{"taxodist_ord"} — a list with:
 \item{\code{GOF}}{Goodness-of-fit from\code{\link[stats:cmdscale]{stats::cmdscale()}}.}
 \item{\code{eig}}{The eigenvalues computed during PCoA.}
 }
+At least two taxa are required. When \code{k} is greater than the maximum
+possible dimension (\code{n - 1}), it is reduced automatically.
 }
 \description{
 Computes pairwise taxonomic distances and applies classical multidimensional

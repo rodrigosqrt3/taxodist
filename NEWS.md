@@ -124,3 +124,31 @@
   * Added `"Epifamily"` to the bare rank token filter so that unprefixed rank labels are not   retained as spurious lineage nodes.
   * Fixed a lineage parsing bug where the superscript type-marker `ᵀ` (U+1D40) immediately     following a taxon name prevented word-boundary matching in the cutoff search, causing the    lineage to overshoot the target node and incorrectly include descendant taxa as ancestors.   This silently affected any type genus or type species (i.e. the majority of genera), and     was particularly visible in deep clades such as *Dinosauria* where several child clades      were being parsed as ancestor nodes. Higher-rank taxa (clades, orders, families — anything   above genus level) were disproportionately affected.
   * Fixed a lineage parsing bug where navigation header text prepended to the                  `#divPageContent` block could contain the target taxon name (e.g. in a cited reference       title), causing the lineage cutoff to land in the junk header rather than the actual         taxonomic tree. Affected taxa received a garbage two- or three-line lineage and were         silently discarded by the `"Biota"` membership check in `get_taxonomicon_id()`.              *Drosophila* (the fly genus, ID 28940) was one such case.
+
+# taxodist 0.6.0
+
+## Breaking changes
+
+* The distance definition is now a proper ultrametric. Distance is zero only
+  when two complete lineages identify the same hierarchy node. Distinct
+  ancestor-descendant pairs now receive `1 / depth(MRCA)` instead of zero.
+  Use `is_member()` or `taxo_path()` when the question concerns clade
+  membership or containment rather than distance between nodes.
+* Package terminology now consistently describes the measure as a taxonomic
+  hierarchy distance rather than a phylogenetic distance.
+
+## Bug fixes and robustness
+
+* MRCA detection now uses only the continuous common lineage prefix, preventing
+  repeated names after divergence from being mistaken for shared ancestry.
+* `is_member()` now performs exact, case-insensitive matching and treats regular
+  expression characters literally.
+* `taxo_path()` now correctly handles identical taxa, ancestor-descendant pairs,
+  path direction, lineage depths, and pairs with no common ancestor.
+* Empty and single-taxon inputs are handled safely by distance matrices,
+  clustering, ordination, heatmaps, closest-relative queries, and focal
+  distances. Ordination also reduces `k` when required by sample size.
+* Clustering, ordination, and heatmaps now detect `NA` and infinite distances
+  and return informative fallback objects instead of failing downstream.
+* `load_cache()` validates cache structure, names, and value types before
+  modifying the active cache.

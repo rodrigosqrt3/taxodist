@@ -1,7 +1,7 @@
-#' taxodist: Taxonomic Distance and Phylogenetic Lineage Computation
+#' taxodist: Taxonomic Distance and Hierarchical Lineage Computation
 #'
 #' @description
-#' taxodist computes phylogenetic distances between any two taxa using
+#' taxodist computes taxonomic hierarchy distances between any two taxa using
 #' hierarchical lineage data retrieved from The Taxonomicon
 #' (taxonomy.nl), a comprehensive curated classification of all life
 #' based on Systema Naturae 2000.
@@ -9,7 +9,7 @@
 #' ## Core functions
 #'
 #' - [get_lineage()] — retrieve the full lineage of any taxon
-#' - [taxo_distance()] — compute the tree metric distance between two taxa
+#' - [taxo_distance()] — compute the ultrametric distance between two taxa
 #' - [mrca()] — find the most recent common ancestor
 #' - [distance_matrix()] — compute all pairwise distances for a set of taxa
 #' - [closest_relative()] — find the closest relative among candidates
@@ -26,12 +26,13 @@
 #' The distance metric is based on the depth of the most recent common
 #' ancestor (MRCA):
 #'
-#' \deqn{d(A, B) = \frac{1}{\text{depth}(\text{MRCA}(A,B))}}
+#' \deqn{d(A, A) = 0}
+#' \deqn{d(A, B) = \frac{1}{\text{depth}(\text{MRCA}(A,B))}, \quad A \ne B}
 #'
-#' The deeper the shared ancestor, the smaller the distance. This metric
-#' ensures that taxa sharing the same MRCA are always equidistant from any
-#' third taxon, regardless of lineage depth below the split — a key
-#' biological correctness property absent from Jaccard-based approaches.
+#' The deeper the shared ancestor, the smaller the distance. Zero is reserved
+#' for identical hierarchy nodes; distinct ancestor-descendant pairs therefore
+#' have positive distance. The measure is an ultrametric on each connected
+#' taxonomic hierarchy.
 #'
 #' ## Data source
 #'

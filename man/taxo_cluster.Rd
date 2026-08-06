@@ -22,6 +22,8 @@ An object of class \code{"taxodist_cluster"} — a list with:
 \item{\code{hclust}}{The \code{\link[stats:hclust]{stats::hclust()}} result.}
 \item{\code{dist}}{The underlying distance matrix.}
 }
+If fewer than two taxa are supplied, \code{hclust} is \code{NULL} and the distance
+object is preserved.
 }
 \description{
 Computes pairwise taxonomic distances and performs hierarchical clustering.

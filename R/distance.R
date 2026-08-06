@@ -1,15 +1,18 @@
-#' Compute the phylogenetic distance between two taxa
+#' Compute the taxonomic hierarchy distance between two taxa
 #'
 #' Given two taxon names, retrieves their lineages from The Taxonomicon and
 #' computes a taxonomic distance based on the depth of their most recent
 #' common ancestor (MRCA):
 #'
-#' \deqn{d(A, B) = \frac{1}{\text{depth}(\text{MRCA}(A,B))}}
+#' \deqn{d(A, A) = 0}
+#' \deqn{d(A, B) = \frac{1}{\text{depth}(\text{MRCA}(A,B))}, \quad A \ne B}
 #'
 #' The deeper the shared ancestor, the smaller (closer to zero) the distance.
-#' This metric ensures that taxa diverging at the same node are always
-#' equidistant from any third taxon, regardless of lineage depth differences
-#' below the split.
+#' Distinct nodes always have positive distance, including when one taxon is
+#' an ancestor of the other. This makes the measure an ultrametric on each
+#' connected taxonomic hierarchy. Use [is_member()] when the question is
+#' whether one taxon belongs to a clade rather than how far apart the two
+#' hierarchy nodes are.
 #'
 #' @param taxon_a A character string giving the first taxon name.
 #' @param taxon_b A character string giving the second taxon name.
@@ -18,7 +21,7 @@
 #' @return A named list of class `"taxodist_result"` with the following elements:
 #' \describe{
 #'   \item{`distance`}{Numeric. The distance between the two taxa. Returns 0
-#'     if one taxon is an ancestor of the other.}
+#'     only when their complete lineages are identical.}
 #'   \item{`mrca`}{Character. The name of the most recent common ancestor.}
 #'   \item{`mrca_depth`}{Integer. The depth of the MRCA node.}
 #'   \item{`depth_a`}{Integer. The lineage depth of taxon A.}
@@ -28,7 +31,8 @@
 #' }
 #' Returns `NULL` if either taxon cannot be found.
 #'
-#' @seealso [mrca()], [distance_matrix()], [get_lineage()]
+#' @seealso [mrca()], [distance_matrix()], [get_lineage()], [is_member()],
+#'   [taxo_path()]
 #'
 #' @references
 #' Brands, S.J. (1989 onwards). Systema Naturae 2000. Amsterdam, The
@@ -90,7 +94,7 @@ mrca <- function(taxon_a, taxon_b, verbose = FALSE) {
 
 #' Compute pairwise taxonomic distances for a set of taxa
 #'
-#' Given a vector of taxon names, computes all pairwise phylogenetic distances
+#' Given a vector of taxon names, computes all pairwise taxonomic hierarchy distances
 #' and returns a symmetric distance matrix. Lineages are cached after first
 #' retrieval to minimise redundant network requests.
 #'
@@ -151,7 +155,7 @@ distance_matrix <- function(taxa, verbose = FALSE, progress = TRUE) {
 #' Find the closest relative of a taxon among a set of candidates
 #'
 #' Given a query taxon and a vector of candidate taxa, returns the candidate
-#' with the smallest phylogenetic distance to the query.
+#' with the smallest taxonomic hierarchy distance to the query.
 #'
 #' @param taxon A character string giving the query taxon name.
 #' @param candidates A character vector of candidate taxon names to compare
@@ -159,7 +163,7 @@ distance_matrix <- function(taxa, verbose = FALSE, progress = TRUE) {
 #' @param verbose Logical. If `TRUE`, prints progress messages. Default `FALSE`.
 #'
 #' @return A data frame with columns `taxon` (candidate name) and `distance`
-#'   (tree metric distance), sorted by distance ascending. Returns `NULL` if
+#'   (ultrametric distance), sorted by distance ascending. Returns `NULL` if
 #'   the query taxon cannot be found. An empty candidate vector returns an
 #'   empty data frame with the same columns.
 #'
@@ -496,9 +500,9 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
     ), class = "taxodist_result"))
   }
 
-  mrca_name      <- lin_a[mrca_depth]
-  is_ancestral   <- mrca_depth == depth_a || mrca_depth == depth_b
-  distance       <- if (is_ancestral) 0 else 1 / mrca_depth
+  mrca_name    <- lin_a[mrca_depth]
+  same_lineage <- identical(as.character(lin_a), as.character(lin_b))
+  distance     <- if (same_lineage) 0 else 1 / mrca_depth
 
   structure(list(
     distance   = distance,
