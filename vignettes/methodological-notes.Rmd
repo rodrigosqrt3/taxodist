@@ -1,0 +1,133 @@
+---
+title: "Methodological Notes and Limitations"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Methodological Notes and Limitations}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(taxodist)
+```
+
+## Scope
+
+`taxodist` represents each taxon as an ordered lineage from the root of The
+Taxonomicon classification to the queried node. The resulting distance is a
+property of that classification hierarchy. It is not an estimate of divergence
+time, genetic distance, or phylogenetic branch length.
+
+## Definition
+
+Let \(L_A\) and \(L_B\) be two ordered lineages. Let \(h(A,B)\) be the length of
+their continuous common prefix, equivalent to the depth of their most recent
+common ancestor (MRCA). The distance is
+
+\[
+d(A,B) =
+\begin{cases}
+0, & L_A = L_B, \\
+1/h(A,B), & L_A \ne L_B.
+\end{cases}
+\]
+
+If two lineages have no shared root, the package returns an infinite distance.
+Names repeated after the first divergence are not considered evidence of shared
+ancestry.
+
+Zero is reserved for the same hierarchy node. Consequently, an ancestor and
+one of its descendants have positive distance even though they are connected by
+ancestry. Membership and distance answer different questions: `is_member()` and
+`taxo_path()` should be used for containment and ancestry queries.
+
+## Ultrametric property
+
+For lineages belonging to one connected hierarchy, the distance is
+non-negative, symmetric, and satisfies identity of indiscernibles. It also
+satisfies the strong triangle inequality
+
+\[
+d(A,C) \leq \max\{d(A,B), d(B,C)\}.
+\]
+
+The common prefix of \(A\) and \(C\) must be at least as long as the shorter of
+the common prefixes of \((A,B)\) and \((B,C)\). Therefore,
+
+\[
+h(A,C) \geq \min\{h(A,B),h(B,C)\}.
+\]
+
+Taking reciprocals gives the strong triangle inequality.
+
+The property can also be checked on the offline reference matrix distributed
+with the package.
+
+```{r ultrametric-check}
+m <- as.matrix(taxobase$statistical_matrix)
+tolerance <- sqrt(.Machine$double.eps)
+
+ultrametric_ok <- function(index) {
+  i <- index[1]
+  j <- index[2]
+  k <- index[3]
+
+  d_ij <- m[i, j]
+  d_ik <- m[i, k]
+  d_jk <- m[j, k]
+
+  d_ij <= max(d_ik, d_jk) + tolerance &&
+    d_ik <= max(d_ij, d_jk) + tolerance &&
+    d_jk <= max(d_ij, d_ik) + tolerance
+}
+
+all(combn(seq_len(nrow(m)), 3, FUN = ultrametric_ok))
+```
+
+## Dependence on the source classification
+
+The numerical value depends on the number and arrangement of nodes returned by
+The Taxonomicon. Taxonomic revisions, alternative classifications, and
+differences in lineage resolution can change both MRCA depth and distance.
+
+Comparisons should therefore use lineages obtained from the same source and,
+where possible, the same package and data-retrieval version.
+
+## Ambiguous and missing taxa
+
+Some names correspond to more than one valid biological entry. A numeric
+Taxonomicon identifier can be supplied when a specific taxonomic concept is
+required.
+
+Missing lineages produce missing pairwise values. Lineages without a common
+root produce infinite values. These cases should be resolved before applying
+methods that require a complete finite matrix, including clustering and
+ordination.
+
+## Interpretation
+
+Smaller values indicate a deeper shared node in the source classification.
+They should not be interpreted as:
+
+- elapsed evolutionary time;
+- genetic or morphological divergence;
+- phylogenetic branch length;
+- probability of common ancestry.
+
+Hierarchical clustering of these distances produces a taxonomic similarity
+dendrogram, not an independently inferred phylogenetic tree.
+
+## Recommended reporting
+
+Analyses using `taxodist` should report:
+
+- the package version;
+- the lineage retrieval date;
+- The Taxonomicon as the source classification;
+- the distance definition;
+- decisions involving ambiguous or missing taxa;
+- any clustering, ordination, or permutation method subsequently applied.
+
+Formatted citations for the package and The Taxonomicon are available through
+`citation("taxodist")`.

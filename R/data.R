@@ -1,25 +1,28 @@
 #' Reference Taxonomic Dataset (taxobase)
 #'
-#' A pre-computed dataset containing 50 taxonomic clades
-#' spanning across the tree of life, fetched from The Taxonomicon.
-#' This provides a offline fallback containing lineages,
-#' distance matrices, and search queries for demonstrating the package.
+#' A pre-computed reference dataset for 52 candidate genera distributed across
+#' major taxonomic groups. The data were retrieved from The Taxonomicon using
+#' the package functions and are intended for examples, documentation, and
+#' offline inspection of package output structures.
 #'
 #' @docType data
 #' @name taxobase
 #' @usage data(taxobase)
 #' @format A structured list containing the following pre-computed components:
 #' \describe{
-#'   \item{taxa}{Character vector of 1,000 candidate taxonomic genera.}
-#'   \item{found_taxa}{Character vector of verified clades found in The Taxonomicon.}
+#'   \item{taxa}{Character vector of 52 candidate genera.}
+#'   \item{found_taxa}{Character vector of candidates found in The Taxonomicon.}
 #'   \item{coverage}{Named logical vector indicating database presence of each taxon.}
-#'   \item{matrix}{A pre-computed taxonomic 'dist' object for verified clades.}
-#'   \item{pairwise}{A pre-computed distance list between Tyrannosaurus and Homo.}
-#'   \item{lineage_homo}{Full taxonomy tree structure list for 'Homo'.}
-#'   \item{lineage_tyrannosaurus}{Full taxonomy tree structure list for 'Tyrannosaurus'.}
-#'   \item{closest}{Dataframe demonstrating the closest relative query.}
-#'   \item{filter}{Character vector filtering verified taxa down to Theropoda.}
-#'   \item{search}{Reference search result dataset for the term 'Bacteria'.}
+#'   \item{matrix}{A pre-computed taxonomic `dist` object for `found_taxa`.}
+#'   \item{pairwise}{A pre-computed distance result for *Tyrannosaurus* and *Homo*.}
+#'   \item{lineage_homo}{Taxonomic lineage returned for *Homo*.}
+#'   \item{lineage_tyrannosaurus}{Taxonomic lineage returned for *Tyrannosaurus*.}
+#'   \item{closest}{Result of a closest-relative query for *Tyrannosaurus*.}
+#'   \item{filter}{Taxa in `found_taxa` assigned to Theropoda.}
+#'   \item{search}{Reference search result for the term `"Bacteria"`.}
+#'   \item{statistical_taxa}{Character vector used by the statistical applications vignette.}
+#'   \item{statistical_matrix}{Pre-computed `dist` object for `statistical_taxa`.}
+#'   \item{metadata}{Data source, generation date, package version, and distance definition.}
 #' }
 #' @source \url{http://taxonomicon.taxonomy.nl}
 #' @examples

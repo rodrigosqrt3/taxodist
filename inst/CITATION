@@ -1,0 +1,19 @@
+citHeader("To cite taxodist and its taxonomic data source in publications, use:")
+
+bibentry(
+  bibtype = "Manual",
+  title = "taxodist: Taxonomic Hierarchy Distances and Lineage Analysis",
+  author = person(given = "Rodrigo Fonseca", family = "Villa"),
+  year = "2026",
+  note = "R package version 0.6.0",
+  url = "https://CRAN.R-project.org/package=taxodist"
+)
+
+bibentry(
+  bibtype = "Misc",
+  title = "The Taxonomicon: Systema Naturae 2000",
+  author = person(given = "Sheila J.", family = "Brands"),
+  year = "1989",
+  note = "Continuously updated taxonomic database",
+  url = "http://taxonomicon.taxonomy.nl"
+)

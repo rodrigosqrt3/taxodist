@@ -8,6 +8,27 @@ test_that("taxodist package loads", {
   expect_true(TRUE)
 })
 
+test_that("taxobase has the documented structure", {
+  data("taxobase", package = "taxodist", envir = environment())
+  expect_type(taxobase, "list")
+  expect_named(taxobase, c(
+    "taxa", "found_taxa", "coverage", "matrix", "pairwise",
+    "lineage_homo", "lineage_tyrannosaurus", "closest", "filter",
+    "search", "statistical_taxa", "statistical_matrix", "metadata"
+  ))
+  expect_s3_class(taxobase$matrix, "dist")
+  expect_s3_class(taxobase$statistical_matrix, "dist")
+  expect_equal(attr(taxobase$matrix, "Labels"), taxobase$found_taxa)
+  expect_equal(
+    attr(taxobase$statistical_matrix, "Labels"),
+    taxobase$statistical_taxa
+  )
+  expect_equal(
+    taxobase$metadata$package_version,
+    as.character(utils::packageVersion("taxodist"))
+  )
+})
+
 test_that(".compute_distance works correctly", {
   lin_a <- c("Biota", "Animalia", "Chordata", "Dinosauria",
              "Theropoda", "Tyrannosauridae", "Tyrannosaurus")
@@ -1216,6 +1237,8 @@ test_that("print.taxodist_focal runs without error and returns invisibly", {
 # ── Network tests (skipped on CRAN) ──────────────────────────────────────────
 
 skip_if_taxonomicon_down <- function() {
+  testthat::skip_on_cran()
+  testthat::skip_on_ci()
   res <- tryCatch(httr::GET("http://taxonomicon.taxonomy.nl", httr::timeout(3)), error = function(e) NULL)
   if (is.null(res) || httr::status_code(res) != 200) {
     testthat::skip("Taxonomicon server is currently offline.")

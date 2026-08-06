@@ -4,12 +4,12 @@
 \name{taxodist-package}
 \alias{taxodist-package}
 \alias{taxodist}
-\title{taxodist: Taxonomic Distance and Hierarchical Lineage Computation}
+\title{taxodist: Taxonomic Hierarchy Distances and Lineage Analysis}
 \description{
-taxodist computes taxonomic hierarchy distances between any two taxa using
-hierarchical lineage data retrieved from The Taxonomicon
-(taxonomy.nl), a comprehensive curated classification of all life
-based on Systema Naturae 2000.
+taxodist retrieves taxonomic lineages from The Taxonomicon (taxonomy.nl)
+and computes distances from the depth of the most recent common ancestor.
+The resulting values describe separation within the source classification;
+they are not estimates of evolutionary time or phylogenetic branch length.
 \subsection{Core functions}{
 \itemize{
 \item \code{\link[=get_lineage]{get_lineage()}} — retrieve the full lineage of any taxon
@@ -38,7 +38,8 @@ ancestor (MRCA):
 The deeper the shared ancestor, the smaller the distance. Zero is reserved
 for identical hierarchy nodes; distinct ancestor-descendant pairs therefore
 have positive distance. The measure is an ultrametric on each connected
-taxonomic hierarchy.
+taxonomic hierarchy. Its numerical values depend on the resolution of the
+classification returned by the data source.
 }
 
 \subsection{Data source}{

@@ -1,10 +1,10 @@
-#' taxodist: Taxonomic Distance and Hierarchical Lineage Computation
+#' taxodist: Taxonomic Hierarchy Distances and Lineage Analysis
 #'
 #' @description
-#' taxodist computes taxonomic hierarchy distances between any two taxa using
-#' hierarchical lineage data retrieved from The Taxonomicon
-#' (taxonomy.nl), a comprehensive curated classification of all life
-#' based on Systema Naturae 2000.
+#' taxodist retrieves taxonomic lineages from The Taxonomicon (taxonomy.nl)
+#' and computes distances from the depth of the most recent common ancestor.
+#' The resulting values describe separation within the source classification;
+#' they are not estimates of evolutionary time or phylogenetic branch length.
 #'
 #' ## Core functions
 #'
@@ -26,13 +26,15 @@
 #' The distance metric is based on the depth of the most recent common
 #' ancestor (MRCA):
 #'
-#' \deqn{d(A, A) = 0}
-#' \deqn{d(A, B) = \frac{1}{\text{depth}(\text{MRCA}(A,B))}, \quad A \ne B}
+#' \deqn{d(A,A) = 0}{d(A,A) = 0}
+#' \deqn{d(A,B) = 1 / h(A,B)}{d(A,B) = 1 / h(A,B)}
 #'
-#' The deeper the shared ancestor, the smaller the distance. Zero is reserved
+#' Here, `h(A,B)` denotes the depth of the MRCA. The deeper the shared
+#' ancestor, the smaller the distance. Zero is reserved
 #' for identical hierarchy nodes; distinct ancestor-descendant pairs therefore
 #' have positive distance. The measure is an ultrametric on each connected
-#' taxonomic hierarchy.
+#' taxonomic hierarchy. Its numerical values depend on the resolution of the
+#' classification returned by the data source.
 #'
 #' ## Data source
 #'

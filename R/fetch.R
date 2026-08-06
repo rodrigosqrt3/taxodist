@@ -329,11 +329,10 @@ get_taxonomicon_id <- function(taxon, verbose = FALSE) {
 #'
 #' @details
 #' Lineage data is sourced from The Taxonomicon, which is based on
-#' Systema Naturae 2000 (Brands, S.J., 1989 onwards). The depth of lineages
-#' in The Taxonomicon substantially exceeds that of other programmatic sources
-#' such as the Open Tree of Life, particularly for well-studied clades such
-#' as Dinosauria, where intermediate clades at the level of superfamilies,
-#' tribes, and named subclades are fully resolved.
+#' Systema Naturae 2000 (Brands, S.J., 1989 onwards). Lineage resolution varies
+#' among taxonomic groups and may change when the source classification is
+#' updated. Because hierarchy distances depend on lineage depth, analyses
+#' should record the retrieval date and package version.
 #'
 #' @seealso [get_lineage()], [taxo_distance()]
 #'
