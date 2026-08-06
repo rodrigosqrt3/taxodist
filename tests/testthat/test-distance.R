@@ -41,6 +41,36 @@ test_that(".compute_distance is symmetric", {
   expect_equal(r1$distance, r2$distance)
 })
 
+test_that(".compute_distance ignores names repeated after divergence", {
+  lin_a <- c("Biota", "Animalia", "Metazoa", "RepeatedName", "TaxonA")
+  lin_b <- c("Biota", "Plantae", "Viridiplantae", "RepeatedName", "TaxonB")
+  result <- taxodist:::.compute_distance(lin_a, lin_b)
+  expect_equal(result$mrca, "Biota")
+  expect_equal(result$mrca_depth, 1L)
+  expect_equal(result$distance, 1)
+})
+
+test_that(".compute_distance uses only the continuous common prefix", {
+  lin_a <- c("Biota", "Animalia", "Chordata", "SharedAgain", "TaxonA")
+  lin_b <- c("Biota", "Animalia", "Arthropoda", "Insecta", "SharedAgain",
+             "TaxonB")
+  result <- taxodist:::.compute_distance(lin_a, lin_b)
+  expect_equal(result$mrca, "Animalia")
+  expect_equal(result$mrca_depth, 2L)
+  expect_equal(result$distance, 0.5)
+})
+
+test_that(".compute_distance remains symmetric for unequal lineage lengths", {
+  lin_a <- c("Biota", "Animalia", "Chordata", "SharedAgain", "TaxonA")
+  lin_b <- c("Biota", "Animalia", "Arthropoda", "SharedAgain", "Group",
+             "TaxonB")
+  r1 <- taxodist:::.compute_distance(lin_a, lin_b)
+  r2 <- taxodist:::.compute_distance(lin_b, lin_a)
+  expect_equal(r1$distance, r2$distance)
+  expect_equal(r1$mrca, r2$mrca)
+  expect_equal(r1$mrca_depth, r2$mrca_depth)
+})
+
 test_that(".compute_distance satisfies triangle inequality", {
   lin_a <- c("Biota", "Animalia", "Dinosauria", "Theropoda", "Tyrannosauridae")
   lin_b <- c("Biota", "Animalia", "Dinosauria", "Theropoda", "Dromaeosauridae")
@@ -140,6 +170,40 @@ test_that("load_cache errors on missing file", {
   expect_error(load_cache("nonexistent_file.rds"))
 })
 
+test_that("load_cache rejects a non-list RDS without modifying cache", {
+  clear_cache()
+  assign("id_existing", "123", envir = taxodist:::.taxodist_cache)
+  tmp <- tempfile(fileext = ".rds")
+  on.exit(unlink(tmp))
+  saveRDS(42, tmp)
+  expect_error(load_cache(tmp), "expected a named list")
+  expect_equal(
+    get("id_existing", envir = taxodist:::.taxodist_cache),
+    "123"
+  )
+})
+
+test_that("load_cache rejects unnamed cache entries", {
+  clear_cache()
+  tmp <- tempfile(fileext = ".rds")
+  on.exit(unlink(tmp))
+  saveRDS(list("12345"), tmp)
+  expect_error(load_cache(tmp), "unique, non-empty names")
+})
+
+test_that("load_cache rejects invalid ID and lineage values", {
+  clear_cache()
+  tmp_id <- tempfile(fileext = ".rds")
+  tmp_lin <- tempfile(fileext = ".rds")
+  on.exit(unlink(c(tmp_id, tmp_lin)))
+
+  saveRDS(list(id_bad = 12345), tmp_id)
+  expect_error(load_cache(tmp_id), "ID entries")
+
+  saveRDS(list(lin_bad = 12345), tmp_lin)
+  expect_error(load_cache(tmp_lin), "lineage entries")
+})
+
 test_that("save_cache returns invisible NULL", {
   clear_cache()
   tmp <- tempfile(fileext = ".rds")
@@ -154,6 +218,7 @@ test_that("load_cache returns invisible NULL", {
   save_cache(tmp)
   clear_cache()
   expect_invisible(load_cache(tmp))
+  expect_equal(ls(taxodist:::.taxodist_cache), character(0))
 })
 
 test_that("filter_clade filters correctly with mocked lineages", {
@@ -221,6 +286,70 @@ test_that("taxo_path mrca node is correct", {
   })
   result <- taxo_path("Tyrannosaurus", "Triceratops")
   expect_equal(result$node[result$direction == "mrca"], "Dinosauria")
+})
+
+test_that("taxo_path returns the complete path with lineage depths", {
+  mockery::stub(taxo_path, "get_lineage", function(taxon, ...) {
+    if (taxon == "Tyrannosaurus")
+      c("Biota", "Animalia", "Dinosauria", "Theropoda", "Tyrannosaurus")
+    else
+      c("Biota", "Animalia", "Dinosauria", "Ornithischia", "Triceratops")
+  })
+  result <- taxo_path("Tyrannosaurus", "Triceratops")
+  expect_equal(
+    result$node,
+    c("Tyrannosaurus", "Theropoda", "Dinosauria",
+      "Ornithischia", "Triceratops")
+  )
+  expect_equal(result$depth, c(5L, 4L, 3L, 4L, 5L))
+  expect_equal(result$direction, c("a", "a", "mrca", "b", "b"))
+})
+
+test_that("taxo_path returns only the MRCA for identical taxa", {
+  lineage <- c("Biota", "Animalia", "Dinosauria", "Theropoda")
+  mockery::stub(taxo_path, "get_lineage", function(...) lineage)
+  result <- taxo_path("Theropoda", "Theropoda")
+  expect_equal(result$node, "Theropoda")
+  expect_equal(result$depth, 4L)
+  expect_equal(result$direction, "mrca")
+})
+
+test_that("taxo_path handles taxon A as ancestor of taxon B", {
+  mockery::stub(taxo_path, "get_lineage", function(taxon, ...) {
+    if (taxon == "Dinosauria")
+      c("Biota", "Animalia", "Dinosauria")
+    else
+      c("Biota", "Animalia", "Dinosauria", "Theropoda", "Tyrannosaurus")
+  })
+  result <- taxo_path("Dinosauria", "Tyrannosaurus")
+  expect_equal(result$node, c("Dinosauria", "Theropoda", "Tyrannosaurus"))
+  expect_equal(result$depth, c(3L, 4L, 5L))
+  expect_equal(result$direction, c("mrca", "b", "b"))
+})
+
+test_that("taxo_path handles taxon B as ancestor of taxon A", {
+  mockery::stub(taxo_path, "get_lineage", function(taxon, ...) {
+    if (taxon == "Tyrannosaurus")
+      c("Biota", "Animalia", "Dinosauria", "Theropoda", "Tyrannosaurus")
+    else
+      c("Biota", "Animalia", "Dinosauria")
+  })
+  result <- taxo_path("Tyrannosaurus", "Dinosauria")
+  expect_equal(result$node, c("Tyrannosaurus", "Theropoda", "Dinosauria"))
+  expect_equal(result$depth, c(5L, 4L, 3L))
+  expect_equal(result$direction, c("a", "a", "mrca"))
+})
+
+test_that("taxo_path returns NULL when no common ancestor exists", {
+  mockery::stub(taxo_path, "get_lineage", function(taxon, ...) {
+    if (taxon == "Animalia") c("Biota", "Animalia")
+    else c("Natura", "Mineralia")
+  })
+  expect_warning(
+    result <- taxo_path("Animalia", "Mineralia"),
+    "No common ancestor"
+  )
+  expect_null(result)
 })
 
 test_that("taxo_path direction column only contains valid values", {
@@ -353,6 +482,29 @@ test_that("is_member works with mocked lineage", {
   expect_false(is_member("Tyrannosaurus", "Mammalia"))
 })
 
+test_that("is_member requires a complete clade name", {
+  mockery::stub(is_member, "get_lineage",
+                function(...) c("Biota", "Animalia", "Dinosauria", "Theropoda"))
+  expect_false(is_member("Tyrannosaurus", "Dino"))
+  expect_false(is_member("Tyrannosaurus", "Ther"))
+  expect_false(is_member("Tyrannosaurus", "Animal"))
+})
+
+test_that("is_member matches case-insensitively and ignores outer whitespace", {
+  mockery::stub(is_member, "get_lineage",
+                function(...) c("Biota", "Animalia", "Dinosauria", "Theropoda"))
+  expect_true(is_member("Tyrannosaurus", "dinosauria"))
+  expect_true(is_member("Tyrannosaurus", "  THEROPODA  "))
+})
+
+test_that("is_member treats regular expression characters literally", {
+  mockery::stub(is_member, "get_lineage",
+                function(...) c("Biota", "Clade (example)", "Species+"))
+  expect_true(is_member("Example", "Clade (example)"))
+  expect_true(is_member("Example", "Species+"))
+  expect_false(is_member("Example", "Clade ("))
+})
+
 test_that("compare_lineages works with mocked lineages", {
   mockery::stub(compare_lineages, "get_lineage", function(taxon, ...) {
     if (taxon == "Tyrannosaurus")
@@ -377,6 +529,13 @@ test_that("distance_matrix works with mocked lineages", {
                          progress = FALSE)
   expect_equal(nrow(as.matrix(mat)), 3)
   expect_equal(diag(as.matrix(mat)), c(0, 0, 0), ignore_attr = TRUE)
+})
+
+test_that("distance_matrix returns an empty dist for no taxa", {
+  result <- distance_matrix(character(0), progress = FALSE)
+  expect_s3_class(result, "dist")
+  expect_length(result, 0L)
+  expect_equal(attr(result, "Size"), 0L)
 })
 
 test_that("check_coverage returns named logical vector", {
@@ -421,6 +580,16 @@ test_that("closest_relative returns NULL when query lineage not found", {
   mockery::stub(closest_relative, "get_lineage", function(...) NULL)
   result <- closest_relative("Fakeosaurus", c("Carnotaurus", "Velociraptor"))
   expect_null(result)
+})
+
+test_that("closest_relative returns an empty data frame for no candidates", {
+  mockery::stub(closest_relative, "get_lineage", function(...) {
+    c("Biota", "Animalia", "Dinosauria", "Tyrannosaurus")
+  })
+  result <- closest_relative("Tyrannosaurus", character(0))
+  expect_s3_class(result, "data.frame")
+  expect_named(result, c("taxon", "distance"))
+  expect_equal(nrow(result), 0L)
 })
 
 test_that("closest_relative handles NULL candidate lineage", {
@@ -634,12 +803,12 @@ test_that("lineage_depth returns NULL when lineage not found", {
 test_that("get_taxonomicon_id parses HTML and returns id", {
   clear_cache()
   fake_html <- '
-  <html><body><table>
-    <tr>
-      <td>Carnotaurus - animal - dinosaur</td>
-      <td><a class="Valid" href="TaxonTree.aspx?id=12345&src=0">tree</a></td>
-    </tr>
-  </table></body></html>'
+    <html><body><table>
+      <tr>
+        <td>Carnotaurus - animal - dinosaur</td>
+        <td><a class="Valid" href="TaxonTree.aspx?id=12345&src=0">tree</a></td>
+      </tr>
+    </table></body></html>'
   fake_response <- structure(list(), class = "response")
   mockery::stub(get_taxonomicon_id, "httr::GET", function(...) fake_response)
   mockery::stub(get_taxonomicon_id, "httr::status_code", function(...) 200L)
@@ -652,16 +821,16 @@ test_that("get_taxonomicon_id parses HTML and returns id", {
 test_that("get_taxonomicon_id skips astronomical entries", {
   clear_cache()
   fake_html <- '
-  <html><body><table>
-    <tr>
-      <td>Carnotaurus - asteroid - Minor planet</td>
-      <td><a class="Valid" href="TaxonTree.aspx?id=99999&src=0">tree</a></td>
-    </tr>
-    <tr>
-      <td>Carnotaurus - animal - dinosaur</td>
-      <td><a class="Valid" href="TaxonTree.aspx?id=12345&src=0">tree</a></td>
-    </tr>
-  </table></body></html>'
+    <html><body><table>
+      <tr>
+        <td>Carnotaurus - asteroid - Minor planet</td>
+        <td><a class="Valid" href="TaxonTree.aspx?id=99999&src=0">tree</a></td>
+      </tr>
+      <tr>
+        <td>Carnotaurus - animal - dinosaur</td>
+        <td><a class="Valid" href="TaxonTree.aspx?id=12345&src=0">tree</a></td>
+      </tr>
+    </table></body></html>'
   fake_response <- structure(list(), class = "response")
   mockery::stub(get_taxonomicon_id, "httr::GET", function(...) fake_response)
   mockery::stub(get_taxonomicon_id, "httr::status_code", function(...) 200L)
@@ -674,16 +843,16 @@ test_that("get_taxonomicon_id skips astronomical entries", {
 test_that("get_taxonomicon_id skips row matching both bio and astronomical keywords", {
   clear_cache()
   fake_html <- '
-  <html><body><table>
-    <tr>
-      <td>Pterodactylus - animal - Minor planet asteroid</td>
-      <td><a class="Valid" href="TaxonTree.aspx?id=99999&src=0">wrong</a></td>
-    </tr>
-    <tr>
-      <td>Pterodactylus - animal - reptile</td>
-      <td><a class="Valid" href="TaxonTree.aspx?id=42042&src=0">tree</a></td>
-    </tr>
-  </table></body></html>'
+    <html><body><table>
+      <tr>
+        <td>Pterodactylus - animal - Minor planet asteroid</td>
+        <td><a class="Valid" href="TaxonTree.aspx?id=99999&src=0">wrong</a></td>
+      </tr>
+      <tr>
+        <td>Pterodactylus - animal - reptile</td>
+        <td><a class="Valid" href="TaxonTree.aspx?id=42042&src=0">tree</a></td>
+      </tr>
+    </table></body></html>'
   fake_response <- structure(list(), class = "response")
   mockery::stub(get_taxonomicon_id, "httr::GET", function(...) fake_response)
   mockery::stub(get_taxonomicon_id, "httr::status_code", function(...) 200L)
@@ -696,12 +865,12 @@ test_that("get_taxonomicon_id skips row matching both bio and astronomical keywo
 test_that("get_taxonomicon_id returns NULL when bio row has no tree link", {
   clear_cache()
   fake_html <- '
-  <html><body><table>
-    <tr>
-      <td>Quercus - plant</td>
-      <td><a href="SomeOtherPage.aspx?id=999">no tree link</a></td>
-    </tr>
-  </table></body></html>'
+    <html><body><table>
+      <tr>
+        <td>Quercus - plant</td>
+        <td><a href="SomeOtherPage.aspx?id=999">no tree link</a></td>
+      </tr>
+    </table></body></html>'
   fake_response <- structure(list(), class = "response")
   mockery::stub(get_taxonomicon_id, "httr::GET", function(...) fake_response)
   mockery::stub(get_taxonomicon_id, "httr::status_code", function(...) 200L)
@@ -713,13 +882,13 @@ test_that("get_taxonomicon_id returns NULL when bio row has no tree link", {
 test_that("get_lineage_by_id parses HTML and returns lineage", {
   clear_cache()
   fake_html <- '
-  <html><body>
-    <a href="TaxonTree.aspx?id=1&src=0">Biota</a>
-    <a href="TaxonTree.aspx?id=2&src=0">Animalia</a>
-    <a href="TaxonTree.aspx?id=3&src=0">Dinosauria</a>
-    <a href="TaxonTree.aspx?id=4&src=0">Theropoda</a>
-    <a href="TaxonTree.aspx?id=5&src=0">Carnotaurus</a>
-  </body></html>'
+    <html><body>
+      <a href="TaxonTree.aspx?id=1&src=0">Biota</a>
+      <a href="TaxonTree.aspx?id=2&src=0">Animalia</a>
+      <a href="TaxonTree.aspx?id=3&src=0">Dinosauria</a>
+      <a href="TaxonTree.aspx?id=4&src=0">Theropoda</a>
+      <a href="TaxonTree.aspx?id=5&src=0">Carnotaurus</a>
+    </body></html>'
   fake_response <- structure(list(), class = "response")
   mockery::stub(get_lineage_by_id, "httr::GET", function(...) fake_response)
   mockery::stub(get_lineage_by_id, "httr::status_code", function(...) 200L)
@@ -777,10 +946,10 @@ test_that("taxo_search returns NULL on network failure and bad status", {
 test_that("taxo_search returns NULL when no matches are found", {
   clear_cache()
   fake_html <- '
-  <html><body><table>
-    <tr><td>Not a link</td></tr>
-    <tr><td><a href="OtherPage.aspx">No ID here</a></td></tr>
-  </table></body></html>'
+    <html><body><table>
+      <tr><td>Not a link</td></tr>
+      <tr><td><a href="OtherPage.aspx">No ID here</a></td></tr>
+    </table></body></html>'
 
   fake_response <- structure(list(), class = "response")
   mockery::stub(taxo_search, "httr::GET", function(...) fake_response)
@@ -793,33 +962,33 @@ test_that("taxo_search returns NULL when no matches are found", {
 test_that("taxo_search parses HTML, applies skips, dedups, and returns data.frame", {
   clear_cache()
   fake_html <- '
-  <html><body><table>
-    <tr>
-      <td>Astronomical planet asteroid</td>
-      <td><a class="Valid" href="TaxonTree.aspx?id=111">ignore</a></td>
-    </tr>
-    <tr>
-      <td>No links here</td>
-      <td>Just text</td>
-    </tr>
-    <tr>
-      <td>Invalid class</td>
-      <td><a class="Invalid" href="TaxonTree.aspx?id=222">ignore</a></td>
-    </tr>
-    <tr>
-      <td>Missing ID</td>
-      <td><a class="Valid" href="TaxonTree.aspx?wrong=333">ignore</a></td>
-    </tr>
-    <tr>
-      <td><a class="Valid" href="TaxonTree.aspx?id=444">N|T|P|R|B|L Bacteria (Kingdom)</a></td>
-    </tr>
-    <tr>
-      <td><a class="Valid" href="TaxonTree.aspx?id=444">N|T|P|R|B|L Bacteria (Kingdom) Duplicated</a></td>
-    </tr>
-    <tr>
-      <td><a class="Valid" href="TaxonTree.aspx?id=555">N|T|P|R|B|L Bacteria (Domain)</a></td>
-    </tr>
-  </table></body></html>'
+    <html><body><table>
+      <tr>
+        <td>Astronomical planet asteroid</td>
+        <td><a class="Valid" href="TaxonTree.aspx?id=111">ignore</a></td>
+      </tr>
+      <tr>
+        <td>No links here</td>
+        <td>Just text</td>
+      </tr>
+      <tr>
+        <td>Invalid class</td>
+        <td><a class="Invalid" href="TaxonTree.aspx?id=222">ignore</a></td>
+      </tr>
+      <tr>
+        <td>Missing ID</td>
+        <td><a class="Valid" href="TaxonTree.aspx?wrong=333">ignore</a></td>
+      </tr>
+      <tr>
+        <td><a class="Valid" href="TaxonTree.aspx?id=444">N|T|P|R|B|L Bacteria (Kingdom)</a></td>
+      </tr>
+      <tr>
+        <td><a class="Valid" href="TaxonTree.aspx?id=444">N|T|P|R|B|L Bacteria (Kingdom) Duplicated</a></td>
+      </tr>
+      <tr>
+        <td><a class="Valid" href="TaxonTree.aspx?id=555">N|T|P|R|B|L Bacteria (Domain)</a></td>
+      </tr>
+    </table></body></html>'
 
   fake_response <- structure(list(), class = "response")
   mockery::stub(taxo_search, "httr::GET", function(...) fake_response)
@@ -896,6 +1065,20 @@ test_that("focal_distances returns NULL when focal taxon not found", {
   mockery::stub(focal_distances, "get_lineage", function(...) NULL)
   result <- focal_distances("Fakeosaurus", c("Velociraptor", "Triceratops"))
   expect_null(result)
+})
+
+test_that("focal_distances returns a typed empty result for no community", {
+  mockery::stub(focal_distances, "get_lineage", function(...) {
+    c("Biota", "Animalia", "Dinosauria", "Tyrannosaurus")
+  })
+  result <- focal_distances(
+    "Tyrannosaurus", character(0), progress = FALSE
+  )
+  expect_s3_class(result, "taxodist_focal")
+  expect_s3_class(result, "data.frame")
+  expect_named(result, c("taxon", "distance", "mrca", "mrca_depth"))
+  expect_equal(nrow(result), 0L)
+  expect_equal(attr(result, "focal"), "Tyrannosaurus")
 })
 
 test_that("focal_distances returns correct S3 class", {
@@ -1262,12 +1445,12 @@ test_that("get_lineage_by_id verbose success message fires on real taxon", {
 test_that("get_taxonomicon_id skips entry whose lineage has no Biota", {
   clear_cache()
   fake_html <- '
-  <html><body><table>
-    <tr>
-      <td>Carnotaurus - animal - dinosaur</td>
-      <td><a class="Valid" href="TaxonTree.aspx?id=12345&src=0">tree</a></td>
-    </tr>
-  </table></body></html>'
+    <html><body><table>
+      <tr>
+        <td>Carnotaurus - animal - dinosaur</td>
+        <td><a class="Valid" href="TaxonTree.aspx?id=12345&src=0">tree</a></td>
+      </tr>
+    </table></body></html>'
   fake_response <- structure(list(), class = "response")
   mockery::stub(get_taxonomicon_id, "httr::GET", function(...) fake_response)
   mockery::stub(get_taxonomicon_id, "httr::status_code", function(...) 200L)
@@ -1281,12 +1464,12 @@ test_that("get_taxonomicon_id skips entry whose lineage has no Biota", {
 test_that("get_lineage_by_id truncates at own id when present in links", {
   clear_cache()
   fake_html <- '
-  <html><body>
-    <a href="TaxonTree.aspx?id=1&src=0">Biota</a>
-    <a href="TaxonTree.aspx?id=2&src=0">Animalia</a>
-    <a href="TaxonTree.aspx?id=99&src=0">Carnotaurus</a>
-    <a href="TaxonTree.aspx?id=100&src=0">SomeChild</a>
-  </body></html>'
+    <html><body>
+      <a href="TaxonTree.aspx?id=1&src=0">Biota</a>
+      <a href="TaxonTree.aspx?id=2&src=0">Animalia</a>
+      <a href="TaxonTree.aspx?id=99&src=0">Carnotaurus</a>
+      <a href="TaxonTree.aspx?id=100&src=0">SomeChild</a>
+    </body></html>'
   fake_response <- structure(list(), class = "response")
   mockery::stub(get_lineage_by_id, "httr::GET", function(...) fake_response)
   mockery::stub(get_lineage_by_id, "httr::status_code", function(...) 200L)
@@ -1334,10 +1517,10 @@ test_that("get_lineage appends taxon name when not found in scraped lineage", {
 test_that("get_lineage_by_id returns NULL when all links are filtered out", {
   clear_cache()
   fake_html <- '
-  <html><body>
-    <a href="TaxonTree.aspx?id=1&src=0">Go to</a>
-    <a href="TaxonTree.aspx?id=2&src=0">[unranked]</a>
-  </body></html>'
+    <html><body>
+      <a href="TaxonTree.aspx?id=1&src=0">Go to</a>
+      <a href="TaxonTree.aspx?id=2&src=0">[unranked]</a>
+    </body></html>'
   fake_response <- structure(list(), class = "response")
   mockery::stub(get_lineage_by_id, "httr::GET", function(...) fake_response)
   mockery::stub(get_lineage_by_id, "httr::status_code", function(...) 200L)
@@ -1352,16 +1535,16 @@ test_that("get_taxonomicon_id warns on multiple biological entries (coverage)", 
   assign("lin_222", c("Biota", "Animalia", "Fake2"), envir = taxodist:::.taxodist_cache)
 
   fake_html <- '
-  <html><body><table>
-    <tr>
-      <td>Nereis - animal - one</td>
-      <td><a class="Valid" href="TaxonTree.aspx?id=111&src=0">tree</a></td>
-    </tr>
-    <tr>
-      <td>Nereis - animal - two</td>
-      <td><a class="Valid" href="TaxonTree.aspx?id=222&src=0">tree</a></td>
-    </tr>
-  </table></body></html>'
+    <html><body><table>
+      <tr>
+        <td>Nereis - animal - one</td>
+        <td><a class="Valid" href="TaxonTree.aspx?id=111&src=0">tree</a></td>
+      </tr>
+      <tr>
+        <td>Nereis - animal - two</td>
+        <td><a class="Valid" href="TaxonTree.aspx?id=222&src=0">tree</a></td>
+      </tr>
+    </table></body></html>'
   fake_response <- structure(list(), class = "response")
   mockery::stub(get_taxonomicon_id, "httr::GET", function(...) fake_response)
   mockery::stub(get_taxonomicon_id, "httr::status_code", function(...) 200L)
@@ -1381,13 +1564,13 @@ test_that("deduplication preserves order", {
   mockery::stub(get_lineage_by_id, "httr::content", function(...) "x")
   mockery::stub(get_lineage_by_id, "rvest::read_html", function(...) {
     xml2::read_html('
-      <html><body>
-        <a href="TaxonTree.aspx?id=1&src=0">Biota</a>
-        <a href="TaxonTree.aspx?id=2&src=0">Animalia</a>
-        <a href="TaxonTree.aspx?id=3&src=0">Uropygi</a>
-        <a href="TaxonTree.aspx?id=3&src=0">Uropygi</a>
-        <a href="TaxonTree.aspx?id=4&src=0">Thelyphonida</a>
-      </body></html>')
+        <html><body>
+          <a href="TaxonTree.aspx?id=1&src=0">Biota</a>
+          <a href="TaxonTree.aspx?id=2&src=0">Animalia</a>
+          <a href="TaxonTree.aspx?id=3&src=0">Uropygi</a>
+          <a href="TaxonTree.aspx?id=3&src=0">Uropygi</a>
+          <a href="TaxonTree.aspx?id=4&src=0">Thelyphonida</a>
+        </body></html>')
   })
   result <- get_lineage_by_id("4")
   expect_equal(result, c("Biota", "Animalia", "Uropygi", "Thelyphonida"))
@@ -1423,6 +1606,20 @@ test_that("taxo_cluster accepts a dist object directly", {
   d <- stats::as.dist(m)
   result <- taxo_cluster(d)
   expect_s3_class(result, "taxodist_cluster")
+})
+
+test_that("taxo_cluster safely skips fewer than two taxa", {
+  d <- stats::as.dist(matrix(
+    0, nrow = 1, ncol = 1,
+    dimnames = list("A", "A")
+  ))
+  expect_warning(
+    result <- taxo_cluster(d),
+    "At least two taxa"
+  )
+  expect_s3_class(result, "taxodist_cluster")
+  expect_null(result$hclust)
+  expect_equal(result$dist, d)
 })
 
 test_that("taxo_ordinate returns correct S3 class", {
@@ -1470,6 +1667,37 @@ test_that("taxo_ordinate accepts a dist object directly", {
   expect_s3_class(result, "taxodist_ord")
 })
 
+test_that("taxo_ordinate safely skips fewer than two taxa", {
+  d <- stats::as.dist(matrix(
+    0, nrow = 1, ncol = 1,
+    dimnames = list("A", "A")
+  ))
+  expect_warning(
+    result <- taxo_ordinate(d),
+    "At least two taxa"
+  )
+  expect_s3_class(result, "taxodist_ord")
+  expect_null(result$points)
+})
+
+test_that("taxo_ordinate reduces k for two taxa", {
+  m <- matrix(c(0, 0.5, 0.5, 0), nrow = 2,
+              dimnames = list(c("A", "B"), c("A", "B")))
+  expect_warning(
+    result <- taxo_ordinate(stats::as.dist(m), k = 2),
+    "k.*reduced"
+  )
+  expect_equal(dim(result$points), c(2L, 1L))
+})
+
+test_that("taxo_ordinate rejects invalid k clearly", {
+  m <- matrix(c(0, 0.5, 0.5, 0), nrow = 2)
+  expect_error(
+    taxo_ordinate(stats::as.dist(m), k = 0),
+    "positive integer"
+  )
+})
+
 test_that("summary.taxodist_ord computes variance and handles missing eigenvalues", {
   mock_ord <- structure(list(
     points = matrix(1:4, ncol = 2, dimnames = list(c("A", "B"), NULL)),
@@ -1498,6 +1726,31 @@ test_that("taxo_heatmap plots correctly and returns dist invisibly", {
   expect_s3_class(res, "dist")
 })
 
+test_that("taxo_heatmap safely skips fewer than two taxa", {
+  d <- stats::as.dist(matrix(
+    0, nrow = 1, ncol = 1,
+    dimnames = list("A", "A")
+  ))
+  expect_warning(
+    result <- taxo_heatmap(d),
+    "At least two taxa"
+  )
+  expect_equal(result, d)
+})
+
+test_that("plot.taxodist_ord handles one-dimensional points", {
+  ord <- structure(list(
+    points = matrix(c(-0.25, 0.25), ncol = 1,
+                    dimnames = list(c("A", "B"), "PC1")),
+    dist = stats::dist(1:2),
+    GOF = c(1, 1),
+    eig = c(0.5, 0)
+  ), class = "taxodist_ord")
+  pdf(file = NULL)
+  on.exit(dev.off())
+  expect_invisible(plot(ord))
+})
+
 test_that("get_lineage accepts numeric IDs directly without searching", {
   clear_cache()
   mockery::stub(get_lineage, "get_lineage_by_id", function(...) c("Biota", "Bacteria"))
@@ -1515,15 +1768,15 @@ test_that("get_taxonomicon_id follows taxonomic redirects", {
   clear_cache()
   assign("lin_16197", c("Biota", "Animalia", "Uropygi"), envir = taxodist:::.taxodist_cache)
   fake_html <- '
-  <html><body><table>
-    <tr>
-      <td>Thelyphonida see Uropygi</td>
-      <td>
-        <a class="Invalid" href="TaxonTree.aspx?id=123&src=0">old</a>
-        <a class="Valid" href="TaxonTree.aspx?id=16197&src=0">tree</a>
-      </td>
-    </tr>
-  </table></body></html>'
+    <html><body><table>
+      <tr>
+        <td>Thelyphonida see Uropygi</td>
+        <td>
+          <a class="Invalid" href="TaxonTree.aspx?id=123&src=0">old</a>
+          <a class="Valid" href="TaxonTree.aspx?id=16197&src=0">tree</a>
+        </td>
+      </tr>
+    </table></body></html>'
   fake_response <- structure(list(), class = "response")
   mockery::stub(get_taxonomicon_id, "httr::GET", function(...) fake_response)
   mockery::stub(get_taxonomicon_id, "httr::status_code", function(...) 200L)
@@ -1537,16 +1790,16 @@ test_that("get_taxonomicon_id skips rows with no Valid links", {
   assign("lin_222", c("Biota", "Animalia"), envir = taxodist:::.taxodist_cache)
 
   fake_html <- '
-  <html><body><table>
-    <tr>
-      <td>Invalid taxon</td>
-      <td><a class="Invalid" href="TaxonTree.aspx?id=111&src=0">skip me</a></td>
-    </tr>
-    <tr>
-      <td>Good taxon - animal</td>
-      <td><a class="Valid" href="TaxonTree.aspx?id=222&src=0">tree</a></td>
-    </tr>
-  </table></body></html>'
+    <html><body><table>
+      <tr>
+        <td>Invalid taxon</td>
+        <td><a class="Invalid" href="TaxonTree.aspx?id=111&src=0">skip me</a></td>
+      </tr>
+      <tr>
+        <td>Good taxon - animal</td>
+        <td><a class="Valid" href="TaxonTree.aspx?id=222&src=0">tree</a></td>
+      </tr>
+    </table></body></html>'
 
   fake_response <- structure(list(), class = "response")
   mockery::stub(get_taxonomicon_id, "httr::GET", function(...) fake_response)
@@ -1562,16 +1815,16 @@ test_that("get_taxonomicon_id skips valid links missing numeric IDs", {
   assign("lin_333", c("Biota", "Animalia"), envir = taxodist:::.taxodist_cache)
 
   fake_html <- '
-  <html><body><table>
-    <tr>
-      <td>Missing ID taxon</td>
-      <td><a class="Valid" href="TaxonTree.aspx?wrongparam=abc">skip me</a></td>
-    </tr>
-    <tr>
-      <td>Good taxon - animal</td>
-      <td><a class="Valid" href="TaxonTree.aspx?id=333&src=0">tree</a></td>
-    </tr>
-  </table></body></html>'
+    <html><body><table>
+      <tr>
+        <td>Missing ID taxon</td>
+        <td><a class="Valid" href="TaxonTree.aspx?wrongparam=abc">skip me</a></td>
+      </tr>
+      <tr>
+        <td>Good taxon - animal</td>
+        <td><a class="Valid" href="TaxonTree.aspx?id=333&src=0">tree</a></td>
+      </tr>
+    </table></body></html>'
 
   fake_response <- structure(list(), class = "response")
   mockery::stub(get_taxonomicon_id, "httr::GET", function(...) fake_response)
@@ -1592,11 +1845,37 @@ test_that("taxo_cluster handles NA in distance matrix gracefully", {
   expect_s3_class(res, "taxodist_cluster")
 })
 
+test_that("taxo_cluster handles infinite distances gracefully", {
+  m <- matrix(c(0, Inf, Inf, 0), nrow = 2,
+              dimnames = list(c("A", "B"), c("A", "B")))
+  d <- stats::as.dist(m)
+  expect_warning(
+    res <- taxo_cluster(d),
+    "infinite values"
+  )
+  expect_null(res$hclust)
+  expect_equal(res$dist, d)
+  expect_s3_class(res, "taxodist_cluster")
+})
+
 test_that("taxo_ordinate handles NA in distance matrix gracefully", {
   m <- matrix(c(0, NA, NA, 0), nrow = 2, dimnames = list(c("A", "B"), c("A", "B")))
   d <- stats::as.dist(m)
   expect_warning(res <- taxo_ordinate(d), "Distance matrix contains NA values")
   expect_null(res$points)
+  expect_s3_class(res, "taxodist_ord")
+})
+
+test_that("taxo_ordinate handles infinite distances gracefully", {
+  m <- matrix(c(0, Inf, Inf, 0), nrow = 2,
+              dimnames = list(c("A", "B"), c("A", "B")))
+  d <- stats::as.dist(m)
+  expect_warning(
+    res <- taxo_ordinate(d),
+    "infinite values"
+  )
+  expect_null(res$points)
+  expect_equal(res$dist, d)
   expect_s3_class(res, "taxodist_ord")
 })
 
@@ -1606,6 +1885,17 @@ test_that("taxo_heatmap handles NA in distance matrix gracefully", {
   pdf(file = NULL)
   expect_warning(res <- taxo_heatmap(d), "Distance matrix contains NA values")
   dev.off()
+  expect_equal(res, d)
+})
+
+test_that("taxo_heatmap handles infinite distances gracefully", {
+  m <- matrix(c(0, Inf, Inf, 0), nrow = 2,
+              dimnames = list(c("A", "B"), c("A", "B")))
+  d <- stats::as.dist(m)
+  expect_warning(
+    res <- taxo_heatmap(d),
+    "infinite values"
+  )
   expect_equal(res, d)
 })
 
@@ -1622,24 +1912,24 @@ test_that("get_lineage_by_id parses #divPageContent path with nav header and ᵀ
   clear_cache()
 
   fake_html <- '
-  <html><body>
-    <div id="ctl00_divSubject"><b>Drosophila</b></div>
-    <div id="divPageContent">
-HierarchyNomenclature
-Classification by:
-Systema Naturae 2000 cactophilic {Drosophila} descriptions
-Natura - nature
-actualia - actual entities
-Clade Biota Wagner 2004
-Kingdom Animalia
-Phylum Arthropoda
-Class Insecta
-Order Diptera
-Family Drosophilidae Rondani, 1856
-Genus Drosophila\u1D40 Fall\u00e9n, 1823
-Drosophila melanogaster Meigen, 1830
-    </div>
-  </body></html>'
+    <html><body>
+      <div id="ctl00_divSubject"><b>Drosophila</b></div>
+      <div id="divPageContent">
+  HierarchyNomenclature
+  Classification by:
+  Systema Naturae 2000 cactophilic {Drosophila} descriptions
+  Natura - nature
+  actualia - actual entities
+  Clade Biota Wagner 2004
+  Kingdom Animalia
+  Phylum Arthropoda
+  Class Insecta
+  Order Diptera
+  Family Drosophilidae Rondani, 1856
+  Genus Drosophila\u1D40 Fall\u00e9n, 1823
+  Drosophila melanogaster Meigen, 1830
+      </div>
+    </body></html>'
 
   fake_response <- structure(list(status_code = 200L), class = "response")
 

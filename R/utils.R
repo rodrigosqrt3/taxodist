@@ -112,8 +112,9 @@ shared_clades <- function(taxon_a, taxon_b, verbose = FALSE) {
 
 #' Test whether one taxon is nested within another
 #'
-#' Returns `TRUE` if `taxon` is a member of `clade` — i.e., if the clade name
-#' appears in the taxon's lineage.
+#' Returns `TRUE` if `taxon` is a member of `clade` — i.e., if the complete
+#' clade name appears in the taxon's lineage. Matching is case-insensitive and
+#' ignores leading and trailing whitespace.
 #'
 #' @param taxon A character string giving the taxon name to test.
 #' @param clade A character string giving the clade name to test membership in.
@@ -131,7 +132,9 @@ shared_clades <- function(taxon_a, taxon_b, verbose = FALSE) {
 is_member <- function(taxon, clade, verbose = FALSE) {
   lin <- get_lineage(taxon, verbose = verbose)
   if (is.null(lin)) return(NULL)
-  any(grepl(paste0("^", clade), lin, ignore.case = TRUE))
+  normalized_lineage <- tolower(trimws(lin))
+  normalized_clade   <- tolower(trimws(clade))
+  any(normalized_lineage %in% normalized_clade)
 }
 
 #' Filter a vector of taxa to those belonging to a given clade
@@ -214,10 +217,15 @@ plot.taxodist_ord <- function(x, main   = "Taxonomic Ordination (PCoA)",
                               ...) {
   if (is.null(x$points)) return(invisible(x))
   gof <- round(x$GOF[1], 3)
-  graphics::plot(x$points, type = "n",
+  plot_points <- if (ncol(x$points) == 1L) {
+    cbind(PC1 = x$points[, 1], PC2 = 0)
+  } else {
+    x$points[, 1:2, drop = FALSE]
+  }
+  graphics::plot(plot_points, type = "n",
                  main = paste0(main, "  (GOF = ", gof, ")"),
                  xlab = xlab, ylab = ylab)
-  graphics::text(x$points, labels = labels, ...)
+  graphics::text(plot_points, labels = labels, ...)
   invisible(x)
 }
 
@@ -271,6 +279,7 @@ summary.taxodist_ord <- function(object, ...) {
 #'
 #' @return Invisibly returns the underlying \code{dist} object.
 #'   Called primarily for its side effect (plotting).
+#'   If fewer than two taxa are supplied, plotting is skipped.
 #' @export
 #' @examples
 #' \donttest{
@@ -281,6 +290,14 @@ taxo_heatmap <- function(taxa, ...) {
   d <- if (inherits(taxa, "dist")) taxa else distance_matrix(taxa, ...)
   if (any(is.na(d))) {
     cli::cli_warn("Distance matrix contains NA values. Heatmap skipped.")
+    return(invisible(d))
+  }
+  if (any(!is.finite(d))) {
+    cli::cli_warn("Distance matrix contains infinite values (no shared ancestor). Heatmap skipped.")
+    return(invisible(d))
+  }
+  if (attr(d, "Size") < 2L) {
+    cli::cli_warn("At least two taxa are required for a heatmap. Heatmap skipped.")
     return(invisible(d))
   }
   mat <- as.matrix(d)
@@ -308,7 +325,8 @@ taxo_heatmap <- function(taxa, ...) {
 #'     MRCA), `"mrca"` (the shared ancestor), or `"b"` (descending from MRCA
 #'     to taxon B).}
 #' }
-#' Returns `NULL` if either taxon cannot be found.
+#' Returns `NULL` if either taxon cannot be found or if their lineages have no
+#' common ancestor.
 #'
 #' @seealso [mrca()], [shared_clades()], [compare_lineages()]
 #' @export
@@ -333,11 +351,21 @@ taxo_path <- function(taxon_a, taxon_b, verbose = FALSE) {
   result  <- .compute_distance(lin_a, lin_b, taxon_a, taxon_b)
   mrca_d  <- result$mrca_depth
 
-  side_a_nodes <- rev(lin_a[seq_len(mrca_d)])
+  if (mrca_d == 0L) {
+    cli::cli_warn("No common ancestor found for {.val {taxon_a}} and {.val {taxon_b}}.")
+    return(NULL)
+  }
+
+  a_idx <- if (mrca_d < length(lin_a)) {
+    seq.int(length(lin_a), mrca_d + 1L)
+  } else {
+    integer(0)
+  }
+
   side_a <- data.frame(
-    node      = side_a_nodes[-length(side_a_nodes)],
-    depth     = rev(seq_len(mrca_d - 1L)),
-    direction = "a",
+    node      = lin_a[a_idx],
+    depth     = a_idx,
+    direction = rep("a", length(a_idx)),
     stringsAsFactors = FALSE
   )
 
@@ -348,11 +376,16 @@ taxo_path <- function(taxon_a, taxon_b, verbose = FALSE) {
     stringsAsFactors = FALSE
   )
 
-  side_b_nodes <- lin_b[(mrca_d + 1L):length(lin_b)]
+  b_idx <- if (mrca_d < length(lin_b)) {
+    seq.int(mrca_d + 1L, length(lin_b))
+  } else {
+    integer(0)
+  }
+
   side_b <- data.frame(
-    node      = side_b_nodes,
-    depth     = seq_along(side_b_nodes),
-    direction = "b",
+    node      = lin_b[b_idx],
+    depth     = b_idx,
+    direction = rep("b", length(b_idx)),
     stringsAsFactors = FALSE
   )
 

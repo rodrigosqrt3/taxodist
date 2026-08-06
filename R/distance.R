@@ -102,6 +102,7 @@ mrca <- function(taxon_a, taxon_b, verbose = FALSE) {
 #' @return A symmetric numeric matrix of class `"dist"` containing pairwise
 #'   distances. Row and column names are set to the input taxon names.
 #'   Taxa that could not be found are included with `NA` distances.
+#'   An empty input returns an empty `"dist"` object.
 #'
 #' @seealso [taxo_distance()], [closest_relative()]
 #'
@@ -118,6 +119,10 @@ distance_matrix <- function(taxa, verbose = FALSE, progress = TRUE) {
   mat <- matrix(NA_real_, nrow = n, ncol = n,
                 dimnames = list(taxa, taxa))
   diag(mat) <- 0
+
+  if (n == 0L) {
+    return(stats::as.dist(mat))
+  }
 
   # fetch lineages sequentially in main process (cache is shared)
   if (progress) cli::cli_alert_info("Fetching {n} lineages...")
@@ -155,7 +160,8 @@ distance_matrix <- function(taxa, verbose = FALSE, progress = TRUE) {
 #'
 #' @return A data frame with columns `taxon` (candidate name) and `distance`
 #'   (tree metric distance), sorted by distance ascending. Returns `NULL` if
-#'   the query taxon cannot be found.
+#'   the query taxon cannot be found. An empty candidate vector returns an
+#'   empty data frame with the same columns.
 #'
 #' @export
 #' @examples
@@ -168,6 +174,14 @@ closest_relative <- function(taxon, candidates, verbose = FALSE) {
   if (is.null(query_lin)) {
     cli::cli_alert_danger("Could not retrieve lineage for {taxon}")
     return(NULL)
+  }
+
+  if (length(candidates) == 0L) {
+    return(data.frame(
+      taxon = character(0),
+      distance = numeric(0),
+      stringsAsFactors = FALSE
+    ))
   }
 
   results <- do.call(rbind, purrr::map(
@@ -208,7 +222,8 @@ closest_relative <- function(taxon, candidates, verbose = FALSE) {
 #'   \item{`mrca_depth`}{Integer. Depth of the MRCA node.}
 #' }
 #' Rows are sorted by `distance` ascending (closest relatives first).
-#' Returns `NULL` if the focal taxon cannot be found.
+#' Returns `NULL` if the focal taxon cannot be found. An empty community
+#' returns an empty object with the same columns and class.
 #'
 #' @seealso [closest_relative()], [distance_matrix()], [taxo_distance()]
 #' @export
@@ -223,6 +238,21 @@ focal_distances <- function(focal, community, verbose = FALSE, progress = TRUE) 
   if (is.null(focal_lin)) {
     cli::cli_alert_danger("Could not retrieve lineage for {focal}")
     return(NULL)
+  }
+
+  if (length(community) == 0L) {
+    out <- data.frame(
+      taxon = character(0),
+      distance = numeric(0),
+      mrca = character(0),
+      mrca_depth = integer(0),
+      stringsAsFactors = FALSE
+    )
+    return(structure(
+      out,
+      class = c("taxodist_focal", "data.frame"),
+      focal = focal
+    ))
   }
 
   if (progress) cli::cli_progress_bar("Computing focal distances", total = length(community))
@@ -337,6 +367,8 @@ check_coverage <- function(taxa, verbose = FALSE) {
 #'   \item{`hclust`}{The [stats::hclust()] result.}
 #'   \item{`dist`}{The underlying distance matrix.}
 #' }
+#' If fewer than two taxa are supplied, `hclust` is `NULL` and the distance
+#' object is preserved.
 #'
 #' @seealso[taxo_ordinate()], [distance_matrix()]
 #' @export
@@ -352,6 +384,14 @@ taxo_cluster <- function(taxa, method = "average", ...) {
   d <- if (inherits(taxa, "dist")) taxa else distance_matrix(taxa, ...)
   if (any(is.na(d))) {
     cli::cli_warn("Distance matrix contains NA values (taxa not found or server offline). Clustering skipped.")
+    return(structure(list(hclust = NULL, dist = d), class = "taxodist_cluster"))
+  }
+  if (any(!is.finite(d))) {
+    cli::cli_warn("Distance matrix contains infinite values (no shared ancestor). Clustering skipped.")
+    return(structure(list(hclust = NULL, dist = d), class = "taxodist_cluster"))
+  }
+  if (attr(d, "Size") < 2L) {
+    cli::cli_warn("At least two taxa are required for clustering. Clustering skipped.")
     return(structure(list(hclust = NULL, dist = d), class = "taxodist_cluster"))
   }
   hc <- stats::hclust(d, method = method)
@@ -375,6 +415,8 @@ taxo_cluster <- function(taxa, method = "average", ...) {
 #'   \item{`GOF`}{Goodness-of-fit from[stats::cmdscale()].}
 #'   \item{`eig`}{The eigenvalues computed during PCoA.}
 #' }
+#' At least two taxa are required. When `k` is greater than the maximum
+#' possible dimension (`n - 1`), it is reduced automatically.
 #'
 #' @seealso [taxo_cluster()], [distance_matrix()]
 #' @export
@@ -393,6 +435,26 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
     cli::cli_warn("Distance matrix contains NA values. Ordination skipped.")
     return(structure(list(points = NULL, dist = d, GOF = NULL, eig = NULL), class = "taxodist_ord"))
   }
+  if (any(!is.finite(d))) {
+    cli::cli_warn("Distance matrix contains infinite values (no shared ancestor). Ordination skipped.")
+    return(structure(list(points = NULL, dist = d, GOF = NULL, eig = NULL), class = "taxodist_ord"))
+  }
+  n_taxa <- attr(d, "Size")
+  if (n_taxa < 2L) {
+    cli::cli_warn("At least two taxa are required for ordination. Ordination skipped.")
+    return(structure(list(points = NULL, dist = d, GOF = NULL, eig = NULL), class = "taxodist_ord"))
+  }
+  valid_k <- length(k) == 1L &&
+    (is.integer(k) || is.double(k)) &&
+    is.finite(k) && k >= 1 && k == floor(k)
+  if (!valid_k) {
+    stop("`k` must be a single positive integer.", call. = FALSE)
+  }
+  max_k <- n_taxa - 1L
+  if (k > max_k) {
+    cli::cli_warn("`k` reduced from {k} to {max_k}, the maximum for {n_taxa} taxa.")
+    k <- max_k
+  }
   cmd <- stats::cmdscale(d, k = k, eig = TRUE)
   structure(list(
     points = cmd$points,
@@ -409,10 +471,20 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
   depth_a <- length(lin_a)
   depth_b <- length(lin_b)
 
-  # find deepest shared node (MRCA) using set intersection
-  shared <- intersect(lin_a, lin_b)
+  # The shared ancestry must be a continuous prefix from the root. A taxon
+  # name repeated after the lineages diverge is a homonym, not a shared node.
+  common_length <- min(depth_a, depth_b)
+  common_idx    <- seq_len(common_length)
+  matches       <- lin_a[common_idx] == lin_b[common_idx]
+  first_mismatch <- which(is.na(matches) | !matches)
 
-  if (length(shared) == 0) {
+  mrca_depth <- if (length(first_mismatch) > 0L) {
+    first_mismatch[1] - 1L
+  } else {
+    common_length
+  }
+
+  if (mrca_depth == 0L) {
     return(structure(list(
       distance   = Inf,
       mrca       = NA_character_,
@@ -424,12 +496,8 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
     ), class = "taxodist_result"))
   }
 
-  # find position of each shared node in lin_a, take the deepest
-  positions_in_a <- match(shared, lin_a)
-  mrca_idx       <- which.max(positions_in_a)
-  mrca_depth     <- positions_in_a[mrca_idx]
   mrca_name      <- lin_a[mrca_depth]
-  is_ancestral   <- (lin_a[depth_a] %in% lin_b) || (lin_b[depth_b] %in% lin_a)
+  is_ancestral   <- mrca_depth == depth_a || mrca_depth == depth_b
   distance       <- if (is_ancestral) 0 else 1 / mrca_depth
 
   structure(list(

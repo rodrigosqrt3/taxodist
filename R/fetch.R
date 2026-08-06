@@ -53,7 +53,8 @@ save_cache <- function(file) {
 #'
 #' Restores lineage data saved with [save_cache()] into the current session
 #' cache, avoiding network requests for taxa already retrieved in a previous
-#' session.
+#' session. The file structure is validated before the current cache is
+#' modified.
 #'
 #' @param file Path to an `.rds` file created by [save_cache()].
 #'
@@ -72,6 +73,40 @@ load_cache <- function(file) {
     cli::cli_abort("Cache file not found: {.file {file}}")
   }
   data <- readRDS(file)
+
+  if (!is.list(data)) {
+    cli::cli_abort("Invalid cache file: expected a named list created by {.fn save_cache}.")
+  }
+
+  data_names <- names(data)
+  invalid_names <- length(data) > 0L && (
+    is.null(data_names) || anyNA(data_names) ||
+      any(!nzchar(data_names)) || anyDuplicated(data_names) > 0L
+  )
+  if (invalid_names) {
+    cli::cli_abort("Invalid cache file: cache entries must have unique, non-empty names.")
+  }
+
+  # An empty cache is stored as list() and legitimately has NULL names.
+  # Normalize it so the prefix checks below receive a character vector.
+  if (length(data) == 0L) {
+    data_names <- character(0)
+  }
+
+  id_entries <- startsWith(data_names, "id_")
+  invalid_ids <- any(!vapply(data[id_entries], function(x) {
+    is.character(x) && length(x) == 1L && !is.na(x) && nzchar(x)
+  }, logical(1)))
+  if (invalid_ids) {
+    cli::cli_abort("Invalid cache file: taxon ID entries must be non-empty character scalars.")
+  }
+
+  lineage_entries <- startsWith(data_names, "lin_")
+  invalid_lineages <- any(!vapply(data[lineage_entries], is.character, logical(1)))
+  if (invalid_lineages) {
+    cli::cli_abort("Invalid cache file: lineage entries must be character vectors.")
+  }
+
   list2env(data, envir = .taxodist_cache)
   cli::cli_alert_success("Cache loaded from {.file {file}} ({length(data)} entries).")
   invisible(NULL)
@@ -541,4 +576,3 @@ taxo_search <- function(taxon, verbose = FALSE) {
   if (verbose) cli::cli_alert_success("Found {nrow(df)} entries.")
   return(df)
 }
-
