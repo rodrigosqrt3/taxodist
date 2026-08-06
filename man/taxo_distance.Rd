@@ -33,10 +33,11 @@ computes a taxonomic distance based on the depth of their most recent
 common ancestor (MRCA):
 }
 \details{
-\deqn{d(A, A) = 0}
-\deqn{d(A, B) = \frac{1}{\text{depth}(\text{MRCA}(A,B))}, \quad A \ne B}
+\deqn{d(A,A) = 0}{d(A,A) = 0}
+\deqn{d(A,B) = 1 / h(A,B)}{d(A,B) = 1 / h(A,B)}
 
-The deeper the shared ancestor, the smaller (closer to zero) the distance.
+Here, \code{h(A,B)} is the depth of the MRCA of \code{A} and \code{B}. The deeper the
+shared ancestor, the smaller (closer to zero) the distance.
 Distinct nodes always have positive distance, including when one taxon is
 an ancestor of the other. This makes the measure an ultrametric on each
 connected taxonomic hierarchy. Use \code{\link[=is_member]{is_member()}} when the question is

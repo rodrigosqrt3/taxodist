@@ -32,10 +32,11 @@ they are not estimates of evolutionary time or phylogenetic branch length.
 The distance metric is based on the depth of the most recent common
 ancestor (MRCA):
 
-\deqn{d(A, A) = 0}
-\deqn{d(A, B) = \frac{1}{\text{depth}(\text{MRCA}(A,B))}, \quad A \ne B}
+\deqn{d(A,A) = 0}{d(A,A) = 0}
+\deqn{d(A,B) = 1 / h(A,B)}{d(A,B) = 1 / h(A,B)}
 
-The deeper the shared ancestor, the smaller the distance. Zero is reserved
+Here, \code{h(A,B)} denotes the depth of the MRCA. The deeper the shared
+ancestor, the smaller the distance. Zero is reserved
 for identical hierarchy nodes; distinct ancestor-descendant pairs therefore
 have positive distance. The measure is an ultrametric on each connected
 taxonomic hierarchy. Its numerical values depend on the resolution of the

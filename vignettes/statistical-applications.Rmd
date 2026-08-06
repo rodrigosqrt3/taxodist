@@ -7,309 +7,428 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r setup, include = FALSE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE
+  fig.align = "center"
 )
+
 library(taxodist)
+
+vegan_available <- requireNamespace("vegan", quietly = TRUE)
+ape_available <- requireNamespace("ape", quietly = TRUE)
+
+if (is.null(taxobase$statistical_matrix)) {
+  stop(
+    "The installed taxobase object does not contain statistical_matrix. ",
+    "Rebuild data/taxobase.rda before building this vignette."
+  )
+}
 ```
 
-The `taxodist` distance matrix is a standard `dist` object and integrates
-directly with the R ecosystem for multivariate analysis. This vignette shows
-how to use it alongside `vegan` and `ape` for ecological and phylogenetic
-analyses. All examples use a set of threatened mammals from Brazil spanning
-five broad taxonomic groups.
+## Overview
 
----
+A distance matrix produced by `taxodist` is a base R `dist` object. It can
+therefore be supplied to clustering, ordination, permutation tests, and
+taxonomic-diversity functions that accept pairwise dissimilarities.
 
-## Example dataset: threatened mammals of Brazil
+These analyses operate on distances derived from classification depth. They do
+not convert the source hierarchy into evolutionary time, genetic distance, or
+phylogenetic branch length. Results should be described as analyses of
+taxonomic hierarchy distance.
+
+This vignette uses the reference matrix stored in `taxobase`. The matrix is
+built in advance from The Taxonomicon and permits the vignette to run without
+network access.
+
+```{r data}
+taxa <- taxobase$statistical_taxa
+mat <- taxobase$statistical_matrix
+
+taxobase$metadata
+length(taxa)
+inherits(mat, "dist")
+identical(attr(mat, "Labels"), taxa)
+```
+
+The example contains 15 mammalian genera representing several broad taxonomic
+groups. The selection is illustrative and is not intended to constitute a
+formal ecological sample or a conservation-status dataset.
 
 ```{r taxa}
-taxa_brazil <- c(
-  "Priodontes", "Myrmecophaga", "Chrysocyon", "Tapirus", "Didelphis",
-  "Leontopithecus", "Brachyteles",
-  "Panthera", "Pteronura", "Puma",
-  "Sotalia", "Pontoporia",
-  "Trichechus", "Mazama", "Blastocerus"
+taxa
+```
+
+## Inspecting the distance matrix
+
+```{r matrix-summary}
+summary(as.vector(mat))
+range(mat)
+
+round(
+  as.matrix(mat)[1:6, 1:6],
+  digits = 5
 )
 ```
 
-The dataset covers xenarthrans (`Priodontes`, `Myrmecophaga`), a marsupial
-(`Didelphis`), ungulates (`Tapirus`, `Mazama`, `Blastocerus`), primates
-(`Leontopithecus`, `Brachyteles`), carnivores (`Chrysocyon`, `Panthera`,
-`Pteronura`, `Puma`), cetaceans (`Sotalia`, `Pontoporia`), and a sirenian
-(`Trichechus`).
+For this dataset, pairwise distances range from approximately 0.01370 to
+0.01695. Smaller values indicate a deeper MRCA in the source hierarchy.
 
-The pairwise distance matrix is computed with a single call. Lineages are
-cached after the first retrieval, so subsequent analyses on the same taxa
-are instantaneous.
+The absolute scale depends on classification resolution. A value such as 0.014
+should not be interpreted as a proportion of evolutionary divergence.
 
-```{r matrix}
-library(taxodist)
-mat <- distance_matrix(taxa_brazil)
-print(mat)
-#>                Priodontes Myrmecophaga Chrysocyon    Tapirus  Didelphis
-#> Myrmecophaga   0.01639344
-#> Chrysocyon     0.01694915   0.01694915
-#> Tapirus        0.01694915   0.01694915 0.01587302
-#> Didelphis      0.01754386   0.01754386 0.01754386 0.01754386
-#> Leontopithecus 0.01694915   0.01694915 0.01666667 0.01666667 0.01754386
-#> Brachyteles    0.01694915   0.01694915 0.01666667 0.01666667 0.01754386
-#> Panthera       0.01694915   0.01694915 0.01492537 0.01587302 0.01754386
-#> Pteronura      0.01694915   0.01694915 0.01470588 0.01587302 0.01754386
-#> Puma           0.01694915   0.01694915 0.01492537 0.01587302 0.01754386
-#> Sotalia        0.01694915   0.01694915 0.01587302 0.01562500 0.01754386
-#> Pontoporia     0.01694915   0.01694915 0.01587302 0.01562500 0.01754386
-#> Trichechus     0.01666667   0.01666667 0.01694915 0.01694915 0.01754386
-#> Mazama         0.01694915   0.01694915 0.01587302 0.01562500 0.01754386
-#> Blastocerus    0.01694915   0.01694915 0.01587302 0.01562500 0.01754386
+## Hierarchical clustering
+
+```{r clustering, fig.width=7, fig.height=5}
+clustering <- taxo_cluster(mat, method = "average")
+
+clustering$hclust
+summary(clustering$hclust$height)
+
+plot(
+  clustering,
+  main = "Average-linkage clustering of taxonomic hierarchy distances",
+  xlab = "",
+  sub = ""
+)
 ```
 
-`Didelphis` shows the largest distances to all other taxa (0.01754),
-consistent with the early divergence of marsupials from placental mammals.
-Carnivores (`Panthera`, `Pteronura`, `Puma`) show smaller distances among
-themselves, reflecting a more recent common ancestor within Carnivora.
+Average-linkage clustering summarizes similarities in the supplied matrix. The
+topology and node heights also depend on the selected linkage method.
 
----
+The resulting dendrogram is not an independently inferred phylogenetic tree.
+It contains no substitution model, fossil calibration, branch-length
+estimation, or statistical reconstruction of evolutionary history.
 
-## Phylogenetic tree with `ape`
+### Tree representation with ape
 
-`taxo_cluster()` performs hierarchical clustering on the distance matrix and
-returns an object that `ape` can convert directly to a `phylo` tree for
-publication-quality visualisation.
+An `hclust` object can be converted to the `phylo` data structure used by
+`ape`. This can be useful for plotting and file-format interoperability.
 
-```{r ape, fig.width = 7, fig.height = 5}
-library(ape)
+```{r ape-tree, eval=ape_available, fig.width=7, fig.height=5}
+tree <- ape::as.phylo(clustering$hclust)
 
-cl   <- taxo_cluster(taxa_brazil)
-tree <- ape::as.phylo(cl$hclust)
-
-plot(tree,
-     main      = "Threatened Mammals of Brazil",
-     cex       = 0.85,
-     tip.color = "gray20")
+plot(
+  tree,
+  main = "Tree representation of a taxonomic distance dendrogram",
+  cex = 0.8
+)
 ```
 
-The `phylo` object is fully compatible with all `ape` tree manipulation and
-plotting functions, including `nodelabels()`, `edgelabels()`, and export to
-Newick format via `write.tree()`.
+Conversion to class `phylo` changes the representation of the clustering
+result, not its scientific interpretation. The object remains derived from a
+classification-based distance matrix.
 
-```{r ape-newick}
-ape::write.tree(tree, file = "taxa_brazil.nwk")
+Export can be performed when required:
+
+```{r ape-export, eval=FALSE}
+ape::write.tree(tree, file = "taxonomic-distance-dendrogram.nwk")
 ```
 
----
+## Principal coordinates analysis
 
-## Taxonomic diversity with `vegan`
+Principal coordinates analysis, or classical multidimensional scaling,
+represents pairwise dissimilarities as coordinates in a Euclidean space
+(Gower, 1966).
 
-### Clarke and Warwick indices (`taxondive`)
+```{r pcoa}
+ordination <- taxo_ordinate(mat, k = 2)
 
-`vegan::taxondive()` computes a family of taxonomic diversity indices
-(Clarke and Warwick 1998, 2001) from a community matrix and a taxonomic
-distance matrix. These indices capture not just species richness but how
-distantly related the species in a community are: a community of closely
-related species scores lower than one with the same richness but spanning
-multiple orders.
+positive_eigenvalues <- ordination$eig[ordination$eig > 0]
+variance_percent <- 100 * positive_eigenvalues / sum(positive_eigenvalues)
 
-The function expects a community matrix (sites x species) and the `dist`
-object from `distance_matrix()`. Here we define three hypothetical
-communities, each dominated by one broad taxonomic group.
+ordination_summary <- data.frame(
+  Axis = c("PC1", "PC2"),
+  Eigenvalue = ordination$eig[1:2],
+  Variance_percent = variance_percent[1:2],
+  Cumulative_percent = cumsum(variance_percent)[1:2]
+)
 
-```{r taxondive}
-set.seed(123)
-library(vegan)
-
-comm <- matrix(c(
-  1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   # xenarthrans + marsupial
-  0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,   # primates + carnivores
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1    # cetaceans + sirenian + ungulates
-), nrow = 3, byrow = TRUE)
-
-colnames(comm) <- taxa_brazil
-rownames(comm) <- c("community_A", "community_B", "community_C")
-
-vegan::taxondive(comm, mat)
-#>               Species      Delta       Delta*     Lambda+     Delta+     S Delta+
-#> community_A  3.0000e+00  1.7160e-02  1.7160e-02  2.9410e-07  1.7160e-02   0.0515
-#> community_B  5.0000e+00  1.5905e-02  1.5905e-02  8.8325e-07  1.5905e-02   0.0795
-#> community_C  5.0000e+00  1.5750e-02  1.5750e-02  1.1834e-06  1.5750e-02   0.0788
-#> Expected                -9.9265e-02  1.6544e-02              1.6457e-02         
+ordination_summary
+100 * ordination$GOF[1]
+sum(ordination$eig < -sqrt(.Machine$double.eps))
 ```
 
-The key indices are:
+```{r pcoa-plot, fig.width=7, fig.height=5}
+plot(
+  ordination,
+  main = "PCoA of taxonomic hierarchy distances"
+)
+```
 
-**Delta** ($\Delta$): mean taxonomic distance between all pairs of species in
-the community.
+The first two axes explain approximately 11.46% and 9.06% of the positive
+eigenvalue total, respectively. Their cumulative representation is therefore
+about 20.52%.
 
-**Delta*** ($\Delta^*$): mean pairwise distance excluding self-comparisons;
-comparable across communities of different sizes.
+Consequently, the two-dimensional plot is a limited projection of the complete
+distance structure. Proximity in this graph should not be interpreted without
+considering its relatively low goodness-of-fit.
 
-**Delta+** ($\Delta^+$): mean pairwise distance weighted by species
-abundances. For presence-absence data this equals $\Delta^*$.
+No materially negative eigenvalues were observed for this matrix. This does
+not imply that every matrix produced from missing, disconnected, or differently
+processed lineages will have the same property.
 
-**Lambda+** ($\Lambda^+$): variance in taxonomic distances, measuring how
-evenly a community spans the taxonomic tree.
+## Taxonomic diversity and distinctness
 
-`community_A`, dominated by xenarthrans and a marsupial, scores the highest
-$\Delta$ (0.01673), reflecting deeper divergences among its members.
-`community_B` (primates and carnivores) scores the lowest (0.01591), as its
-members share more recent common ancestors within Placentalia.
+Clarke and Warwick (1998, 2001) developed indices based on averaged taxonomic
+distances among species or individuals. `vegan::taxondive()` accepts a
+community matrix together with a `dist` object.
 
----
+The following communities are hypothetical presence-absence assemblages. They
+are constructed only to demonstrate the interface.
 
-## Mantel test with `vegan`
+```{r community}
+comm <- matrix(
+  c(
+    1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,1,1,1,1,1
+  ),
+  nrow = 3,
+  byrow = TRUE,
+  dimnames = list(
+    c("community_A", "community_B", "community_C"),
+    taxa
+  )
+)
 
-The Mantel test assesses the correlation between two distance matrices by
-permutation. A typical application is testing whether taxonomic distance
-correlates with geographic distance, a signature of phylogeographic structure.
+comm
+```
 
-Here we use simulated coordinates for illustration. In practice, replace
-`coords` with observed latitude and longitude values.
+```{r taxondive, eval=vegan_available}
+taxonomic_diversity <- vegan::taxondive(comm, mat)
 
-```{r mantel}
+taxonomic_diversity_table <- data.frame(
+  Species = taxonomic_diversity$Species,
+  Delta = taxonomic_diversity$D,
+  Delta_star = taxonomic_diversity$Dstar,
+  Lambda_plus = taxonomic_diversity$Lambda,
+  Delta_plus = taxonomic_diversity$Dplus,
+  SD_Delta_plus = taxonomic_diversity$sd.Dplus
+)
+
+taxonomic_diversity_table
+```
+
+Here:
+
+- \(\Delta\) is taxonomic diversity and incorporates abundances;
+- \(\Delta^*\) is taxonomic distinctness conditional on individuals belonging
+  to different taxa;
+- \(\Delta^+\) is average taxonomic distinctness for presence-absence data;
+- \(\Lambda^+\) describes variation in pairwise taxonomic distinctness.
+
+Because these examples use presence-absence data, \(\Delta\), \(\Delta^*\),
+and \(\Delta^+\) coincide within each community.
+
+`community_A` has the largest mean distance, approximately 0.01659.
+`community_B` and `community_C` have values of approximately 0.01539 and
+0.01527. These differences describe only the deliberately constructed example
+communities.
+
+Traditional applications often calculate taxonomic distances from integer or
+weighted steps through standardized ranks. The distances supplied here instead
+use reciprocal MRCA depth. `taxondive()` permits other dissimilarities, but the
+resulting values are specific to this definition and should not be compared
+numerically with conventional Clarke-Warwick indices without accounting for
+the different distance scale. Multiplying all distances by a constant also
+rescales the Delta indices and rescales \(\Lambda^+\) by the square of that
+constant.
+
+## Mantel test
+
+The Mantel test evaluates association between two distance matrices using
+permutations (Mantel, 1967). Both matrices must refer to the same observations
+in the same order.
+
+The coordinates below are simulated and have no biological interpretation.
+
+```{r mantel, eval=vegan_available}
 set.seed(42)
-coords <- matrix(rnorm(30), ncol = 2)
-rownames(coords) <- taxa_brazil
-geo_dist <- dist(coords)
 
-vegan::mantel(mat, geo_dist)
-#> Mantel statistic based on Pearson's product-moment correlation
-#>
-#> Call:
-#> vegan::mantel(xdis = mat, ydis = geo_dist)
-#>
-#> Mantel statistic r: -0.0569
-#>       Significance: 0.653
-#>
-#> Upper quantiles of permutations (null model):
-#>   90%   95% 97.5%   99% 
-#> 0.188 0.237 0.272 0.336 
-#> Permutation: free
-#> Number of permutations: 999
-```
-
-The non-significant result (r = -0.27, p = 0.972) is expected with random
-coordinates. For non-normal distance distributions, `"spearman"` is more
-robust than the default `"pearson"`.
-
-```{r mantel-spearman}
-vegan::mantel(mat, geo_dist, method = "spearman", permutations = 9999)
-#> Mantel statistic based on Spearman's rank correlation rho 
-#>
-#> Call:
-#> vegan::mantel(xdis = mat, ydis = geo_dist, method = "spearman",
-#>     permutations = 9999)
-#>
-#> Mantel statistic r: -0.07405
-#>       Significance: 0.672
-#>
-#> Upper quantiles of permutations (null model):
-#>   90%   95% 97.5%   99%
-#> 0.189 0.244 0.293 0.353 
-#> Permutation: free
-#> Number of permutations: 9999
-```
-
----
-
-## PERMANOVA with `vegan`
-
-PERMANOVA (Anderson 2001) tests whether groups of taxa differ significantly
-in taxonomic distance space. It partitions total variance in the distance
-matrix into within-group and between-group components and assesses
-significance by permutation, with no assumption of multivariate normality.
-
-```{r permanova}
-groups <- c(
-  "xenarthra", "xenarthra", "carnivore", "ungulate",  "marsupial",
-  "primate",   "primate",
-  "carnivore", "carnivore", "carnivore",
-  "cetacean",  "cetacean",
-  "sirenian",  "ungulate",  "ungulate"
+coordinates <- matrix(
+  rnorm(2 * length(taxa)),
+  ncol = 2,
+  dimnames = list(taxa, c("x", "y"))
 )
 
-vegan::adonis2(mat ~ groups)
-#> Permutation test for adonis under reduced model
-#> Permutation: free
-#> Number of permutations: 999
-#>
-#> vegan::adonis2(formula = mat ~ groups)
-#>          Df  SumOfSqs      R2      F Pr(>F)
-#> Model     6 0.00100049 0.52646 1.4823  0.001 ***
-#> Residual  8 0.00089992 0.47354  
-#> Total    14 0.00190041 1.00000   
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+geographic_distance <- stats::dist(coordinates)
+
+mantel_result <- vegan::mantel(
+  mat,
+  geographic_distance,
+  method = "pearson",
+  permutations = 999
+)
+
+mantel_result
 ```
 
-The taxonomic grouping explains $49.6\%$ of the total variance in the distance
-matrix ($\text{R}^2 = 0.496$, $\text{p} = 0.001$). This confirms that the broad mammalian
-orders occupy distinct regions of taxonomic distance space, consistent with
-their deep evolutionary divergences.
+The simulated example gives a Mantel correlation of approximately -0.056 and a
+permutation p-value of approximately 0.655. It therefore provides no evidence
+of association between taxonomic and simulated geographic distance.
 
-For pairwise comparisons between groups after a significant PERMANOVA,
-see `pairwise.adonis2()` in the `pairwiseAdonis` package.
+This is the expected interpretation of this example: the coordinates were
+generated randomly. It is not evidence for or against a biological
+biogeographic process.
 
----
+In an empirical analysis, the permutation design must reflect the sampling
+design. Spatial dependence, repeated measurements, blocks, and nested sampling
+can invalidate unrestricted permutations.
 
-## A complete workflow
+## PERMANOVA
 
-The following script chains all steps from taxon names to multivariate
-analysis.
+PERMANOVA partitions variation in a distance matrix and assesses a pseudo-\(F\)
+statistic using permutations (Anderson, 2001).
 
-```{r workflow}
+The groups below are illustrative taxonomic categories. They are uneven in
+size, and some contain only one observation. They are therefore suitable for
+demonstrating the software interface but not for drawing substantive
+inferential conclusions.
+
+```{r groups}
+groups <- factor(c(
+  "xenarthran", "xenarthran",
+  "carnivoran",
+  "ungulate",
+  "marsupial",
+  "primate", "primate",
+  "carnivoran", "carnivoran", "carnivoran",
+  "cetacean", "cetacean",
+  "sirenian",
+  "ungulate", "ungulate"
+))
+
+table(groups)
+```
+
+```{r permanova, eval=vegan_available}
+set.seed(42)
+
+permanova_result <- vegan::adonis2(
+  mat ~ groups,
+  permutations = 999
+)
+
+permanova_result
+```
+
+For these constructed groups, the model accounts for approximately 52.44% of
+the total sum of squares and gives a permutation p-value of 0.001.
+
+That result must not immediately be interpreted as evidence that group
+centroids differ. PERMANOVA can respond to differences in group location,
+within-group dispersion, or both, particularly in an unbalanced design.
+
+## Multivariate dispersion
+
+Distance-based analysis of multivariate dispersion examines distances from
+observations to their group centroid or spatial median (Anderson, 2006).
+It provides an important companion analysis for PERMANOVA.
+
+```{r dispersion, eval=vegan_available}
+dispersion <- vegan::betadisper(mat, groups)
+
+anova(dispersion)
+
+set.seed(42)
+vegan::permutest(
+  dispersion,
+  permutations = 999
+)
+```
+
+The ordinary analysis of distances to group centers is highly significant in
+this example. Thus the groups differ strongly in dispersion.
+
+The PERMANOVA result is consequently confounded with dispersion differences and
+cannot be presented as an unambiguous difference among group centroids.
+Moreover, singleton and very small groups make this example unsuitable for
+formal biological inference.
+
+A real study should use independently justified groups, adequate replication,
+and a permutation structure consistent with the sampling design.
+
+## Complete live workflow
+
+The following workflow computes a new matrix from taxon names. It is not
+evaluated while the vignette is built because it requires access to The
+Taxonomicon.
+
+```{r live-workflow, eval=FALSE}
 library(taxodist)
-library(vegan)
-library(ape)
 
-# 1. define taxa
-taxa_brazil <- c(
-  "Priodontes", "Myrmecophaga", "Chrysocyon", "Tapirus", "Didelphis",
-  "Leontopithecus", "Brachyteles",
-  "Panthera", "Pteronura", "Puma",
-  "Sotalia", "Pontoporia",
-  "Trichechus", "Mazama", "Blastocerus"
+taxa <- c(
+  "Tyrannosaurus",
+  "Velociraptor",
+  "Spinosaurus",
+  "Allosaurus"
 )
 
-# 2. compute distance matrix
-mat <- distance_matrix(taxa_brazil)
+coverage <- check_coverage(taxa)
+stopifnot(all(coverage))
 
-# 3. hierarchical clustering and phylo plot
-cl   <- taxo_cluster(taxa_brazil)
-tree <- ape::as.phylo(cl$hclust)
-plot(tree, main = "Threatened Mammals of Brazil", cex = 0.85)
+mat <- distance_matrix(taxa)
 
-# 4. PCoA ordination
-ord <- taxo_ordinate(mat)
-plot(ord, main = "PCoA: Taxonomic Distance Space")
+clustering <- taxo_cluster(mat, method = "average")
+ordination <- taxo_ordinate(mat, k = 2)
 
-# 5. PERMANOVA
-groups <- c(
-  "xenarthra", "xenarthra", "carnivore", "ungulate",  "marsupial",
-  "primate",   "primate",
-  "carnivore", "carnivore", "carnivore",
-  "cetacean",  "cetacean",
-  "sirenian",  "ungulate",  "ungulate"
-)
-vegan::adonis2(mat ~ groups)
+plot(clustering)
+plot(ordination)
 ```
 
----
+## Reporting recommendations
+
+Analyses based on `taxodist` should report:
+
+- the package version;
+- the lineage retrieval or dataset-generation date;
+- The Taxonomicon as the classification source;
+- the distance definition;
+- decisions involving ambiguous or missing taxa;
+- the clustering linkage or ordination method;
+- the number and structure of permutations;
+- checks of multivariate dispersion when PERMANOVA is used;
+- the distinction between hierarchy distance and evolutionary branch length.
+
+The exact package and data-source citations are available with:
+
+```{r citations, eval=FALSE}
+citation("taxodist")
+citation("vegan")
+citation("ape")
+```
 
 ## References
 
 Anderson, M.J. (2001). A new method for non-parametric multivariate
 analysis of variance. *Austral Ecology*, 26, 32--46.
+doi:10.1046/j.1442-9993.2001.01070.x.
+
+Anderson, M.J. (2006). Distance-based tests for homogeneity of multivariate
+dispersions. *Biometrics*, 62, 245--253.
+doi:10.1111/j.1541-0420.2005.00440.x.
+
+Brands, S.J. (1989 onwards). *Systema Naturae 2000*. Amsterdam,
+The Netherlands. The Taxonomicon.
 
 Clarke, K.R. and Warwick, R.M. (1998). A taxonomic distinctness index and
 its statistical properties. *Journal of Applied Ecology*, 35, 523--531.
+doi:10.1046/j.1365-2664.1998.3540523.x.
 
 Clarke, K.R. and Warwick, R.M. (2001). A further biodiversity index
 applicable to species lists: variation in taxonomic distinctness.
 *Marine Ecology Progress Series*, 216, 265--278.
+doi:10.3354/meps216265.
 
-Brands, S.J. (1989 onwards). *Systema Naturae 2000*. Amsterdam,
-The Netherlands. Retrieved from The Taxonomicon,
-<http://taxonomicon.taxonomy.nl>.
+Gower, J.C. (1966). Some distance properties of latent root and vector
+methods used in multivariate analysis. *Biometrika*, 53, 325--338.
+doi:10.1093/biomet/53.3-4.325.
+
+Mantel, N. (1967). The detection of disease clustering and a generalized
+regression approach. *Cancer Research*, 27, 209--220.
+
+Paradis, E. and Schliep, K. (2019). ape 5.0: an environment for modern
+phylogenetics and evolutionary analyses in R. *Bioinformatics*, 35,
+526--528. doi:10.1093/bioinformatics/bty633.
