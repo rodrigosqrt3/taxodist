@@ -5,7 +5,7 @@ bibentry(
   title = "taxodist: Taxonomic Hierarchy Distances and Lineage Analysis",
   author = person(given = "Rodrigo Fonseca", family = "Villa"),
   year = "2026",
-  note = "R package version 0.6.0",
+  note = "R package version 0.7.0",
   url = "https://CRAN.R-project.org/package=taxodist"
 )
 

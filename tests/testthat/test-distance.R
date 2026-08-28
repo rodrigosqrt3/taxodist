@@ -164,6 +164,45 @@ test_that(".compute_distance satisfies ultrametric inequality with ancestor node
   expect_lte(d_bc, max(d_ab, d_ac))
 })
 
+test_that("numeric distance path matches detailed distance results", {
+  cases <- list(
+    list(
+      c("Biota", "Animalia", "Dinosauria"),
+      c("Biota", "Animalia", "Dinosauria")
+    ),
+    list(
+      c("Biota", "Animalia", "Dinosauria"),
+      c("Biota", "Animalia", "Dinosauria", "Theropoda")
+    ),
+    list(
+      c("Biota", "Animalia", "Chordata", "TaxonA"),
+      c("Biota", "Animalia", "Arthropoda", "TaxonB")
+    ),
+    list(
+      c("Biota", "Animalia", "Repeated", "TaxonA"),
+      c("Biota", "Plantae", "Repeated", "TaxonB")
+    ),
+    list(
+      c("Biota", "Animalia"),
+      c("Natura", "Mineralia")
+    )
+  )
+
+  for (case in cases) {
+    expect_equal(
+      taxodist:::.distance_value(case[[1L]], case[[2L]]),
+      taxodist:::.compute_distance(case[[1L]], case[[2L]])$distance
+    )
+  }
+})
+
+test_that("common-prefix helper handles an empty lineage", {
+  expect_equal(
+    taxodist:::.common_prefix_depth(character(0), "Biota"),
+    0L
+  )
+})
+
 test_that("clear_cache returns invisible NULL", {
   expect_invisible(clear_cache())
 })
@@ -234,13 +273,17 @@ test_that("load_cache rejects invalid ID and lineage values", {
   clear_cache()
   tmp_id <- tempfile(fileext = ".rds")
   tmp_lin <- tempfile(fileext = ".rds")
-  on.exit(unlink(c(tmp_id, tmp_lin)))
+  tmp_matrix_lin <- tempfile(fileext = ".rds")
+  on.exit(unlink(c(tmp_id, tmp_lin, tmp_matrix_lin)))
 
   saveRDS(list(id_bad = 12345), tmp_id)
   expect_error(load_cache(tmp_id), "ID entries")
 
   saveRDS(list(lin_bad = 12345), tmp_lin)
   expect_error(load_cache(tmp_lin), "lineage entries")
+
+  saveRDS(list(matrix_lineage_bad = 12345), tmp_matrix_lin)
+  expect_error(load_cache(tmp_matrix_lin), "matrix lineage entries")
 })
 
 test_that("save_cache returns invisible NULL", {
@@ -566,8 +609,21 @@ test_that("distance_matrix works with mocked lineages", {
   })
   mat <- distance_matrix(c("Tyrannosaurus", "Velociraptor", "Triceratops"),
                          progress = FALSE)
-  expect_equal(nrow(as.matrix(mat)), 3)
-  expect_equal(diag(as.matrix(mat)), c(0, 0, 0), ignore_attr = TRUE)
+  expected <- matrix(c(
+    0, 1 / 4, 1 / 3,
+    1 / 4, 0, 1 / 3,
+    1 / 3, 1 / 3, 0
+  ), nrow = 3L, byrow = TRUE)
+  dimnames(expected) <- rep(list(
+    c("Tyrannosaurus", "Velociraptor", "Triceratops")
+  ), 2L)
+
+  expect_s3_class(mat, "dist")
+  expect_equal(as.matrix(mat), expected)
+  expect_equal(attr(mat, "Labels"), colnames(expected))
+  expect_equal(attr(mat, "Size"), 3L)
+  expect_false(attr(mat, "Diag"))
+  expect_false(attr(mat, "Upper"))
 })
 
 test_that("distance_matrix returns an empty dist for no taxa", {
@@ -575,6 +631,41 @@ test_that("distance_matrix returns an empty dist for no taxa", {
   expect_s3_class(result, "dist")
   expect_length(result, 0L)
   expect_equal(attr(result, "Size"), 0L)
+})
+
+test_that("distance_matrix handles one taxon without pairwise work", {
+  mockery::stub(
+    distance_matrix,
+    "get_lineage",
+    function(...) c("Biota", "Animalia", "Homo")
+  )
+  result <- distance_matrix("Homo", progress = FALSE)
+  expect_s3_class(result, "dist")
+  expect_length(result, 0L)
+  expect_equal(attr(result, "Size"), 1L)
+  expect_equal(attr(result, "Labels"), "Homo")
+  expect_equal(as.matrix(result), matrix(
+    0,
+    nrow = 1L,
+    dimnames = list("Homo", "Homo")
+  ))
+})
+
+test_that("distance_matrix reuses final resolved lineages", {
+  clear_cache()
+  on.exit(clear_cache(), add = TRUE)
+  calls <- 0L
+  mockery::stub(distance_matrix, "get_lineage", function(taxon, ...) {
+    calls <<- calls + 1L
+    c("Biota", "Animalia", taxon)
+  })
+
+  taxa <- c("Alpha", "Beta", "Gamma")
+  first <- distance_matrix(taxa, progress = FALSE)
+  second <- distance_matrix(taxa, progress = FALSE)
+
+  expect_equal(calls, length(taxa))
+  expect_equal(second, first)
 })
 
 test_that("check_coverage returns named logical vector", {

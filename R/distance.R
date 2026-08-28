@@ -121,36 +121,65 @@ mrca <- function(taxon_a, taxon_b, verbose = FALSE) {
 #' }
 distance_matrix <- function(taxa, verbose = FALSE, progress = TRUE) {
   n <- length(taxa)
-  mat <- matrix(NA_real_, nrow = n, ncol = n,
-                dimnames = list(taxa, taxa))
-  diag(mat) <- 0
 
   if (n == 0L) {
-    return(stats::as.dist(mat))
+    return(structure(
+      numeric(0),
+      Size = 0L,
+      Labels = taxa,
+      Diag = FALSE,
+      Upper = FALSE,
+      class = "dist"
+    ))
   }
 
   # fetch lineages sequentially in main process (cache is shared)
   if (progress) cli::cli_alert_info("Fetching {n} lineages...")
-  lineages <- lapply(taxa, function(t) get_lineage(t, verbose = verbose))
-  names(lineages) <- taxa
+  lineages <- lapply(taxa, function(taxon) {
+    cache_key <- paste0("matrix_lineage_", taxon)
+    if (exists(cache_key, envir = .taxodist_cache, inherits = FALSE)) {
+      return(get(cache_key, envir = .taxodist_cache, inherits = FALSE))
+    }
+
+    lineage <- get_lineage(taxon, verbose = verbose)
+    if (!is.null(lineage)) {
+      assign(cache_key, lineage, envir = .taxodist_cache)
+    }
+    lineage
+  })
   if (progress) cli::cli_alert_success("Lineages fetched.")
 
-  # compute pairwise distances
-  total_pairs <- n * (n - 1) / 2
-  if (progress) cli::cli_progress_bar("Computing distances", total = total_pairs)
-  for (i in seq_len(n - 1)) {
-    for (j in (i + 1):n) {
-      if (!is.null(lineages[[i]]) && !is.null(lineages[[j]])) {
-        result <- .compute_distance(
-          lineages[[i]], lineages[[j]], taxa[i], taxa[j]
-        )
-        mat[i, j] <- mat[j, i] <- result$distance
+  # Fill the compact lower triangle directly in base `dist` storage order.
+  # The matrix path only needs numeric distances, so avoid constructing one
+  # detailed S3 result object per pair.
+  total_pairs <- as.integer(n * (n - 1) / 2)
+  values <- rep.int(NA_real_, total_pairs)
+  position <- 1L
+  if (progress && total_pairs > 0L) {
+    cli::cli_progress_bar("Computing distances", total = total_pairs)
+  }
+  if (n > 1L) {
+    for (column in seq_len(n - 1L)) {
+      for (row in (column + 1L):n) {
+        if (!is.null(lineages[[row]]) && !is.null(lineages[[column]])) {
+          values[[position]] <- .distance_value(
+            lineages[[row]], lineages[[column]]
+          )
+        }
+        position <- position + 1L
+        if (progress) cli::cli_progress_update()
       }
-      if (progress) cli::cli_progress_update()
     }
   }
-  if (progress) cli::cli_progress_done()
-  stats::as.dist(mat)
+  if (progress && total_pairs > 0L) cli::cli_progress_done()
+  structure(
+    values,
+    Size = n,
+    Labels = taxa,
+    Diag = FALSE,
+    Upper = FALSE,
+    class = "dist"
+  )
 }
 
 #' Find the closest relative of a taxon among a set of candidates
@@ -472,22 +501,38 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 #' @keywords internal
+.common_prefix_depth <- function(lin_a, lin_b) {
+  common_length <- min(length(lin_a), length(lin_b))
+  if (common_length == 0L) return(0L)
+
+  common_idx <- seq_len(common_length)
+  matches <- lin_a[common_idx] == lin_b[common_idx]
+  first_mismatch <- which(is.na(matches) | !matches)
+
+  if (length(first_mismatch) > 0L) {
+    first_mismatch[[1L]] - 1L
+  } else {
+    common_length
+  }
+}
+
+# Numeric-only hot path for distance_matrix().
+#' @keywords internal
+.distance_value <- function(lin_a, lin_b) {
+  mrca_depth <- .common_prefix_depth(lin_a, lin_b)
+  if (mrca_depth == 0L) return(Inf)
+  if (length(lin_a) == length(lin_b) && mrca_depth == length(lin_a)) return(0)
+  1 / mrca_depth
+}
+
+#' @keywords internal
 .compute_distance <- function(lin_a, lin_b, name_a = "A", name_b = "B") {
   depth_a <- length(lin_a)
   depth_b <- length(lin_b)
 
   # The shared ancestry must be a continuous prefix from the root. A taxon
   # name repeated after the lineages diverge is a homonym, not a shared node.
-  common_length <- min(depth_a, depth_b)
-  common_idx    <- seq_len(common_length)
-  matches       <- lin_a[common_idx] == lin_b[common_idx]
-  first_mismatch <- which(is.na(matches) | !matches)
-
-  mrca_depth <- if (length(first_mismatch) > 0L) {
-    first_mismatch[1] - 1L
-  } else {
-    common_length
-  }
+  mrca_depth <- .common_prefix_depth(lin_a, lin_b)
 
   if (mrca_depth == 0L) {
     return(structure(list(
@@ -502,7 +547,7 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
   }
 
   mrca_name    <- lin_a[mrca_depth]
-  same_lineage <- identical(as.character(lin_a), as.character(lin_b))
+  same_lineage <- depth_a == depth_b && mrca_depth == depth_a
   distance     <- if (same_lineage) 0 else 1 / mrca_depth
 
   structure(list(

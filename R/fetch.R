@@ -21,7 +21,10 @@ regexEscape <- function(x) gsub("([.\\^$*+?{}\\[\\]|()])", "\\\\\\1", x)
 #' clear_cache()
 #' }
 clear_cache <- function() {
-  rm(list = ls(.taxodist_cache), envir = .taxodist_cache)
+  rm(
+    list = ls(envir = .taxodist_cache, all.names = TRUE),
+    envir = .taxodist_cache
+  )
   invisible(NULL)
 }
 
@@ -107,6 +110,18 @@ load_cache <- function(file) {
     cli::cli_abort("Invalid cache file: lineage entries must be character vectors.")
   }
 
+  matrix_lineage_entries <- startsWith(data_names, "matrix_lineage_")
+  invalid_matrix_lineages <- any(!vapply(
+    data[matrix_lineage_entries],
+    is.character,
+    logical(1)
+  ))
+  if (invalid_matrix_lineages) {
+    cli::cli_abort(
+      "Invalid cache file: matrix lineage entries must be character vectors."
+    )
+  }
+
   list2env(data, envir = .taxodist_cache)
   cli::cli_alert_success("Cache loaded from {.file {file}} ({length(data)} entries).")
   invisible(NULL)
@@ -136,7 +151,7 @@ load_cache <- function(file) {
 #' cache_info()
 #' }
 cache_info <- function() {
-  keys <- ls(.taxodist_cache)
+  keys <- ls(envir = .taxodist_cache, all.names = TRUE)
 
   lin_keys <- keys[startsWith(keys, "lin_")]
   id_keys  <- keys[startsWith(keys, "id_")]
@@ -575,3 +590,4 @@ taxo_search <- function(taxon, verbose = FALSE) {
   if (verbose) cli::cli_alert_success("Found {nrow(df)} entries.")
   return(df)
 }
+

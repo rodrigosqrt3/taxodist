@@ -1,6 +1,6 @@
 Package: taxodist
 Title: Taxonomic Hierarchy Distances and Lineage Analysis
-Version: 0.6.0
+Version: 0.7.0
 LazyData: true
 Authors@R: person("Rodrigo Fonseca", "Villa", email = "rodrigo03.villa@gmail.com",
            role = c("aut", "cre"),
