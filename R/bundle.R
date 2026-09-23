@@ -235,7 +235,7 @@ taxo_bundle <- function(taxa,
 #' @export
 write_taxodist_bundle <- function(bundle, file, pretty = TRUE) {
   .validate_taxodist_bundle(bundle)
-  full <- as.matrix(bundle$matrix)
+  labels <- attr(bundle$matrix, "Labels", exact = TRUE)
   portable <- list(
     format = "taxodist_bundle",
     schema_version = bundle$schema_version,
@@ -245,7 +245,7 @@ write_taxodist_bundle <- function(bundle, file, pretty = TRUE) {
     metric = bundle$metric,
     taxa = .bundle_taxon_records(bundle$resolution),
     matrix = list(
-      labels = I(rownames(full)),
+      labels = I(labels),
       values = .bundle_matrix_rows(bundle$matrix)
     )
   )
