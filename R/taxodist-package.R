@@ -1,14 +1,17 @@
 #' taxodist: Taxonomic Hierarchy Distances and Lineage Analysis
 #'
 #' @description
-#' taxodist retrieves taxonomic lineages from The Taxonomicon (taxonomy.nl)
-#' and computes distances from the depth of the most recent common ancestor.
+#' taxodist retrieves taxonomic lineages from The Taxonomicon (taxonomy.nl) or
+#' accepts user-supplied lineages, then computes distances from the depth of
+#' the most recent common ancestor.
 #' The resulting values describe separation within the source classification;
 #' they are not estimates of evolutionary time or phylogenetic branch length.
 #'
 #' ## Core functions
 #'
 #' - [get_lineage()] — retrieve the full lineage of any taxon
+#' - [taxo_resolve()] — resolve and audit a batch of names or IDs
+#' - [taxo_from_lineages()] — create an offline resolution from local lineages
 #' - [taxo_distance()] — compute the ultrametric distance between two taxa
 #' - [mrca()] — find the most recent common ancestor
 #' - [distance_matrix()] — compute all pairwise distances for a set of taxa
@@ -19,6 +22,7 @@
 #' - [filter_clade()] — filter taxa by clade membership
 #' - [check_coverage()] — check Taxonomicon coverage for a list of taxa
 #' - [lineage_depth()] — get the lineage depth of a taxon
+#' - [taxo_bundle()] — preserve an analysis and its provenance
 #' - [clear_cache()] — clear the session lineage cache
 #'
 #' ## Mathematical background
@@ -38,9 +42,10 @@
 #'
 #' ## Data source
 #'
-#' All lineage data is sourced from The Taxonomicon (taxonomy.nl), based on
-#' Systema Naturae 2000 by S.J. Brands (1989 onwards). Please cite this
-#' resource when using taxodist in published work.
+#' Online lineage data is sourced from The Taxonomicon (taxonomy.nl), based on
+#' Systema Naturae 2000 by S.J. Brands (1989 onwards). Please cite that
+#' resource when using its classifications, or record the relevant source when
+#' using [taxo_from_lineages()].
 #'
 #' @references
 #' Brands, S.J. (1989 onwards). Systema Naturae 2000. Amsterdam,

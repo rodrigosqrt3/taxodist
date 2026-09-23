@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rodrigosqrt3.github.io/taxodist-web/schema/taxodist-bundle-v1.schema.json",
+  "title": "taxodist portable analysis bundle",
+  "type": "object",
+  "required": [
+    "format",
+    "schema_version",
+    "created_at",
+    "source",
+    "software",
+    "metric",
+    "taxa",
+    "matrix"
+  ],
+  "properties": {
+    "format": { "const": "taxodist_bundle" },
+    "schema_version": { "const": "1.0" },
+    "created_at": { "type": ["string", "null"] },
+    "source": {
+      "type": "object",
+      "required": ["name", "url", "retrieved_at"],
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": ["string", "null"] },
+        "retrieved_at": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "software": {
+      "type": "object",
+      "required": ["name", "version", "language"],
+      "properties": {
+        "name": { "const": "taxodist" },
+        "version": { "type": ["string", "null"] },
+        "language": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "metric": {
+      "type": "object",
+      "required": ["name", "definition", "root_depth", "common_ancestor"],
+      "properties": {
+        "name": { "const": "inverse_mrca_depth" },
+        "definition": { "type": "string" },
+        "root_depth": { "const": 1 },
+        "common_ancestor": { "const": "continuous common lineage prefix" }
+      },
+      "additionalProperties": false
+    },
+    "taxa": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "input",
+          "resolved_name",
+          "id",
+          "status",
+          "n_candidates",
+          "lineage_depth",
+          "lineage",
+          "candidates"
+        ],
+        "properties": {
+          "input": { "type": "string" },
+          "resolved_name": { "type": ["string", "null"] },
+          "id": { "type": ["string", "null"] },
+          "status": {
+            "enum": ["resolved", "ambiguous", "unresolved", "retrieval_error"]
+          },
+          "n_candidates": { "type": "integer", "minimum": 0 },
+          "lineage_depth": { "type": ["integer", "null"], "minimum": 1 },
+          "lineage": {
+            "oneOf": [
+              { "type": "null" },
+              { "type": "array", "items": { "type": "string" } }
+            ]
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "name"],
+              "properties": {
+                "id": { "type": "string" },
+                "name": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": { "enum": ["resolved", "ambiguous"] }
+              }
+            },
+            "then": {
+              "properties": {
+                "resolved_name": { "type": "string" },
+                "id": { "type": "string" },
+                "lineage_depth": { "type": "integer", "minimum": 1 },
+                "lineage": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "type": "string", "minLength": 1 }
+                },
+                "candidates": { "minItems": 1 }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": { "status": { "const": "unresolved" } }
+            },
+            "then": {
+              "properties": {
+                "resolved_name": { "type": "null" },
+                "id": { "type": "null" },
+                "n_candidates": { "const": 0 },
+                "lineage_depth": { "type": "null" },
+                "lineage": { "type": "null" },
+                "candidates": { "maxItems": 0 }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": { "status": { "const": "retrieval_error" } }
+            },
+            "then": {
+              "properties": {
+                "resolved_name": { "type": "null" },
+                "id": { "type": "null" },
+                "lineage_depth": { "type": "null" },
+                "lineage": { "type": "null" }
+              }
+            }
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
+    "matrix": {
+      "type": "object",
+      "required": ["labels", "values"],
+      "properties": {
+        "labels": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                { "type": "number" },
+                { "type": "null" },
+                { "enum": ["Infinity", "-Infinity"] }
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

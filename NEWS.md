@@ -187,3 +187,52 @@
   package test suite now reports complete source coverage.
 * Cache inspection and clearing now address the private cache environment
   explicitly, avoiding ambiguous search-list lookup during installed use.
+
+# taxodist 0.8.0
+
+## Auditable name resolution
+
+* Added `taxo_resolve()` for batch name resolution with explicit `resolved`,
+  `ambiguous`, `unresolved`, and `retrieval_error` statuses. A missing name is
+  therefore distinguishable from a failed network request or lineage fetch.
+  The result preserves all candidates considered, the selected Taxonomicon ID,
+  the retrieved lineage, and lineage depth for every input.
+* Ambiguity handling is now an explicit policy: warn and select the first
+  candidate, select it silently, or stop and require numeric IDs.
+* `distance_matrix()` now accepts a `taxodist_resolution` object directly,
+  reuses its stored lineages without additional network requests, and keeps
+  the original queried names as matrix labels.
+* Added `taxo_from_lineages()` for curated, unpublished, frozen, or fully
+  offline classifications. User-supplied lineages receive deterministic identifiers
+  and flow through the same matrix and bundle APIs as online resolutions.
+
+## Portable analysis bundles
+
+* Added `taxo_bundle()` to combine resolution records, retrieved lineages, the
+  distance matrix, metric definition, source details, and software metadata in
+  one self-contained object.
+* Added `write_taxodist_bundle()` and `read_taxodist_bundle()` for a documented
+  JSON format designed for exchange among the R, Python, and Julia
+  implementations.
+* Added a bundled JSON Schema for format version 1.0. Missing distances are
+  represented as JSON `null`, while disconnected infinite distances use the
+  explicit strings `"Infinity"` and `"-Infinity"`.
+* `distance_matrix()` now also accepts a `taxodist_bundle` and returns its
+  stored matrix without network access or recomputation.
+
+## Robustness and documentation
+
+* Repeated names in `taxo_resolve()` are now retrieved only once while their
+  original order and repetition are preserved in the audit table.
+* Bundle validation now checks resolution fields, candidate counts, selected
+  IDs, lineage depths, matrix labels, and agreement between stored distances
+  and the stored lineages.
+* Bundle provenance now supports sources without a URL and preserves custom
+  lineage sources through JSON round trips.
+* HTTP requests now report the installed package version in their user agent,
+  and malformed lineage pages fail cleanly instead of escaping as parser
+  errors.
+* Reference-data tests now preserve the package version that originally built
+  `taxobase` instead of requiring it to equal the current development version.
+* Corrected stale generated documentation that still used phylogenetic
+  terminology or the pre-0.6 ancestor--descendant distance behavior.

@@ -5,6 +5,14 @@ NULL
 
 regexEscape <- function(x) gsub("([.\\^$*+?{}\\[\\]|()])", "\\\\\\1", x)
 
+.taxodist_user_agent <- function() {
+  version <- tryCatch(
+    as.character(utils::packageVersion("taxodist")),
+    error = function(e) "development"
+  )
+  paste("taxodist R package", version)
+}
+
 # -- Internal cache -----------------------------------------------------------
 
 .taxodist_cache <- new.env(parent = emptyenv())
@@ -237,7 +245,7 @@ get_taxonomicon_id <- function(taxon, verbose = FALSE) {
   )
 
   res <- tryCatch(
-    httr::GET(url, httr::add_headers("User-Agent" = "taxodist R package/0.3"), httr::timeout(30)),
+    httr::GET(url, httr::add_headers("User-Agent" = .taxodist_user_agent()), httr::timeout(30)),
     error = function(e) NULL
   )
 
@@ -250,7 +258,14 @@ get_taxonomicon_id <- function(taxon, verbose = FALSE) {
     return(NULL)
   }
 
-  page <- rvest::read_html(httr::content(res, "text", encoding = "UTF-8"))
+  page <- tryCatch(
+    rvest::read_html(httr::content(res, "text", encoding = "UTF-8")),
+    error = function(e) NULL
+  )
+  if (is.null(page)) {
+    cli::cli_warn("Could not parse the response from The Taxonomicon.")
+    return(NULL)
+  }
   rows <- rvest::html_nodes(page, "tr")
   bio_ids <- list()
 
@@ -374,7 +389,7 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
   res <- tryCatch(
     httr::GET(
       url,
-      httr::add_headers("User-Agent" = "taxodist R package/0.3"),
+      httr::add_headers("User-Agent" = .taxodist_user_agent()),
       httr::timeout(30)
     ),
     error = function(e) NULL
@@ -383,7 +398,16 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
     if (verbose) cli::cli_alert_warning("Could not retrieve lineage for ID {taxon_id}")
     return(NULL)
   }
-  page  <- rvest::read_html(httr::content(res, "text", encoding = "UTF-8"))
+  page <- tryCatch(
+    rvest::read_html(httr::content(res, "text", encoding = "UTF-8")),
+    error = function(e) NULL
+  )
+  if (is.null(page)) {
+    if (verbose) {
+      cli::cli_alert_warning("Could not parse lineage for ID {taxon_id}")
+    }
+    return(NULL)
+  }
   regexEscape <- function(x) gsub("([.\\^$*+?{}\\[\\]|()])", "\\\\\\1", x)
 
   current_name <- rvest::html_text(
@@ -519,6 +543,8 @@ get_lineage <- function(taxon, clean = TRUE, verbose = FALSE) {
 #'
 #' @param taxon A character string giving the taxon name to search for.
 #' @param verbose Logical. If `TRUE`, prints status messages. Default `FALSE`.
+#' @param .diagnostics Logical. Internal switch used by [taxo_resolve()] to
+#'   distinguish an unavailable query from a valid query with no matches.
 #'
 #' @return A data frame of class `"data.frame"` with columns:
 #' \describe{
@@ -535,7 +561,14 @@ get_lineage <- function(taxon, clean = TRUE, verbose = FALSE) {
 #' taxo_search("Nereis")
 #' taxo_search("Tyrannosaurus")
 #' }
-taxo_search <- function(taxon, verbose = FALSE) {
+taxo_search <- function(taxon, verbose = FALSE, .diagnostics = FALSE) {
+  finish <- function(status, results = NULL) {
+    if (.diagnostics) {
+      return(list(status = status, results = results))
+    }
+    results
+  }
+
   if (verbose) cli::cli_alert_info("Searching Taxonomicon for {.val {taxon}}...")
 
   url <- paste0(
@@ -545,16 +578,23 @@ taxo_search <- function(taxon, verbose = FALSE) {
   )
 
   res <- tryCatch(
-    httr::GET(url, httr::add_headers("User-Agent" = "taxodist R package/0.3"), httr::timeout(30)),
+    httr::GET(url, httr::add_headers("User-Agent" = .taxodist_user_agent()), httr::timeout(30)),
     error = function(e) NULL
   )
 
   if (is.null(res) || httr::status_code(res) != 200) {
     if (verbose) cli::cli_alert_warning("Could not reach Taxonomicon")
-    return(NULL)
+    return(finish("retrieval_error"))
   }
 
-  page <- rvest::read_html(httr::content(res, "text", encoding = "UTF-8"))
+  page <- tryCatch(
+    rvest::read_html(httr::content(res, "text", encoding = "UTF-8")),
+    error = function(e) NULL
+  )
+  if (is.null(page)) {
+    if (verbose) cli::cli_alert_warning("Could not parse the Taxonomicon response")
+    return(finish("retrieval_error"))
+  }
   rows <- rvest::html_nodes(page, "tr")
 
   results <- list()
@@ -580,7 +620,7 @@ taxo_search <- function(taxon, verbose = FALSE) {
 
   if (length(results) == 0) {
     if (verbose) cli::cli_alert_warning("No matches found.")
-    return(NULL)
+    return(finish("not_found"))
   }
 
   df <- do.call(rbind, results)
@@ -588,6 +628,340 @@ taxo_search <- function(taxon, verbose = FALSE) {
   rownames(df) <- NULL
 
   if (verbose) cli::cli_alert_success("Found {nrow(df)} entries.")
-  return(df)
+  finish("ok", df)
+}
+
+#' Resolve taxon names in a batch with an auditable result
+#'
+#' Resolves taxon names or numeric Taxonomicon IDs while preserving the
+#' candidates considered, the selected identifier, the retrieved lineage, and
+#' the resolution status for every input. This is intended for reproducible
+#' workflows in which warnings emitted during a large matrix calculation would
+#' otherwise be difficult to audit afterwards.
+#'
+#' @param taxa A character vector of taxon names or numeric Taxonomicon IDs.
+#' @param ambiguity How to handle names with more than one valid biological
+#'   candidate. `"warn"` (default) selects the first candidate and emits one
+#'   aggregate warning, `"first"` selects it silently, and `"error"` aborts
+#'   after all inputs have been inspected.
+#' @param verbose Logical. If `TRUE`, prints retrieval messages.
+#' @param progress Logical. If `TRUE`, displays a progress bar.
+#'
+#' @return A data frame of class `taxodist_resolution` with one row per input
+#'   and columns `input`, `resolved_name`, `id`, `status`, `n_candidates`,
+#'   `lineage_depth`, `lineage`, and `candidates`. The last two are list
+#'   columns. Status is one of `"resolved"`, `"ambiguous"`, `"unresolved"`,
+#'   or `"retrieval_error"`.
+#'
+#' @details
+#' Ambiguous inputs retain `status = "ambiguous"` even when the first candidate
+#' is selected. Consequently, downstream code can distinguish an unambiguous
+#' match from a match chosen according to the requested policy. Numeric IDs
+#' bypass name search and are treated as single candidates when their lineage
+#' can be retrieved.
+#'
+#' Objects returned by `taxo_resolve()` can be passed directly to
+#' [distance_matrix()], which reuses the stored lineages and preserves the
+#' original input names as matrix labels.
+#'
+#' @seealso [taxo_search()], [distance_matrix()], [check_coverage()]
+#' @export
+#' @examples
+#' \donttest{
+#' resolved <- taxo_resolve(c("Tyrannosaurus", "Nereis", "50841"))
+#' distance_matrix(resolved)
+#' }
+taxo_resolve <- function(taxa,
+                         ambiguity = c("warn", "first", "error"),
+                         verbose = FALSE,
+                         progress = TRUE) {
+  ambiguity <- match.arg(ambiguity)
+
+  if (!is.character(taxa)) {
+    cli::cli_abort("{.arg taxa} must be a character vector.")
+  }
+  if (anyNA(taxa) || any(!nzchar(trimws(taxa)))) {
+    cli::cli_abort("{.arg taxa} cannot contain missing or empty values.")
+  }
+
+  empty_candidates <- function() {
+    data.frame(id = character(), name = character(), stringsAsFactors = FALSE)
+  }
+
+  resolve_one <- function(taxon) {
+    is_id <- grepl("^[0-9]+$", taxon)
+
+    if (is_id) {
+      lineage <- get_lineage_by_id(taxon, clean = TRUE, verbose = verbose)
+      if (is.null(lineage)) {
+        return(list(
+          input = taxon,
+          resolved_name = NA_character_,
+          id = NA_character_,
+          status = "retrieval_error",
+          n_candidates = 0L,
+          lineage_depth = NA_integer_,
+          lineage = NULL,
+          candidates = empty_candidates()
+        ))
+      }
+
+      return(list(
+        input = taxon,
+        resolved_name = utils::tail(lineage, 1L),
+        id = taxon,
+        status = "resolved",
+        n_candidates = 1L,
+        lineage_depth = length(lineage),
+        lineage = lineage,
+        candidates = data.frame(
+          id = taxon,
+          name = utils::tail(lineage, 1L),
+          stringsAsFactors = FALSE
+        )
+      ))
+    }
+
+    search <- taxo_search(taxon, verbose = verbose, .diagnostics = TRUE)
+    # Keep test doubles and older internal callers that return a data frame
+    # compatible with the structured diagnostic path.
+    if (is.data.frame(search)) {
+      search <- list(status = "ok", results = search)
+    }
+    if (identical(search$status, "retrieval_error")) {
+      return(list(
+        input = taxon,
+        resolved_name = NA_character_,
+        id = NA_character_,
+        status = "retrieval_error",
+        n_candidates = 0L,
+        lineage_depth = NA_integer_,
+        lineage = NULL,
+        candidates = empty_candidates()
+      ))
+    }
+    candidates <- search$results
+    if (identical(search$status, "not_found") || is.null(candidates) ||
+        nrow(candidates) == 0L) {
+      return(list(
+        input = taxon,
+        resolved_name = NA_character_,
+        id = NA_character_,
+        status = "unresolved",
+        n_candidates = 0L,
+        lineage_depth = NA_integer_,
+        lineage = NULL,
+        candidates = empty_candidates()
+      ))
+    }
+
+    searched_candidates <- candidates
+    candidate_lineages <- lapply(candidates$id, function(id) {
+      get_lineage_by_id(id, clean = TRUE, verbose = verbose)
+    })
+    valid <- vapply(candidate_lineages, function(lineage) {
+      !is.null(lineage) && "Biota" %in% lineage
+    }, logical(1))
+    candidates <- candidates[valid, , drop = FALSE]
+    candidate_lineages <- candidate_lineages[valid]
+
+    if (nrow(candidates) == 0L) {
+      return(list(
+        input = taxon,
+        resolved_name = NA_character_,
+        id = NA_character_,
+        status = "retrieval_error",
+        n_candidates = nrow(searched_candidates),
+        lineage_depth = NA_integer_,
+        lineage = NULL,
+        candidates = searched_candidates
+      ))
+    }
+
+    # When a broad search returns several entries, prefer candidates whose
+    # lineage contains the complete queried name. Retain all candidates if no
+    # exact lineage match exists, mirroring get_taxonomicon_id()'s fallback.
+    if (nrow(candidates) > 1L) {
+      exact <- vapply(candidate_lineages, function(lineage) {
+        any(grepl(
+          paste0("\\b", regexEscape(taxon), "\\b"),
+          lineage,
+          ignore.case = TRUE
+        ))
+      }, logical(1))
+      if (any(exact)) {
+        candidates <- candidates[exact, , drop = FALSE]
+        candidate_lineages <- candidate_lineages[exact]
+      }
+    }
+
+    selected_lineage <- candidate_lineages[[1L]]
+    n_candidates <- nrow(candidates)
+    list(
+      input = taxon,
+      resolved_name = utils::tail(selected_lineage, 1L),
+      id = candidates$id[[1L]],
+      status = if (n_candidates > 1L) "ambiguous" else "resolved",
+      n_candidates = n_candidates,
+      lineage_depth = length(selected_lineage),
+      lineage = selected_lineage,
+      candidates = candidates
+    )
+  }
+
+  unique_taxa <- unique(taxa)
+  progress_id <- NULL
+  if (progress && length(unique_taxa) > 0L) {
+    progress_id <- cli::cli_progress_bar(
+      "Resolving taxa",
+      total = length(unique_taxa)
+    )
+  }
+  resolved_unique <- lapply(unique_taxa, function(taxon) {
+    result <- resolve_one(taxon)
+    if (progress) cli::cli_progress_update(id = progress_id)
+    result
+  })
+  if (progress && length(unique_taxa) > 0L) {
+    cli::cli_progress_done(id = progress_id)
+  }
+  resolved <- resolved_unique[match(taxa, unique_taxa)]
+
+  result <- data.frame(
+    input = vapply(resolved, `[[`, character(1), "input"),
+    resolved_name = vapply(resolved, `[[`, character(1), "resolved_name"),
+    id = vapply(resolved, `[[`, character(1), "id"),
+    status = vapply(resolved, `[[`, character(1), "status"),
+    n_candidates = vapply(resolved, `[[`, integer(1), "n_candidates"),
+    lineage_depth = vapply(resolved, `[[`, integer(1), "lineage_depth"),
+    stringsAsFactors = FALSE
+  )
+  result$lineage <- I(lapply(resolved, `[[`, "lineage"))
+  result$candidates <- I(lapply(resolved, `[[`, "candidates"))
+  class(result) <- c("taxodist_resolution", "data.frame")
+  attr(result, "source") <- "The Taxonomicon"
+  attr(result, "source_url") <- "http://taxonomicon.taxonomy.nl"
+  attr(result, "retrieved_at") <- format(Sys.time(), tz = "UTC", usetz = TRUE)
+
+  ambiguous_inputs <- result$input[result$status == "ambiguous"]
+  if (length(ambiguous_inputs) > 0L) {
+    details <- paste0(
+      ambiguous_inputs,
+      " (",
+      result$n_candidates[result$status == "ambiguous"],
+      " candidates)"
+    )
+    if (ambiguity == "error") {
+      cli::cli_abort(c(
+        "x" = "Ambiguous taxon names were found.",
+        "i" = "{paste(details, collapse = ', ')}",
+        "i" = "Inspect {.fn taxo_search} and pass numeric IDs to resolve them explicitly."
+      ))
+    }
+    if (ambiguity == "warn") {
+      cli::cli_warn(c(
+        "!" = "Ambiguous taxon names were resolved using the first candidate.",
+        "i" = "{paste(details, collapse = ', ')}",
+        "i" = "Inspect the {.field candidates} column or pass numeric IDs explicitly."
+      ))
+    }
+  }
+
+  result
+}
+
+#' Create an auditable resolution from user-supplied lineages
+#'
+#' Builds a `taxodist_resolution` object without consulting an online
+#' taxonomy service. This is useful for unpublished classifications, curated
+#' local taxonomies, frozen analyses, and fully offline workflows.
+#'
+#' @param lineages A named list of character vectors ordered from root to the
+#'   focal taxon. List names become the input labels.
+#' @param ids Optional character vector of unique identifiers, in the same
+#'   order as `lineages`. A named vector is matched by name. If omitted,
+#'   deterministic identifiers of the form `custom:<input label>` are created.
+#' @param source A non-empty character string describing the lineage source.
+#'
+#' @return A `taxodist_resolution` object that can be passed to
+#'   [distance_matrix()] or [taxo_bundle()].
+#'
+#' @seealso [taxo_resolve()], [distance_matrix()], [taxo_bundle()]
+#' @export
+#' @examples
+#' lineages <- list(
+#'   Alpha = c("Biota", "Animalia", "Alpha"),
+#'   Beta = c("Biota", "Animalia", "Beta")
+#' )
+#' resolved <- taxo_from_lineages(lineages)
+#' distance_matrix(resolved)
+taxo_from_lineages <- function(lineages, ids = NULL, source = "user-supplied") {
+  if (!is.list(lineages)) {
+    cli::cli_abort("{.arg lineages} must be a named list of character vectors.")
+  }
+  labels <- names(lineages)
+  if (is.null(labels) || length(labels) != length(lineages) ||
+      anyNA(labels) || any(!nzchar(trimws(labels))) || anyDuplicated(labels)) {
+    cli::cli_abort(
+      "{.arg lineages} must have unique, non-empty names for every entry."
+    )
+  }
+  valid_lineage <- vapply(lineages, function(lineage) {
+    is.character(lineage) && length(lineage) > 0L && !anyNA(lineage) &&
+      all(nzchar(trimws(lineage)))
+  }, logical(1))
+  if (any(!valid_lineage)) {
+    cli::cli_abort(
+      "Every lineage must be a non-empty character vector without missing or empty nodes."
+    )
+  }
+  if (!is.character(source) || length(source) != 1L || is.na(source) ||
+      !nzchar(trimws(source))) {
+    cli::cli_abort("{.arg source} must be one non-empty character string.")
+  }
+
+  if (is.null(ids)) {
+    ids <- paste0("custom:", labels)
+  } else {
+    if (!is.character(ids)) {
+      cli::cli_abort("{.arg ids} must be a character vector.")
+    }
+    if (!is.null(names(ids))) {
+      if (!all(labels %in% names(ids))) {
+        cli::cli_abort("Named {.arg ids} must contain every lineage name.")
+      }
+      ids <- unname(ids[labels])
+    }
+    if (length(ids) != length(lineages) || anyNA(ids) ||
+        any(!nzchar(trimws(ids))) || anyDuplicated(ids)) {
+      cli::cli_abort(
+        "{.arg ids} must contain one unique, non-empty identifier per lineage."
+      )
+    }
+  }
+
+  resolved_names <- vapply(lineages, utils::tail, character(1), n = 1L)
+  result <- data.frame(
+    input = labels,
+    resolved_name = resolved_names,
+    id = unname(ids),
+    status = rep("resolved", length(lineages)),
+    n_candidates = rep(1L, length(lineages)),
+    lineage_depth = lengths(lineages),
+    stringsAsFactors = FALSE
+  )
+  result$lineage <- I(unname(lineages))
+  result$candidates <- I(lapply(seq_along(lineages), function(i) {
+    data.frame(
+      id = ids[[i]],
+      name = resolved_names[[i]],
+      stringsAsFactors = FALSE
+    )
+  }))
+  class(result) <- c("taxodist_resolution", "data.frame")
+  attr(result, "source") <- source
+  attr(result, "source_url") <- NA_character_
+  attr(result, "retrieved_at") <- format(Sys.time(), tz = "UTC", usetz = TRUE)
+  result
 }
 

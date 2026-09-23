@@ -99,7 +99,10 @@ mrca <- function(taxon_a, taxon_b, verbose = FALSE) {
 #' and returns a symmetric distance matrix. Lineages are cached after first
 #' retrieval to minimise redundant network requests.
 #'
-#' @param taxa A character vector of taxon names.
+#' @param taxa A character vector of taxon names, a `taxodist_resolution`
+#'   object returned by [taxo_resolve()], or a `taxodist_bundle`. Resolution
+#'   objects reuse their stored lineages and retain the original inputs as
+#'   matrix labels; bundles return their stored matrix.
 #' @param verbose Logical. If `TRUE`, prints progress for each pair.
 #'   Default `FALSE`.
 #' @param progress Logical. If `TRUE`, shows a progress bar. Default `TRUE`.
@@ -109,7 +112,8 @@ mrca <- function(taxon_a, taxon_b, verbose = FALSE) {
 #'   Taxa that could not be found are included with `NA` distances.
 #'   An empty input returns an empty `"dist"` object.
 #'
-#' @seealso [taxo_distance()], [closest_relative()]
+#' @seealso [taxo_distance()], [closest_relative()], [taxo_resolve()],
+#'   [taxo_bundle()]
 #'
 #' @export
 #' @examples
@@ -120,6 +124,22 @@ mrca <- function(taxon_a, taxon_b, verbose = FALSE) {
 #' print(mat)
 #' }
 distance_matrix <- function(taxa, verbose = FALSE, progress = TRUE) {
+  if (inherits(taxa, "taxodist_bundle")) {
+    .validate_taxodist_bundle(taxa)
+    return(taxa$matrix)
+  }
+
+  resolution <- inherits(taxa, "taxodist_resolution")
+  if (resolution) {
+    required <- c("input", "status", "lineage")
+    if (!all(required %in% names(taxa))) {
+      cli::cli_abort("Invalid {.cls taxodist_resolution} object.")
+    }
+    labels <- taxa$input
+    lineages <- taxa$lineage
+    taxa <- labels
+  }
+
   n <- length(taxa)
 
   if (n == 0L) {
@@ -133,21 +153,23 @@ distance_matrix <- function(taxa, verbose = FALSE, progress = TRUE) {
     ))
   }
 
-  # fetch lineages sequentially in main process (cache is shared)
-  if (progress) cli::cli_alert_info("Fetching {n} lineages...")
-  lineages <- lapply(taxa, function(taxon) {
-    cache_key <- paste0("matrix_lineage_", taxon)
-    if (exists(cache_key, envir = .taxodist_cache, inherits = FALSE)) {
-      return(get(cache_key, envir = .taxodist_cache, inherits = FALSE))
-    }
+  if (!resolution) {
+    # Fetch lineages sequentially in the main process (cache is shared).
+    if (progress) cli::cli_alert_info("Fetching {n} lineages...")
+    lineages <- lapply(taxa, function(taxon) {
+      cache_key <- paste0("matrix_lineage_", taxon)
+      if (exists(cache_key, envir = .taxodist_cache, inherits = FALSE)) {
+        return(get(cache_key, envir = .taxodist_cache, inherits = FALSE))
+      }
 
-    lineage <- get_lineage(taxon, verbose = verbose)
-    if (!is.null(lineage)) {
-      assign(cache_key, lineage, envir = .taxodist_cache)
-    }
-    lineage
-  })
-  if (progress) cli::cli_alert_success("Lineages fetched.")
+      lineage <- get_lineage(taxon, verbose = verbose)
+      if (!is.null(lineage)) {
+        assign(cache_key, lineage, envir = .taxodist_cache)
+      }
+      lineage
+    })
+    if (progress) cli::cli_alert_success("Lineages fetched.")
+  }
 
   # Fill the compact lower triangle directly in base `dist` storage order.
   # The matrix path only needs numeric distances, so avoid constructing one

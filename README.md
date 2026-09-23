@@ -2,9 +2,9 @@
 
 [![CRAN status](https://www.r-pkg.org/badges/version/taxodist)](https://CRAN.R-project.org/package=taxodist) &nbsp; [![R-CMD-check](https://github.com/rodrigosqrt3/taxodist/actions/workflows/r.yml/badge.svg)](https://github.com/rodrigosqrt3/taxodist/actions/workflows/r.yml) &nbsp; [![codecov](https://codecov.io/gh/rodrigosqrt3/taxodist/branch/main/graph/badge.svg)](https://app.codecov.io/gh/rodrigosqrt3/taxodist)
 
-**Taxonomic hierarchy distance and lineage computation for any taxon on Earth.**
+**Taxonomic hierarchy distances derived from lineage classifications.**
 
-`taxodist` retrieves full hierarchical lineages from [The Taxonomicon](http://taxonomicon.taxonomy.nl) and computes an ultrametric distance between any two taxa: a pair of dinosaurs, a dinosaur and a fungus, two species of fly, or an oak tree and a human.
+`taxodist` retrieves taxonomic lineages from [The Taxonomicon](http://taxonomicon.taxonomy.nl) and computes distances from the depth of the most recent common ancestor. It supports comparisons among named taxa at any level represented in the source hierarchy.
 
 ## Installation
 
@@ -41,6 +41,22 @@ taxo_path("Tyrannosaurus", "Velociraptor")
 # Save and restore the lineage cache across sessions
 save_cache("my_cache.rds")
 load_cache("my_cache.rds")
+
+# Resolve a batch first and preserve ambiguity, coverage, IDs, and lineages
+resolved <- taxo_resolve(c("Tyrannosaurus", "Nereis", "Unknown taxon"))
+distance_matrix(resolved)
+
+# Work completely offline with curated or unpublished lineages
+local <- taxo_from_lineages(list(
+  Alpha = c("Biota", "Animalia", "Alpha"),
+  Beta = c("Biota", "Animalia", "Beta")
+), source = "My curated taxonomy")
+distance_matrix(local)
+
+# Preserve the complete analysis and exchange it across implementations
+bundle <- taxo_bundle(resolved)
+write_taxodist_bundle(bundle, "analysis.json")
+restored <- read_taxodist_bundle("analysis.json")
 ```
 
 ## The distance metric
@@ -59,7 +75,7 @@ The deeper the shared ancestor, the smaller the distance and the more related th
 
 Distance and membership answer different questions. For example, *Tyrannosaurus* has a positive distance from *Dinosauria* because they are distinct nodes, while `is_member("Tyrannosaurus", "Dinosauria")` returns `TRUE`. Use `is_member()` or `taxo_path()` when the relationship of interest is containment or ancestry.
 
-The Taxonomicon provides substantially deeper lineage resolution than other programmatic sources, e.g., *Tyrannosaurus* has over 70 nodes in its lineage, which is what makes the distances meaningful across all of life.
+The numerical values depend on the resolution of the classification returned by The Taxonomicon. They represent separation within that hierarchy and should not be interpreted as evolutionary time or phylogenetic branch length.
 
 ## Caching
 

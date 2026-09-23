@@ -16,6 +16,38 @@ print.taxodist_result <- function(x, ...) {
   invisible(x)
 }
 
+#' Print an auditable taxon-resolution table
+#'
+#' @param x A `taxodist_resolution` object returned by [taxo_resolve()].
+#' @param ... Additional arguments passed to [print.data.frame()].
+#'
+#' @return Invisibly returns `x`.
+#' @export
+print.taxodist_resolution <- function(x, ...) {
+  display_columns <- c(
+    "input", "resolved_name", "id", "status", "n_candidates",
+    "lineage_depth"
+  )
+  print.data.frame(
+    x[display_columns],
+    row.names = FALSE,
+    ...
+  )
+  counts <- table(factor(
+    x$status,
+    levels = c("resolved", "ambiguous", "unresolved", "retrieval_error")
+  ))
+  cli::cli_text(
+    paste0(
+      "Resolved: {counts[['resolved']]} | ",
+      "Ambiguous: {counts[['ambiguous']]} | ",
+      "Unresolved: {counts[['unresolved']]} | ",
+      "Retrieval errors: {counts[['retrieval_error']]}"
+    )
+  )
+  invisible(x)
+}
+
 #' Compare lineages of two taxa side by side
 #'
 #' Prints the lineages of two taxa aligned at their most recent common

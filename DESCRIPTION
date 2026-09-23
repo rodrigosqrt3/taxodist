@@ -1,6 +1,6 @@
 Package: taxodist
 Title: Taxonomic Hierarchy Distances and Lineage Analysis
-Version: 0.7.0
+Version: 0.8.0
 LazyData: true
 Authors@R: person("Rodrigo Fonseca", "Villa", email = "rodrigo03.villa@gmail.com",
            role = c("aut", "cre"),
@@ -11,11 +11,12 @@ Description: Computes distances between taxonomic hierarchy nodes using lineage
     distinct nodes, distance is defined as the reciprocal of the depth of their
     most recent common ancestor; identical nodes have distance zero. This
     definition yields an ultrametric within each connected hierarchy. Functions
-    are provided for lineage retrieval and comparison, clade membership,
-    pairwise and matrix distance calculation, hierarchical clustering,
-    principal coordinates analysis, and cache management. Distance matrices are
-    returned as base R 'dist' objects. The distances represent classification
-    depth rather than evolutionary time or phylogenetic branch length.
+    are provided for auditable name resolution, online or user-supplied lineage
+    analysis, clade membership, pairwise and matrix distance calculation,
+    hierarchical clustering, principal coordinates analysis, portable JSON
+    analysis bundles, and cache management. Distance matrices are returned as
+    base R 'dist' objects. The distances represent classification depth rather
+    than evolutionary time or phylogenetic branch length.
 Language: en-US
 License: GPL (>= 3)
 URL: https://github.com/rodrigosqrt3/taxodist
@@ -23,7 +24,7 @@ BugReports: https://github.com/rodrigosqrt3/taxodist/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
-SystemRequirements: internet access
+SystemRequirements: internet access for online taxonomy retrieval
 Depends:
     R (>= 4.1.0)
 Imports:
@@ -32,6 +33,7 @@ Imports:
     stringr (>= 1.4.0),
     purrr (>= 0.3.0),
     cli (>= 3.0.0),
+    jsonlite (>= 1.8.0),
     utils,
     stats,
     graphics
