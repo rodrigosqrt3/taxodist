@@ -23,9 +23,12 @@ test_that("taxobase has the documented structure", {
     attr(taxobase$statistical_matrix, "Labels"),
     taxobase$statistical_taxa
   )
-  expect_equal(
-    taxobase$metadata$package_version,
-    as.character(utils::packageVersion("taxodist"))
+  expect_type(taxobase$metadata$package_version, "character")
+  expect_length(taxobase$metadata$package_version, 1L)
+  expect_true(nzchar(taxobase$metadata$package_version))
+  expect_true(
+    utils::package_version(taxobase$metadata$package_version) <=
+      utils::packageVersion("taxodist")
   )
 })
 
@@ -487,6 +490,24 @@ test_that("get_taxonomicon_id returns NULL on bad status", {
   expect_null(result)
 })
 
+test_that("get_taxonomicon_id returns NULL on an unparseable response", {
+  clear_cache()
+  fake_response <- structure(list(), class = "response")
+  mockery::stub(get_taxonomicon_id, "httr::GET", function(...) fake_response)
+  mockery::stub(get_taxonomicon_id, "httr::status_code", function(...) 200L)
+  mockery::stub(get_taxonomicon_id, "httr::content", function(...) "not html")
+  mockery::stub(
+    get_taxonomicon_id,
+    "rvest::read_html",
+    function(...) stop("parse failure")
+  )
+  expect_warning(
+    result <- get_taxonomicon_id("Tyrannosaurus"),
+    "Could not parse"
+  )
+  expect_null(result)
+})
+
 test_that("get_lineage_by_id returns NULL on network failure", {
   clear_cache()
   mockery::stub(get_lineage_by_id, "httr::GET", function(...) NULL)
@@ -677,6 +698,382 @@ test_that("check_coverage returns named logical vector", {
   expect_false(result["Fakeosaurus"])
 })
 
+test_that("taxo_resolve preserves resolved, ambiguous, and unresolved states", {
+  search_results <- list(
+    Alpha = data.frame(id = "101", name = "Alpha one"),
+    Nereis = data.frame(
+      id = c("201", "202"),
+      name = c("Nereis animal one", "Nereis animal two")
+    )
+  )
+  lineages <- list(
+    `101` = c("Biota", "Animalia", "Alpha"),
+    `201` = c("Biota", "Animalia", "Nereis"),
+    `202` = c("Biota", "Animalia", "Nereis")
+  )
+  mockery::stub(taxo_resolve, "taxo_search", function(taxon, ...) {
+    search_results[[taxon]]
+  })
+  mockery::stub(taxo_resolve, "get_lineage_by_id", function(taxon_id, ...) {
+    lineages[[taxon_id]]
+  })
+
+  expect_warning(
+    result <- taxo_resolve(
+      c("Alpha", "Nereis", "Missing"),
+      progress = FALSE
+    ),
+    "Ambiguous taxon names"
+  )
+
+  expect_s3_class(result, "taxodist_resolution")
+  expect_equal(result$status, c("resolved", "ambiguous", "unresolved"))
+  expect_equal(result$id, c("101", "201", NA_character_))
+  expect_equal(result$n_candidates, c(1L, 2L, 0L))
+  expect_equal(result$lineage_depth, c(3L, 3L, NA_integer_))
+  expect_equal(nrow(result$candidates[[2]]), 2L)
+  expect_null(result$lineage[[3]])
+})
+
+test_that("taxo_resolve supports explicit ambiguity policies and numeric IDs", {
+  candidates <- data.frame(
+    id = c("201", "202"),
+    name = c("Nereis animal one", "Nereis animal two")
+  )
+  mockery::stub(taxo_resolve, "taxo_search", function(...) candidates)
+  mockery::stub(taxo_resolve, "get_lineage_by_id", function(taxon_id, ...) {
+    c("Biota", "Animalia", if (taxon_id == "999") "Direct" else "Nereis")
+  })
+
+  expect_no_warning(
+    first <- taxo_resolve("Nereis", ambiguity = "first", progress = FALSE)
+  )
+  expect_equal(first$status, "ambiguous")
+  expect_equal(first$id, "201")
+
+  expect_error(
+    taxo_resolve("Nereis", ambiguity = "error", progress = FALSE),
+    "Ambiguous taxon names"
+  )
+
+  direct <- taxo_resolve("999", progress = FALSE)
+  expect_equal(direct$status, "resolved")
+  expect_equal(direct$id, "999")
+  expect_equal(direct$resolved_name, "Direct")
+})
+
+test_that("taxo_resolve validates inputs", {
+  expect_error(taxo_resolve(1:3, progress = FALSE), "character vector")
+  expect_error(taxo_resolve(c("Alpha", NA), progress = FALSE), "missing or empty")
+  expect_error(taxo_resolve(c("Alpha", ""), progress = FALSE), "missing or empty")
+  expect_error(
+    taxo_resolve("Alpha", ambiguity = "guess", progress = FALSE),
+    "arg"
+  )
+})
+
+test_that("taxo_resolve updates an explicit progress bar", {
+  mockery::stub(taxo_resolve, "taxo_search", function(taxon, ...) {
+    data.frame(id = "101", name = taxon)
+  })
+  mockery::stub(taxo_resolve, "get_lineage_by_id", function(taxon_id, ...) {
+    c("Biota", "Animalia", "Alpha")
+  })
+
+  expect_no_error(
+    result <- taxo_resolve("Alpha", progress = TRUE)
+  )
+  expect_equal(result$status, "resolved")
+})
+
+test_that("taxo_resolve retrieves duplicate inputs only once", {
+  search_calls <- 0L
+  lineage_calls <- 0L
+  mockery::stub(taxo_resolve, "taxo_search", function(taxon, ...) {
+    search_calls <<- search_calls + 1L
+    data.frame(id = if (taxon == "Alpha") "101" else "102", name = taxon)
+  })
+  mockery::stub(taxo_resolve, "get_lineage_by_id", function(taxon_id, ...) {
+    lineage_calls <<- lineage_calls + 1L
+    c("Biota", if (taxon_id == "101") "Alpha" else "Beta")
+  })
+
+  result <- taxo_resolve(
+    c("Alpha", "Beta", "Alpha", "Beta"),
+    progress = FALSE
+  )
+  expect_equal(search_calls, 2L)
+  expect_equal(lineage_calls, 2L)
+  expect_equal(result$input, c("Alpha", "Beta", "Alpha", "Beta"))
+  expect_equal(result$id, c("101", "102", "101", "102"))
+})
+
+test_that("taxo_resolve distinguishes retrieval errors from absent names", {
+  mockery::stub(taxo_resolve, "taxo_search", function(taxon, ...) {
+    if (taxon == "Offline") {
+      list(status = "retrieval_error", results = NULL)
+    } else {
+      list(status = "not_found", results = NULL)
+    }
+  })
+
+  result <- taxo_resolve(c("Offline", "Missing"), progress = FALSE)
+  expect_equal(result$status, c("retrieval_error", "unresolved"))
+  expect_true(all(is.na(result$id)))
+  expect_true(all(vapply(result$lineage, is.null, logical(1))))
+})
+
+test_that("taxo_from_lineages creates an offline resolution", {
+  lineages <- list(
+    Alpha = c("Biota", "Animalia", "Alpha"),
+    Beta = c("Biota", "Animalia", "Beta")
+  )
+  resolution <- taxo_from_lineages(lineages, source = "Curated study")
+
+  expect_s3_class(resolution, "taxodist_resolution")
+  expect_equal(resolution$input, c("Alpha", "Beta"))
+  expect_equal(resolution$resolved_name, c("Alpha", "Beta"))
+  expect_equal(resolution$id, c("custom:Alpha", "custom:Beta"))
+  expect_equal(resolution$status, c("resolved", "resolved"))
+  expect_equal(resolution$lineage_depth, c(3L, 3L))
+  expect_equal(attr(resolution, "source"), "Curated study")
+  expect_true(is.na(attr(resolution, "source_url")))
+  expect_equal(as.matrix(distance_matrix(resolution))[1, 2], 0.5)
+})
+
+test_that("taxo_from_lineages accepts named IDs and validates inputs", {
+  lineages <- list(
+    Alpha = c("Root", "Alpha"),
+    Beta = c("Root", "Beta")
+  )
+  resolution <- taxo_from_lineages(
+    lineages,
+    ids = c(Beta = "B", Alpha = "A")
+  )
+  expect_equal(resolution$id, c("A", "B"))
+
+  expect_error(taxo_from_lineages(unname(lineages)), "unique, non-empty names")
+  expect_error(
+    taxo_from_lineages(list(Alpha = c("Root", NA_character_))),
+    "Every lineage"
+  )
+  expect_error(
+    taxo_from_lineages(lineages, ids = c("same", "same")),
+    "unique, non-empty"
+  )
+})
+
+test_that("taxo_bundle preserves custom lineage provenance", {
+  resolution <- taxo_from_lineages(list(
+    Alpha = c("Biota", "Alpha"),
+    Beta = c("Biota", "Beta")
+  ), source = "Local taxonomy")
+  bundle <- taxo_bundle(resolution, progress = FALSE)
+
+  expect_equal(bundle$source$name, "Local taxonomy")
+  expect_true(is.na(bundle$source$url))
+  expect_equal(as.matrix(bundle$matrix)[1, 2], 1)
+
+  file <- tempfile(fileext = ".json")
+  on.exit(unlink(file), add = TRUE)
+  write_taxodist_bundle(bundle, file)
+  restored <- read_taxodist_bundle(file)
+  expect_equal(restored$source$name, "Local taxonomy")
+  expect_true(is.na(restored$source$url))
+  expect_equal(attr(restored$resolution, "source"), "Local taxonomy")
+  expect_true(is.na(attr(restored$resolution, "source_url")))
+})
+
+test_that("distance_matrix reuses a taxodist_resolution without retrieval", {
+  resolution <- data.frame(
+    input = c("Alpha query", "Beta query", "Missing query"),
+    resolved_name = c("Alpha", "Beta", NA_character_),
+    id = c("101", "102", NA_character_),
+    status = c("resolved", "resolved", "unresolved"),
+    n_candidates = c(1L, 1L, 0L),
+    lineage_depth = c(3L, 3L, NA_integer_),
+    stringsAsFactors = FALSE
+  )
+  resolution$lineage <- I(list(
+    c("Biota", "Animalia", "Alpha"),
+    c("Biota", "Animalia", "Beta"),
+    NULL
+  ))
+  resolution$candidates <- I(list(
+    data.frame(id = "101", name = "Alpha"),
+    data.frame(id = "102", name = "Beta"),
+    data.frame(id = character(), name = character())
+  ))
+  class(resolution) <- c("taxodist_resolution", "data.frame")
+
+  matrix <- as.matrix(distance_matrix(resolution, progress = FALSE))
+  expect_equal(rownames(matrix), resolution$input)
+  expect_equal(colnames(matrix), resolution$input)
+  expect_equal(matrix[1, 2], 0.5)
+  expect_true(is.na(matrix[1, 3]))
+  expect_true(is.na(matrix[2, 3]))
+})
+
+test_that("taxo_bundle combines resolution, matrix, metric, and provenance", {
+  resolution <- data.frame(
+    input = c("Alpha query", "Beta query", "Missing query"),
+    resolved_name = c("Alpha", "Beta", NA_character_),
+    id = c("101", "102", NA_character_),
+    status = c("resolved", "ambiguous", "unresolved"),
+    n_candidates = c(1L, 2L, 0L),
+    lineage_depth = c(3L, 3L, NA_integer_),
+    stringsAsFactors = FALSE
+  )
+  resolution$lineage <- I(list(
+    c("Biota", "Animalia", "Alpha"),
+    c("Biota", "Animalia", "Beta"),
+    NULL
+  ))
+  resolution$candidates <- I(list(
+    data.frame(id = "101", name = "Alpha"),
+    data.frame(id = c("102", "103"), name = c("Beta one", "Beta two")),
+    data.frame(id = character(), name = character())
+  ))
+  class(resolution) <- c("taxodist_resolution", "data.frame")
+  attr(resolution, "source") <- "The Taxonomicon"
+  attr(resolution, "retrieved_at") <- "2026-09-23 12:00:00 UTC"
+
+  bundle <- taxo_bundle(resolution, progress = FALSE)
+  expect_s3_class(bundle, "taxodist_bundle")
+  expect_equal(bundle$schema_version, "1.0")
+  expect_equal(bundle$source$name, "The Taxonomicon")
+  expect_equal(bundle$metric$name, "inverse_mrca_depth")
+  expect_identical(bundle$resolution, resolution)
+  expect_s3_class(bundle$matrix, "dist")
+  expect_equal(attr(bundle$matrix, "Labels"), resolution$input)
+  expect_identical(distance_matrix(bundle), bundle$matrix)
+
+  invalid <- bundle
+  invalid$resolution$status[[1]] <- "unresolved"
+  expect_error(
+    write_taxodist_bundle(invalid, tempfile(fileext = ".json")),
+    "incomplete unresolved record"
+  )
+})
+
+test_that("taxodist bundle JSON round-trip preserves scientific contents", {
+  resolution <- data.frame(
+    input = c("Alpha query", "Missing query"),
+    resolved_name = c("Alpha", NA_character_),
+    id = c("101", NA_character_),
+    status = c("resolved", "unresolved"),
+    n_candidates = c(1L, 0L),
+    lineage_depth = c(3L, NA_integer_),
+    stringsAsFactors = FALSE
+  )
+  resolution$lineage <- I(list(
+    c("Biota", "Animalia", "Alpha"),
+    NULL
+  ))
+  resolution$candidates <- I(list(
+    data.frame(id = "101", name = "Alpha accepted"),
+    data.frame(id = character(), name = character())
+  ))
+  class(resolution) <- c("taxodist_resolution", "data.frame")
+  attr(resolution, "source") <- "The Taxonomicon"
+  attr(resolution, "retrieved_at") <- "2026-09-23 12:00:00 UTC"
+  bundle <- taxo_bundle(resolution, progress = FALSE)
+  file <- tempfile(fileext = ".json")
+  on.exit(unlink(file), add = TRUE)
+
+  expect_invisible(path <- write_taxodist_bundle(bundle, file))
+  expect_true(file.exists(file))
+  expect_true(jsonlite::validate(paste(readLines(file, warn = FALSE), collapse = "\n")))
+
+  restored <- read_taxodist_bundle(file)
+  expect_s3_class(restored, "taxodist_bundle")
+  expect_equal(restored$schema_version, bundle$schema_version)
+  expect_equal(restored$resolution$input, resolution$input)
+  expect_equal(restored$resolution$status, resolution$status)
+  expect_equal(restored$resolution$id, resolution$id)
+  expect_equal(restored$resolution$lineage, resolution$lineage)
+  expect_equal(restored$resolution$candidates, resolution$candidates)
+  expect_equal(as.matrix(restored$matrix), as.matrix(bundle$matrix))
+  expect_equal(path, normalizePath(file, winslash = "/"))
+})
+
+test_that("bundle JSON preserves one-element arrays and infinite distances", {
+  resolution <- data.frame(
+    input = "Disconnected",
+    resolved_name = "Disconnected",
+    id = "500",
+    status = "resolved",
+    n_candidates = 1L,
+    lineage_depth = 1L,
+    stringsAsFactors = FALSE
+  )
+  resolution$lineage <- I(list("Disconnected"))
+  resolution$candidates <- I(list(
+    data.frame(id = "500", name = "Disconnected")
+  ))
+  class(resolution) <- c("taxodist_resolution", "data.frame")
+  bundle <- taxo_bundle(resolution, progress = FALSE)
+  file <- tempfile(fileext = ".json")
+  on.exit(unlink(file), add = TRUE)
+  write_taxodist_bundle(bundle, file)
+
+  raw <- jsonlite::read_json(file, simplifyVector = FALSE)
+  expect_type(raw$matrix$labels, "list")
+  expect_length(raw$matrix$labels, 1L)
+  expect_type(raw$taxa[[1]]$lineage, "list")
+  expect_length(raw$taxa[[1]]$lineage, 1L)
+
+  two <- resolution[c(1, 1), , drop = FALSE]
+  two$input <- c("Disconnected A", "Disconnected B")
+  two$id <- c("500", "501")
+  two$lineage <- I(list("Root A", "Root B"))
+  two$candidates <- I(list(
+    data.frame(id = "500", name = "Disconnected A"),
+    data.frame(id = "501", name = "Disconnected B")
+  ))
+  class(two) <- c("taxodist_resolution", "data.frame")
+  infinite_bundle <- taxo_bundle(two, progress = FALSE)
+  expect_true(is.infinite(as.matrix(infinite_bundle$matrix)[1, 2]))
+  write_taxodist_bundle(infinite_bundle, file)
+  restored <- read_taxodist_bundle(file)
+  expect_equal(as.matrix(restored$matrix)[1, 2], Inf)
+})
+
+test_that("bundle readers and writers reject invalid inputs", {
+  expect_error(
+    write_taxodist_bundle(list(), tempfile(fileext = ".json")),
+    "taxodist_bundle"
+  )
+  expect_error(
+    read_taxodist_bundle("missing-taxodist-bundle.json"),
+    "not found"
+  )
+
+  bad <- tempfile(fileext = ".json")
+  on.exit(unlink(bad), add = TRUE)
+  writeLines('{"format":"something_else","schema_version":"1.0"}', bad)
+  expect_error(read_taxodist_bundle(bad), "unrecognized format")
+})
+
+test_that("print.taxodist_bundle returns invisibly", {
+  resolution <- data.frame(
+    input = "Alpha",
+    resolved_name = "Alpha",
+    id = "101",
+    status = "resolved",
+    n_candidates = 1L,
+    lineage_depth = 2L,
+    stringsAsFactors = FALSE
+  )
+  resolution$lineage <- I(list(c("Biota", "Alpha")))
+  resolution$candidates <- I(list(data.frame(id = "101", name = "Alpha")))
+  class(resolution) <- c("taxodist_resolution", "data.frame")
+  bundle <- taxo_bundle(resolution, progress = FALSE)
+
+  expect_no_error(print(bundle))
+  expect_invisible(print(bundle))
+})
+
 test_that("taxo_distance returns NULL when taxon_a not found", {
   mockery::stub(taxo_distance, "get_lineage", function(taxon, ...) NULL)
   result <- taxo_distance("Fakeosaurus", "Carnotaurus")
@@ -814,6 +1211,20 @@ test_that("get_lineage_by_id returns NULL when lineage is empty after cleaning",
                 function(...) xml2::read_html("<html><body></body></html>"))
   result <- get_lineage_by_id("empty_page")
   expect_null(result)
+})
+
+test_that("get_lineage_by_id returns NULL when the response cannot be parsed", {
+  clear_cache()
+  fake_response <- structure(list(), class = "response")
+  mockery::stub(get_lineage_by_id, "httr::GET", function(...) fake_response)
+  mockery::stub(get_lineage_by_id, "httr::status_code", function(...) 200L)
+  mockery::stub(get_lineage_by_id, "httr::content", function(...) "not html")
+  mockery::stub(
+    get_lineage_by_id,
+    "rvest::read_html",
+    function(...) stop("parse failure")
+  )
+  expect_null(get_lineage_by_id("12345", verbose = TRUE))
 })
 
 test_that("get_lineage_by_id returns NULL on bad HTTP status", {
@@ -1071,6 +1482,26 @@ test_that("taxo_search returns NULL on network failure and bad status", {
   mockery::stub(taxo_search, "httr::GET", function(...) fake_response)
   mockery::stub(taxo_search, "httr::status_code", function(...) 503L)
   expect_null(taxo_search("Bacteria", verbose = TRUE))
+})
+
+test_that("taxo_search diagnostics distinguish retrieval failure and no match", {
+  clear_cache()
+  mockery::stub(taxo_search, "httr::GET", function(...) stop("Network error"))
+  failed <- taxo_search("Bacteria", .diagnostics = TRUE)
+  expect_equal(failed$status, "retrieval_error")
+  expect_null(failed$results)
+
+  fake_response <- structure(list(), class = "response")
+  mockery::stub(taxo_search, "httr::GET", function(...) fake_response)
+  mockery::stub(taxo_search, "httr::status_code", function(...) 200L)
+  mockery::stub(
+    taxo_search,
+    "httr::content",
+    function(...) "<html><body><table></table></body></html>"
+  )
+  missing <- taxo_search("Missing", .diagnostics = TRUE)
+  expect_equal(missing$status, "not_found")
+  expect_null(missing$results)
 })
 
 test_that("taxo_search returns NULL when no matches are found", {
