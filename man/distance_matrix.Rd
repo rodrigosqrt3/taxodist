@@ -7,10 +7,10 @@
 distance_matrix(taxa, verbose = FALSE, progress = TRUE)
 }
 \arguments{
-\item{taxa}{A character vector of taxon names or a
-\code{taxodist_resolution} object returned by \code{\link[=taxo_resolve]{taxo_resolve()}}. Resolution
+\item{taxa}{A character vector of taxon names, a \code{taxodist_resolution}
+object returned by \code{\link[=taxo_resolve]{taxo_resolve()}}, or a \code{taxodist_bundle}. Resolution
 objects reuse their stored lineages and retain the original inputs as
-matrix labels.}
+matrix labels; bundles return their stored matrix.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints progress for each pair.
 Default \code{FALSE}.}
@@ -37,5 +37,6 @@ print(mat)
 }
 }
 \seealso{
-\code{\link[=taxo_distance]{taxo_distance()}}, \code{\link[=closest_relative]{closest_relative()}}, \code{\link[=taxo_resolve]{taxo_resolve()}}
+\code{\link[=taxo_distance]{taxo_distance()}}, \code{\link[=closest_relative]{closest_relative()}}, \code{\link[=taxo_resolve]{taxo_resolve()}},
+\code{\link[=taxo_bundle]{taxo_bundle()}}
 }

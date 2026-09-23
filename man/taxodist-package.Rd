@@ -6,13 +6,16 @@
 \alias{taxodist}
 \title{taxodist: Taxonomic Hierarchy Distances and Lineage Analysis}
 \description{
-taxodist retrieves taxonomic lineages from The Taxonomicon (taxonomy.nl)
-and computes distances from the depth of the most recent common ancestor.
+taxodist retrieves taxonomic lineages from The Taxonomicon (taxonomy.nl) or
+accepts user-supplied lineages, then computes distances from the depth of
+the most recent common ancestor.
 The resulting values describe separation within the source classification;
 they are not estimates of evolutionary time or phylogenetic branch length.
 \subsection{Core functions}{
 \itemize{
 \item \code{\link[=get_lineage]{get_lineage()}} — retrieve the full lineage of any taxon
+\item \code{\link[=taxo_resolve]{taxo_resolve()}} — resolve and audit a batch of names or IDs
+\item \code{\link[=taxo_from_lineages]{taxo_from_lineages()}} — create an offline resolution from local lineages
 \item \code{\link[=taxo_distance]{taxo_distance()}} — compute the ultrametric distance between two taxa
 \item \code{\link[=mrca]{mrca()}} — find the most recent common ancestor
 \item \code{\link[=distance_matrix]{distance_matrix()}} — compute all pairwise distances for a set of taxa
@@ -23,6 +26,7 @@ they are not estimates of evolutionary time or phylogenetic branch length.
 \item \code{\link[=filter_clade]{filter_clade()}} — filter taxa by clade membership
 \item \code{\link[=check_coverage]{check_coverage()}} — check Taxonomicon coverage for a list of taxa
 \item \code{\link[=lineage_depth]{lineage_depth()}} — get the lineage depth of a taxon
+\item \code{\link[=taxo_bundle]{taxo_bundle()}} — preserve an analysis and its provenance
 \item \code{\link[=clear_cache]{clear_cache()}} — clear the session lineage cache
 }
 }
@@ -45,9 +49,10 @@ classification returned by the data source.
 
 \subsection{Data source}{
 
-All lineage data is sourced from The Taxonomicon (taxonomy.nl), based on
-Systema Naturae 2000 by S.J. Brands (1989 onwards). Please cite this
-resource when using taxodist in published work.
+Online lineage data is sourced from The Taxonomicon (taxonomy.nl), based on
+Systema Naturae 2000 by S.J. Brands (1989 onwards). Please cite that
+resource when using its classifications, or record the relevant source when
+using \code{\link[=taxo_from_lineages]{taxo_from_lineages()}}.
 }
 }
 \references{

@@ -27,8 +27,8 @@ after all inputs have been inspected.}
 A data frame of class \code{taxodist_resolution} with one row per input
 and columns \code{input}, \code{resolved_name}, \code{id}, \code{status}, \code{n_candidates},
 \code{lineage_depth}, \code{lineage}, and \code{candidates}. The last two are list
-columns. Status is one of \code{"resolved"}, \code{"ambiguous"}, or
-\code{"unresolved"}.
+columns. Status is one of \code{"resolved"}, \code{"ambiguous"}, \code{"unresolved"},
+or \code{"retrieval_error"}.
 }
 \description{
 Resolves taxon names or numeric Taxonomicon IDs while preserving the
