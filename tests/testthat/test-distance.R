@@ -893,6 +893,14 @@ test_that("taxo_from_lineages creates an offline resolution", {
   expect_equal(as.matrix(distance_matrix(resolution))[1, 2], 0.5)
 })
 
+test_that("print.taxodist_resolution summarizes every status", {
+  resolution <- taxo_from_lineages(list(
+    Alpha = c("Biota", "Animalia", "Alpha")
+  ))
+
+  expect_invisible(print(resolution))
+})
+
 test_that("taxo_from_lineages accepts named IDs and validates inputs", {
   lineages <- list(
     Alpha = c("Root", "Alpha"),
@@ -979,6 +987,17 @@ test_that("distance_matrix reuses a taxodist_resolution without retrieval", {
   expect_equal(matrix[1, 2], 0.5)
   expect_true(is.na(matrix[1, 3]))
   expect_true(is.na(matrix[2, 3]))
+})
+
+test_that("distance_matrix rejects a malformed taxodist_resolution", {
+  invalid <- structure(
+    data.frame(input = "Alpha", status = "resolved"),
+    class = c("taxodist_resolution", "data.frame")
+  )
+  expect_error(
+    distance_matrix(invalid, progress = FALSE),
+    "Invalid.*taxodist_resolution"
+  )
 })
 
 test_that("taxo_bundle combines resolution, matrix, metric, and provenance", {
@@ -1755,7 +1774,11 @@ test_that("taxo_search details report network, status, and parsing failures", {
   mockery::stub(search_details, "rvest::read_html", function(...) {
     stop("parse failure")
   })
-  expect_equal(search_details("Bacteria")$status, "retrieval_error")
+  expect_message(
+    details <- search_details("Bacteria", verbose = TRUE),
+    "Could not parse"
+  )
+  expect_equal(details$status, "retrieval_error")
 })
 
 test_that("taxo_search returns NULL when no matches are found", {
