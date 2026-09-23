@@ -543,8 +543,6 @@ get_lineage <- function(taxon, clean = TRUE, verbose = FALSE) {
 #'
 #' @param taxon A character string giving the taxon name to search for.
 #' @param verbose Logical. If `TRUE`, prints status messages. Default `FALSE`.
-#' @param .diagnostics Logical. Internal switch used by [taxo_resolve()] to
-#'   distinguish an unavailable query from a valid query with no matches.
 #'
 #' @return A data frame of class `"data.frame"` with columns:
 #' \describe{
@@ -561,13 +559,11 @@ get_lineage <- function(taxon, clean = TRUE, verbose = FALSE) {
 #' taxo_search("Nereis")
 #' taxo_search("Tyrannosaurus")
 #' }
-taxo_search <- function(taxon, verbose = FALSE, .diagnostics = FALSE) {
-  finish <- function(status, results = NULL) {
-    if (.diagnostics) {
-      return(list(status = status, results = results))
-    }
-    results
-  }
+taxo_search <- function(taxon, verbose = FALSE) {
+  .taxo_search_details(taxon, verbose = verbose)$results
+}
+
+.taxo_search_details <- function(taxon, verbose = FALSE) {
 
   if (verbose) cli::cli_alert_info("Searching Taxonomicon for {.val {taxon}}...")
 
@@ -584,7 +580,7 @@ taxo_search <- function(taxon, verbose = FALSE, .diagnostics = FALSE) {
 
   if (is.null(res) || httr::status_code(res) != 200) {
     if (verbose) cli::cli_alert_warning("Could not reach Taxonomicon")
-    return(finish("retrieval_error"))
+    return(list(status = "retrieval_error", results = NULL))
   }
 
   page <- tryCatch(
@@ -593,7 +589,7 @@ taxo_search <- function(taxon, verbose = FALSE, .diagnostics = FALSE) {
   )
   if (is.null(page)) {
     if (verbose) cli::cli_alert_warning("Could not parse the Taxonomicon response")
-    return(finish("retrieval_error"))
+    return(list(status = "retrieval_error", results = NULL))
   }
   rows <- rvest::html_nodes(page, "tr")
 
@@ -620,7 +616,7 @@ taxo_search <- function(taxon, verbose = FALSE, .diagnostics = FALSE) {
 
   if (length(results) == 0) {
     if (verbose) cli::cli_alert_warning("No matches found.")
-    return(finish("not_found"))
+    return(list(status = "not_found", results = NULL))
   }
 
   df <- do.call(rbind, results)
@@ -628,7 +624,7 @@ taxo_search <- function(taxon, verbose = FALSE, .diagnostics = FALSE) {
   rownames(df) <- NULL
 
   if (verbose) cli::cli_alert_success("Found {nrow(df)} entries.")
-  finish("ok", df)
+  list(status = "ok", results = df)
 }
 
 #' Resolve taxon names in a batch with an auditable result
@@ -722,12 +718,7 @@ taxo_resolve <- function(taxa,
       ))
     }
 
-    search <- taxo_search(taxon, verbose = verbose, .diagnostics = TRUE)
-    # Keep test doubles and older internal callers that return a data frame
-    # compatible with the structured diagnostic path.
-    if (is.data.frame(search)) {
-      search <- list(status = "ok", results = search)
-    }
+    search <- .taxo_search_details(taxon, verbose = verbose)
     if (identical(search$status, "retrieval_error")) {
       return(list(
         input = taxon,

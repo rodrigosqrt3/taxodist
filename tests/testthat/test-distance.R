@@ -711,8 +711,13 @@ test_that("taxo_resolve preserves resolved, ambiguous, and unresolved states", {
     `201` = c("Biota", "Animalia", "Nereis"),
     `202` = c("Biota", "Animalia", "Nereis")
   )
-  mockery::stub(taxo_resolve, "taxo_search", function(taxon, ...) {
-    search_results[[taxon]]
+  mockery::stub(taxo_resolve, ".taxo_search_details", function(taxon, ...) {
+    results <- search_results[[taxon]]
+    if (is.null(results)) {
+      list(status = "not_found", results = NULL)
+    } else {
+      list(status = "ok", results = results)
+    }
   })
   mockery::stub(taxo_resolve, "get_lineage_by_id", function(taxon_id, ...) {
     lineages[[taxon_id]]
@@ -740,7 +745,9 @@ test_that("taxo_resolve supports explicit ambiguity policies and numeric IDs", {
     id = c("201", "202"),
     name = c("Nereis animal one", "Nereis animal two")
   )
-  mockery::stub(taxo_resolve, "taxo_search", function(...) candidates)
+  mockery::stub(taxo_resolve, ".taxo_search_details", function(...) {
+    list(status = "ok", results = candidates)
+  })
   mockery::stub(taxo_resolve, "get_lineage_by_id", function(taxon_id, ...) {
     c("Biota", "Animalia", if (taxon_id == "999") "Direct" else "Nereis")
   })
@@ -773,8 +780,11 @@ test_that("taxo_resolve validates inputs", {
 })
 
 test_that("taxo_resolve updates an explicit progress bar", {
-  mockery::stub(taxo_resolve, "taxo_search", function(taxon, ...) {
-    data.frame(id = "101", name = taxon)
+  mockery::stub(taxo_resolve, ".taxo_search_details", function(taxon, ...) {
+    list(
+      status = "ok",
+      results = data.frame(id = "101", name = taxon)
+    )
   })
   mockery::stub(taxo_resolve, "get_lineage_by_id", function(taxon_id, ...) {
     c("Biota", "Animalia", "Alpha")
@@ -789,9 +799,15 @@ test_that("taxo_resolve updates an explicit progress bar", {
 test_that("taxo_resolve retrieves duplicate inputs only once", {
   search_calls <- 0L
   lineage_calls <- 0L
-  mockery::stub(taxo_resolve, "taxo_search", function(taxon, ...) {
+  mockery::stub(taxo_resolve, ".taxo_search_details", function(taxon, ...) {
     search_calls <<- search_calls + 1L
-    data.frame(id = if (taxon == "Alpha") "101" else "102", name = taxon)
+    list(
+      status = "ok",
+      results = data.frame(
+        id = if (taxon == "Alpha") "101" else "102",
+        name = taxon
+      )
+    )
   })
   mockery::stub(taxo_resolve, "get_lineage_by_id", function(taxon_id, ...) {
     lineage_calls <<- lineage_calls + 1L
@@ -809,7 +825,7 @@ test_that("taxo_resolve retrieves duplicate inputs only once", {
 })
 
 test_that("taxo_resolve distinguishes retrieval errors from absent names", {
-  mockery::stub(taxo_resolve, "taxo_search", function(taxon, ...) {
+  mockery::stub(taxo_resolve, ".taxo_search_details", function(taxon, ...) {
     if (taxon == "Offline") {
       list(status = "retrieval_error", results = NULL)
     } else {
@@ -1473,49 +1489,28 @@ test_that("plot.taxodist_ord runs without error", {
 
 # ── Mocks for taxo_search ─────────────────────────────────────────────────────
 
-test_that("taxo_search returns NULL on network failure and bad status", {
-  clear_cache()
-  mockery::stub(taxo_search, "httr::GET", function(...) stop("Network error"))
-  expect_null(taxo_search("Bacteria", verbose = TRUE))
-
-  fake_response <- structure(list(), class = "response")
-  mockery::stub(taxo_search, "httr::GET", function(...) fake_response)
-  mockery::stub(taxo_search, "httr::status_code", function(...) 503L)
-  expect_null(taxo_search("Bacteria", verbose = TRUE))
+test_that("taxo_search keeps diagnostics out of the public API", {
+  expect_named(formals(taxo_search), c("taxon", "verbose"))
 })
 
-test_that("taxo_search diagnostics distinguish retrieval failure and no match", {
+test_that("taxo_search returns NULL on network failure and bad status", {
   clear_cache()
-  mockery::stub(taxo_search, "httr::GET", function(...) stop("Network error"))
-  failed <- taxo_search("Bacteria", .diagnostics = TRUE)
-  expect_equal(failed$status, "retrieval_error")
-  expect_null(failed$results)
+  mockery::stub(taxo_search, ".taxo_search_details", function(...) {
+    list(status = "retrieval_error", results = NULL)
+  })
+  expect_null(taxo_search("Bacteria", verbose = TRUE))
 
-  fake_response <- structure(list(), class = "response")
-  mockery::stub(taxo_search, "httr::GET", function(...) fake_response)
-  mockery::stub(taxo_search, "httr::status_code", function(...) 200L)
-  mockery::stub(
-    taxo_search,
-    "httr::content",
-    function(...) "<html><body><table></table></body></html>"
-  )
-  missing <- taxo_search("Missing", .diagnostics = TRUE)
-  expect_equal(missing$status, "not_found")
-  expect_null(missing$results)
+  mockery::stub(taxo_search, ".taxo_search_details", function(...) {
+    list(status = "retrieval_error", results = NULL)
+  })
+  expect_null(taxo_search("Bacteria", verbose = TRUE))
 })
 
 test_that("taxo_search returns NULL when no matches are found", {
   clear_cache()
-  fake_html <- '
-    <html><body><table>
-      <tr><td>Not a link</td></tr>
-      <tr><td><a href="OtherPage.aspx">No ID here</a></td></tr>
-    </table></body></html>'
-
-  fake_response <- structure(list(), class = "response")
-  mockery::stub(taxo_search, "httr::GET", function(...) fake_response)
-  mockery::stub(taxo_search, "httr::status_code", function(...) 200L)
-  mockery::stub(taxo_search, "httr::content", function(...) fake_html)
+  mockery::stub(taxo_search, ".taxo_search_details", function(...) {
+    list(status = "not_found", results = NULL)
+  })
 
   expect_null(taxo_search("EmptyTaxon", verbose = TRUE))
 })
@@ -1552,12 +1547,15 @@ test_that("taxo_search parses HTML, applies skips, dedups, and returns data.fram
     </table></body></html>'
 
   fake_response <- structure(list(), class = "response")
-  mockery::stub(taxo_search, "httr::GET", function(...) fake_response)
-  mockery::stub(taxo_search, "httr::status_code", function(...) 200L)
-  mockery::stub(taxo_search, "httr::content", function(...) fake_html)
+  search_details <- taxodist:::.taxo_search_details
+  mockery::stub(search_details, "httr::GET", function(...) fake_response)
+  mockery::stub(search_details, "httr::status_code", function(...) 200L)
+  mockery::stub(search_details, "httr::content", function(...) fake_html)
 
-  df <- taxo_search("Bacteria", verbose = TRUE)
+  details <- search_details("Bacteria", verbose = TRUE)
+  df <- details$results
 
+  expect_equal(details$status, "ok")
   expect_s3_class(df, "data.frame")
   expect_equal(nrow(df), 2)
   expect_equal(df$id, c("444", "555"))
