@@ -27,7 +27,7 @@ test_that("taxobase has the documented structure", {
   expect_length(taxobase$metadata$package_version, 1L)
   expect_true(nzchar(taxobase$metadata$package_version))
   expect_true(
-    utils::package_version(taxobase$metadata$package_version) <=
+    base::package_version(taxobase$metadata$package_version) <=
       utils::packageVersion("taxodist")
   )
 })
