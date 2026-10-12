@@ -19,6 +19,8 @@ they are not estimates of evolutionary time or phylogenetic branch length.
 \item \code{\link[=taxo_distance]{taxo_distance()}} — compute the ultrametric distance between two taxa
 \item \code{\link[=mrca]{mrca()}} — find the most recent common ancestor
 \item \code{\link[=distance_matrix]{distance_matrix()}} — compute all pairwise distances for a set of taxa
+\item \code{\link[=cross_distances]{cross_distances()}} — compute distances between two sets of taxa
+\item \code{\link[=taxo_tree]{taxo_tree()}} — build a \code{phylo} tree whose nodes are named clades
 \item \code{\link[=closest_relative]{closest_relative()}} — find the closest relative among candidates
 \item \code{\link[=compare_lineages]{compare_lineages()}} — print a side-by-side lineage comparison
 \item \code{\link[=shared_clades]{shared_clades()}} — list clades shared between two taxa
@@ -27,6 +29,8 @@ they are not estimates of evolutionary time or phylogenetic branch length.
 \item \code{\link[=check_coverage]{check_coverage()}} — check Taxonomicon coverage for a list of taxa
 \item \code{\link[=lineage_depth]{lineage_depth()}} — get the lineage depth of a taxon
 \item \code{\link[=taxo_bundle]{taxo_bundle()}} — preserve an analysis and its provenance
+\item \code{\link[=compare_bundles]{compare_bundles()}} — report what changed between two analyses
+\item \code{\link[=save_cache]{save_cache()}} / \code{\link[=load_cache]{load_cache()}} — persist retrieved lineages
 \item \code{\link[=clear_cache]{clear_cache()}} — clear the session lineage cache
 }
 }
@@ -53,6 +57,14 @@ Online lineage data is sourced from The Taxonomicon (taxonomy.nl), based on
 Systema Naturae 2000 by S.J. Brands (1989 onwards). Please cite that
 resource when using its classifications, or record the relevant source when
 using \code{\link[=taxo_from_lineages]{taxo_from_lineages()}}.
+}
+
+\subsection{Options}{
+\itemize{
+\item \code{taxodist.max_tries}: number of attempts made for each request to The
+Taxonomicon (default \code{3}). Network errors and server errors (5xx) are
+retried with exponential backoff; client errors (4xx) are not.
+}
 }
 }
 \references{

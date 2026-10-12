@@ -112,8 +112,15 @@ mrca <- function(taxon_a, taxon_b, verbose = FALSE) {
 #'   Taxa that could not be found are included with `NA` distances.
 #'   An empty input returns an empty `"dist"` object.
 #'
-#' @seealso [taxo_distance()], [closest_relative()], [taxo_resolve()],
-#'   [taxo_bundle()]
+#' @details
+#' Distances are computed in vectorized form: every lineage node is first
+#' replaced by an integer identifying its complete path from the root, so the
+#' MRCA depth of two taxa is simply the number of depths at which these
+#' identifiers agree. This gives exactly the same values as
+#' [taxo_distance()] while scaling to thousands of taxa.
+#'
+#' @seealso [taxo_distance()], [cross_distances()], [closest_relative()],
+#'   [taxo_resolve()], [taxo_bundle()], [taxo_tree()]
 #'
 #' @export
 #' @examples
@@ -125,83 +132,87 @@ mrca <- function(taxon_a, taxon_b, verbose = FALSE) {
 #' }
 distance_matrix <- function(taxa, verbose = FALSE, progress = TRUE) {
   if (inherits(taxa, "taxodist_bundle")) {
-    .validate_taxodist_bundle(taxa)
+    .validate_taxodist_bundle(taxa, check_distances = FALSE)
     return(taxa$matrix)
   }
 
-  resolution <- inherits(taxa, "taxodist_resolution")
-  if (resolution) {
-    required <- c("input", "status", "lineage")
-    if (!all(required %in% names(taxa))) {
-      cli::cli_abort("Invalid {.cls taxodist_resolution} object.")
-    }
-    labels <- taxa$input
-    lineages <- taxa$lineage
-    taxa <- labels
+  input <- .matrix_input(taxa, get_lineage, verbose = verbose, progress = progress)
+  labels <- input$labels
+  n <- length(labels)
+
+  values <- if (n > 1L) {
+    .pairwise_distances(input$lineages, progress = progress)
+  } else {
+    numeric(0)
   }
 
-  n <- length(taxa)
-
-  if (n == 0L) {
-    return(structure(
-      numeric(0),
-      Size = 0L,
-      Labels = taxa,
-      Diag = FALSE,
-      Upper = FALSE,
-      class = "dist"
-    ))
-  }
-
-  if (!resolution) {
-    # Fetch lineages sequentially in the main process (cache is shared).
-    if (progress) cli::cli_alert_info("Fetching {n} lineages...")
-    lineages <- lapply(taxa, function(taxon) {
-      cache_key <- paste0("matrix_lineage_", taxon)
-      if (exists(cache_key, envir = .taxodist_cache, inherits = FALSE)) {
-        return(get(cache_key, envir = .taxodist_cache, inherits = FALSE))
-      }
-
-      lineage <- get_lineage(taxon, verbose = verbose)
-      if (!is.null(lineage)) {
-        assign(cache_key, lineage, envir = .taxodist_cache)
-      }
-      lineage
-    })
-    if (progress) cli::cli_alert_success("Lineages fetched.")
-  }
-
-  # Fill the compact lower triangle directly in base `dist` storage order.
-  # The matrix path only needs numeric distances, so avoid constructing one
-  # detailed S3 result object per pair.
-  total_pairs <- as.integer(n * (n - 1) / 2)
-  values <- rep.int(NA_real_, total_pairs)
-  position <- 1L
-  if (progress && total_pairs > 0L) {
-    cli::cli_progress_bar("Computing distances", total = total_pairs)
-  }
-  if (n > 1L) {
-    for (column in seq_len(n - 1L)) {
-      for (row in (column + 1L):n) {
-        if (!is.null(lineages[[row]]) && !is.null(lineages[[column]])) {
-          values[[position]] <- .distance_value(
-            lineages[[row]], lineages[[column]]
-          )
-        }
-        position <- position + 1L
-        if (progress) cli::cli_progress_update()
-      }
-    }
-  }
-  if (progress && total_pairs > 0L) cli::cli_progress_done()
   structure(
     values,
     Size = n,
-    Labels = taxa,
+    Labels = labels,
     Diag = FALSE,
     Upper = FALSE,
     class = "dist"
   )
+}
+
+#' Compute taxonomic distances between two sets of taxa
+#'
+#' Computes the rectangular matrix of distances from every taxon in `x` to
+#' every taxon in `y`, for example from the species of a community to a set
+#' of reference taxa. This avoids computing the full square matrix of the
+#' combined set.
+#'
+#' @param x,y Character vectors of taxon names, or `taxodist_resolution`
+#'   objects returned by [taxo_resolve()] or [taxo_from_lineages()].
+#' @param verbose Logical. If `TRUE`, prints retrieval messages.
+#' @param progress Logical. If `TRUE`, shows progress messages.
+#'
+#' @return A numeric matrix with one row per element of `x` and one column
+#'   per element of `y`, labeled with the inputs. Taxa that could not be
+#'   found have `NA` distances; taxa without a common ancestor have `Inf`.
+#'
+#' @seealso [distance_matrix()], [focal_distances()]
+#' @export
+#' @examples
+#' community <- taxo_from_lineages(list(
+#'   Alpha = c("Biota", "Animalia", "Chordata", "Alpha"),
+#'   Beta  = c("Biota", "Animalia", "Arthropoda", "Beta")
+#' ))
+#' reference <- taxo_from_lineages(list(
+#'   Gamma = c("Biota", "Animalia", "Chordata", "Gamma"),
+#'   Delta = c("Biota", "Plantae", "Delta")
+#' ))
+#' cross_distances(community, reference)
+cross_distances <- function(x, y, verbose = FALSE, progress = TRUE) {
+  input_x <- .matrix_input(
+    x, get_lineage, verbose = verbose, progress = progress, arg = "x"
+  )
+  input_y <- .matrix_input(
+    y, get_lineage, verbose = verbose, progress = progress, arg = "y"
+  )
+  nx <- length(input_x$labels)
+  ny <- length(input_y$labels)
+
+  out <- matrix(
+    NA_real_, nrow = nx, ncol = ny,
+    dimnames = list(input_x$labels, input_y$labels)
+  )
+  if (nx == 0L || ny == 0L) return(out)
+
+  lineages <- c(input_x$lineages, input_y$lineages)
+  ids <- .prefix_node_ids(lineages)
+  lens <- lengths(lineages)
+  missing <- vapply(lineages, is.null, logical(1))
+  x_idx <- seq_len(nx)
+
+  for (j in seq_len(ny)) {
+    col <- nx + j
+    if (missing[[col]]) next
+    out[, j] <- .distances_to(ids, lens, x_idx, col)
+  }
+  out[missing[x_idx], ] <- NA_real_
+  out
 }
 
 #' Find the closest relative of a taxon among a set of candidates
@@ -232,27 +243,20 @@ closest_relative <- function(taxon, candidates, verbose = FALSE) {
     return(NULL)
   }
 
-  if (length(candidates) == 0L) {
-    return(data.frame(
-      taxon = character(0),
-      distance = numeric(0),
-      stringsAsFactors = FALSE
-    ))
-  }
+  distances <- vapply(candidates, function(cand) {
+    cand_lin <- get_lineage(cand, verbose = verbose)
+    if (is.null(cand_lin)) return(NA_real_)
+    .compute_distance(query_lin, cand_lin, taxon, cand)$distance
+  }, numeric(1), USE.NAMES = FALSE)
 
-  results <- do.call(rbind, purrr::map(
-    candidates,
-    function(cand) {
-      cand_lin <- get_lineage(cand, verbose = verbose)
-      if (is.null(cand_lin)) {
-        return(data.frame(taxon = cand, distance = NA_real_))
-      }
-      dist_result <- .compute_distance(query_lin, cand_lin, taxon, cand)
-      data.frame(taxon = cand, distance = dist_result$distance)
-    }
-  ))
-
-  results[order(results$distance, na.last = TRUE), ]
+  results <- data.frame(
+    taxon = as.character(candidates),
+    distance = distances,
+    stringsAsFactors = FALSE
+  )
+  results <- results[order(results$distance, na.last = TRUE), , drop = FALSE]
+  rownames(results) <- NULL
+  results
 }
 
 #' Compute distances from a focal taxon to a community of taxa
@@ -281,7 +285,8 @@ closest_relative <- function(taxon, candidates, verbose = FALSE) {
 #' Returns `NULL` if the focal taxon cannot be found. An empty community
 #' returns an empty object with the same columns and class.
 #'
-#' @seealso [closest_relative()], [distance_matrix()], [taxo_distance()]
+#' @seealso [closest_relative()], [cross_distances()], [distance_matrix()],
+#'   [taxo_distance()]
 #' @export
 #' @examples
 #' \donttest{
@@ -316,35 +321,24 @@ focal_distances <- function(focal, community, verbose = FALSE, progress = TRUE) 
   results <- vector("list", length(community))
   for (i in seq_along(community)) {
     taxon <- community[[i]]
-
-    if (identical(taxon, focal)) {
+    cand_lin <- get_lineage(taxon, verbose = verbose)
+    if (is.null(cand_lin)) {
       results[[i]] <- data.frame(
         taxon      = taxon,
-        distance   = 0,
-        mrca       = focal,
-        mrca_depth = length(focal_lin),
+        distance   = NA_real_,
+        mrca       = NA_character_,
+        mrca_depth = NA_integer_,
         stringsAsFactors = FALSE
       )
     } else {
-      cand_lin <- get_lineage(taxon, verbose = verbose)
-      if (is.null(cand_lin)) {
-        results[[i]] <- data.frame(
-          taxon      = taxon,
-          distance   = NA_real_,
-          mrca       = NA_character_,
-          mrca_depth = NA_integer_,
-          stringsAsFactors = FALSE
-        )
-      } else {
-        res <- .compute_distance(focal_lin, cand_lin, focal, taxon)
-        results[[i]] <- data.frame(
-          taxon      = taxon,
-          distance   = res$distance,
-          mrca       = res$mrca,
-          mrca_depth = res$mrca_depth,
-          stringsAsFactors = FALSE
-        )
-      }
+      res <- .compute_distance(focal_lin, cand_lin, focal, taxon)
+      results[[i]] <- data.frame(
+        taxon      = taxon,
+        distance   = res$distance,
+        mrca       = res$mrca,
+        mrca_depth = res$mrca_depth,
+        stringsAsFactors = FALSE
+      )
     }
 
     if (progress) cli::cli_progress_update()
@@ -392,17 +386,24 @@ lineage_depth <- function(taxon, verbose = FALSE) {
 #' @param verbose Logical. If `TRUE`, prints progress messages. Default `FALSE`.
 #'
 #' @return A named logical vector. `TRUE` indicates the taxon was found,
-#'   `FALSE` indicates it was not.
+#'   `FALSE` that it is absent from The Taxonomicon, and `NA` that the
+#'   answer is unknown because the server could not be reached.
 #'
+#' @seealso [taxo_resolve()] for a complete audit of each name.
 #' @export
 #' @examples
 #' \donttest{
 #' check_coverage(c("Tyrannosaurus", "Velociraptor", "Fakeosaurus"))
 #' }
 check_coverage <- function(taxa, verbose = FALSE) {
-  result <- purrr::map_lgl(taxa, function(t) {
-    !is.null(get_taxonomicon_id(t, verbose = verbose))
-  })
+  result <- vapply(taxa, function(t) {
+    lookup <- .lookup_taxonomicon_id(t, verbose = verbose)
+    switch(lookup$status,
+      found = TRUE,
+      not_found = FALSE,
+      NA
+    )
+  }, logical(1), USE.NAMES = FALSE)
   names(result) <- taxa
   result
 }
@@ -412,7 +413,7 @@ check_coverage <- function(taxa, verbose = FALSE) {
 #' Computes pairwise taxonomic distances and performs hierarchical clustering.
 #'
 #' @param taxa A character vector of taxon names, or a `dist` object from
-#'[distance_matrix()].
+#'   [distance_matrix()].
 #' @param method Clustering method passed to [stats::hclust()]. Default
 #'   `"average"` (UPGMA), which works well with taxonomic distances.
 #' @param ... Additional arguments passed to [distance_matrix()] (e.g.
@@ -426,7 +427,8 @@ check_coverage <- function(taxa, verbose = FALSE) {
 #' If fewer than two taxa are supplied, `hclust` is `NULL` and the distance
 #' object is preserved.
 #'
-#' @seealso[taxo_ordinate()], [distance_matrix()]
+#' @seealso [taxo_tree()] for a tree whose internal nodes are the named clades
+#'   of the classification, [taxo_ordinate()], [distance_matrix()]
 #' @export
 #' @examples
 #' \donttest{
@@ -460,7 +462,7 @@ taxo_cluster <- function(taxa, method = "average", ...) {
 #' scaling (PCoA) to project taxa into a low-dimensional space.
 #'
 #' @param taxa A character vector of taxon names, or a `dist` object from
-#'[distance_matrix()].
+#'   [distance_matrix()].
 #' @param k Number of dimensions. Default `2`.
 #' @param ... Additional arguments passed to [distance_matrix()].
 #'
@@ -468,7 +470,7 @@ taxo_cluster <- function(taxa, method = "average", ...) {
 #' \describe{
 #'   \item{`points`}{A matrix of coordinates (taxa x k dimensions).}
 #'   \item{`dist`}{The underlying distance matrix.}
-#'   \item{`GOF`}{Goodness-of-fit from[stats::cmdscale()].}
+#'   \item{`GOF`}{Goodness-of-fit from [stats::cmdscale()].}
 #'   \item{`eig`}{The eigenvalues computed during PCoA.}
 #' }
 #' At least two taxa are required. When `k` is greater than the maximum
@@ -522,6 +524,119 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
+# Turn the supported inputs (character vector, taxodist_resolution, or
+# taxodist_bundle) into parallel vectors of labels and lineages. Lineages of
+# character inputs are retrieved with `fetch` (get_lineage()) and cached under
+# their normalized name. Callers pass `fetch` explicitly so that it is
+# resolved in their own environment.
+#' @keywords internal
+.matrix_input <- function(taxa, fetch, verbose = FALSE, progress = TRUE,
+                          arg = "taxa") {
+  if (inherits(taxa, "taxodist_bundle")) {
+    taxa <- taxa$resolution
+  }
+  if (inherits(taxa, "taxodist_resolution")) {
+    required <- c("input", "status", "lineage")
+    if (!all(required %in% names(taxa))) {
+      cli::cli_abort("Invalid {.cls taxodist_resolution} object.")
+    }
+    return(list(labels = taxa$input, lineages = unclass(taxa$lineage)))
+  }
+  if (is.list(taxa)) {
+    cli::cli_abort(
+      "{.arg {arg}} must be a character vector or a {.cls taxodist_resolution}."
+    )
+  }
+  taxa <- as.character(taxa)
+  if (length(taxa) == 0L) {
+    return(list(labels = taxa, lineages = list()))
+  }
+
+  # Fetch lineages sequentially in the main process (cache is shared).
+  if (progress) cli::cli_alert_info("Fetching {length(taxa)} lineages...")
+  lineages <- lapply(taxa, function(taxon) {
+    if (is.na(taxon)) return(NULL)
+    cache_key <- paste0("matrix_lineage_", .normalize_taxon(taxon))
+    if (exists(cache_key, envir = .taxodist_cache, inherits = FALSE)) {
+      return(get(cache_key, envir = .taxodist_cache, inherits = FALSE))
+    }
+
+    lineage <- fetch(taxon, verbose = verbose)
+    if (!is.null(lineage)) {
+      assign(cache_key, lineage, envir = .taxodist_cache)
+    }
+    lineage
+  })
+  if (progress) cli::cli_alert_success("Lineages fetched.")
+  list(labels = taxa, lineages = lineages)
+}
+
+# Replace each lineage node by an integer that identifies its complete path
+# from the root. Two lineages share the node at depth d if and only if their
+# identifiers at depth d are equal, and equality at depth d implies equality
+# at every shallower depth, so the MRCA depth of two taxa equals the number
+# of depths at which their identifiers agree. Missing depths are NA.
+#' @keywords internal
+.prefix_node_ids <- function(lineages) {
+  n <- length(lineages)
+  lens <- lengths(lineages)
+  max_depth <- if (n > 0L) max(lens) else 0L
+  ids <- matrix(NA_integer_, nrow = n, ncol = max_depth)
+  if (max_depth == 0L) return(ids)
+
+  flat <- unlist(lineages, use.names = FALSE)
+  owner <- rep.int(seq_len(n), lens)
+  depth <- sequence(lens)
+  parent <- integer(n)
+  for (d in seq_len(max_depth)) {
+    at_depth <- depth == d
+    rows <- owner[at_depth]
+    key <- paste(parent[rows], flat[at_depth], sep = "\r")
+    node <- match(key, unique(key))
+    ids[rows, d] <- node
+    parent[rows] <- node
+  }
+  ids
+}
+
+# Distances from the lineage in row `j` of `ids` to the lineages in rows `i`.
+#' @keywords internal
+.distances_to <- function(ids, lens, i, j) {
+  shared <- ids[i, , drop = FALSE] == rep(ids[j, ], each = length(i))
+  mrca_depth <- rowSums(shared, na.rm = TRUE)
+  values <- 1 / mrca_depth
+  identical_lineage <- mrca_depth > 0 &
+    mrca_depth == lens[[j]] & lens[i] == lens[[j]]
+  values[identical_lineage] <- 0
+  values
+}
+
+# Lower-triangle distances in base `dist` storage order (column by column).
+# NULL lineages (taxa that could not be resolved) yield NA.
+#' @keywords internal
+.pairwise_distances <- function(lineages, progress = FALSE) {
+  n <- length(lineages)
+  ids <- .prefix_node_ids(lineages)
+  lens <- lengths(lineages)
+  missing <- vapply(lineages, is.null, logical(1))
+
+  values <- numeric(n * (n - 1) / 2)
+  position <- 0L
+  if (progress) {
+    cli::cli_progress_bar("Computing distances", total = n - 1L)
+  }
+  for (column in seq_len(n - 1L)) {
+    rows <- (column + 1L):n
+    block <- .distances_to(ids, lens, rows, column)
+    block[missing[rows] | missing[[column]]] <- NA_real_
+    values[position + seq_along(rows)] <- block
+    position <- position + length(rows)
+    if (progress) cli::cli_progress_update()
+  }
+  if (progress) cli::cli_progress_done()
+  values
+}
+
 #' @keywords internal
 .common_prefix_depth <- function(lin_a, lin_b) {
   common_length <- min(length(lin_a), length(lin_b))
@@ -536,15 +651,6 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
   } else {
     common_length
   }
-}
-
-# Numeric-only hot path for distance_matrix().
-#' @keywords internal
-.distance_value <- function(lin_a, lin_b) {
-  mrca_depth <- .common_prefix_depth(lin_a, lin_b)
-  if (mrca_depth == 0L) return(Inf)
-  if (length(lin_a) == length(lin_b) && mrca_depth == length(lin_a)) return(0)
-  1 / mrca_depth
 }
 
 #' @keywords internal

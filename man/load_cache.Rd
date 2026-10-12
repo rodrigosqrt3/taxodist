@@ -4,10 +4,12 @@
 \alias{load_cache}
 \title{Load a previously saved taxodist cache from disk}
 \usage{
-load_cache(file)
+load_cache(file = NULL)
 }
 \arguments{
-\item{file}{Path to an \code{.rds} file created by \code{\link[=save_cache]{save_cache()}}.}
+\item{file}{Path to an \code{.rds} file created by \code{\link[=save_cache]{save_cache()}}. If \code{NULL}
+(default), the persistent per-user cache written by \code{save_cache()} is
+used.}
 }
 \value{
 Invisibly returns \code{NULL}.

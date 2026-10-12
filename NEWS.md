@@ -236,3 +236,105 @@
   `taxobase` instead of requiring it to equal the current development version.
 * Corrected stale generated documentation that still used phylogenetic
   terminology or the pre-0.6 ancestor--descendant distance behavior.
+
+# taxodist 0.9.0
+
+## Bug fixes
+
+* `taxo_resolve()` now truncates each selected lineage at the queried taxon
+  exactly as `get_lineage()` does. Previously it stored the raw lineage of the
+  Taxonomicon page, so for genera whose page does not list the genus itself
+  (e.g. *Periplaneta*) the lineage stopped at the family, `resolved_name`
+  reported the family, and `distance_matrix(taxo_resolve(x))` could differ
+  from `distance_matrix(x)`. Bundles built from such resolutions inherited the
+  difference.
+* Cleaned and uncleaned lineages are now cached separately. Previously, a call
+  to `get_lineage_by_id(id, clean = FALSE)` was cached under the same key as
+  the cleaned lineage, so later calls with `clean = TRUE` returned nodes above
+  `Biota` for the rest of the session. A single request now fills both entries.
+* Taxon names are normalized before lookup: surrounding whitespace is removed,
+  repeated spaces are collapsed, and the queried name is matched
+  case-insensitively when truncating the lineage. Previously
+  `get_lineage("tyrannosaurus")` or `get_lineage("Tyrannosaurus ")` appended a
+  spurious extra node, inflating the lineage depth, and the distance between
+  `"Tyrannosaurus"` and `"tyrannosaurus"` was positive.
+* `taxo_heatmap()` no longer forwards `...` to both `distance_matrix()` and
+  `stats::heatmap()`. Graphical arguments such as `col` previously caused an
+  "unused argument" error when taxon names were supplied, and `progress`
+  produced a graphical-parameter warning. `verbose` and `progress` are now
+  explicit arguments.
+* `cache_info()` now reports the names of cached taxa, together with their
+  Taxonomicon IDs in a new `ids` element. It previously listed only the IDs
+  under `taxa`.
+* `get_lineage_by_id()` now gives an informative error for a vector of several
+  IDs instead of a low-level coercion error, accepts IDs supplied as numbers,
+  and ignores surrounding whitespace. `get_lineage()` likewise requires a
+  single name.
+* Text scraped from The Taxonomicon is escaped before being included in
+  warnings, so entries containing braces can no longer break the homonym
+  warning.
+* Search URLs now percent-encode reserved characters such as `&`.
+* `focal_distances()` reports the terminal lineage node as the MRCA of a
+  community member identical to the focal taxon, consistently with
+  `taxo_distance()`, rather than echoing the input name.
+* `closest_relative()` returns consecutive row names after sorting.
+
+## Behavior changes
+
+* `check_coverage()` returns `NA` when the answer is unknown because The
+  Taxonomicon could not be reached or a candidate lineage could not be
+  retrieved. Previously such names were reported as `FALSE`, i.e. as absent
+  from the database.
+* Validating a bundle when it is printed or passed to `distance_matrix()` no
+  longer recomputes every distance from the stored lineages; this full
+  integrity check is performed by `write_taxodist_bundle()` and
+  `read_taxodist_bundle()`. Printing a bundle of 800 taxa went from about 5 s
+  to under 0.2 s.
+
+## Performance
+
+* `distance_matrix()` now computes distances in vectorized form. Every lineage
+  node is mapped to an integer identifying its complete path from the root, so
+  the MRCA depth of two taxa is the number of depths at which these
+  identifiers agree. For 800 taxa the computation dropped from about 14 s
+  (with the default progress bar) to 0.3 s, with identical results.
+* The progress bar of `distance_matrix()` is updated once per column instead
+  of once per pair; previously it tripled the running time.
+* HTTP requests are retried with exponential backoff after network errors and
+  server errors (5xx). The number of attempts is controlled by the new
+  `taxodist.max_tries` option (default 3).
+
+## New features
+
+* `taxo_tree()` builds an ape-compatible `phylo` object directly from lineages.
+  Its internal nodes are the named clades at which the taxa diverge, and its
+  branch lengths make the tree ultrametric with patristic distances equal to
+  `distance_matrix()`.
+* `cross_distances()` computes the rectangular matrix of distances between
+  two sets of taxa without computing the full square matrix.
+* `compare_bundles()` reports which taxa changed status, identifier, or
+  lineage between two bundles, and which pairwise distances changed, e.g. when
+  an analysis is repeated after The Taxonomicon is updated. Bundle files can
+  be passed directly by path.
+* `taxo_resolve()` and `taxo_bundle()` gain a `within` argument that restricts
+  candidates to a clade (for example `within = "Animalia"`), resolving many
+  cross-kingdom homonyms automatically.
+* `save_cache()` and `load_cache()` default to a persistent per-user file in
+  `tools::R_user_dir("taxodist", "cache")`. `save_cache()` now returns the
+  written path invisibly.
+* `distance_matrix()`, `cross_distances()`, and `taxo_tree()` accept a
+  `taxodist_bundle` or `taxodist_resolution` wherever lineages are needed.
+
+## Internal changes
+
+* Removed the dependency on purrr and replaced superseded rvest functions
+  (`html_nodes()`, `html_node()`) with `html_elements()` and `html_element()`.
+  The unused suggested package webmockr was also removed.
+* The test suite is split into one file per area (retrieval, resolution,
+  distances, trees, bundles, cache, analysis, and live network tests).
+* The parsing of Taxonomicon search pages is shared by
+  `get_taxonomicon_id()`, `taxo_search()`, and `taxo_resolve()`.
+* The package citation now takes its version from the installed package
+  metadata.
+* Tests were extended to cover every new behavior and the package retains
+  complete source coverage.

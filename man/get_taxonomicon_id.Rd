@@ -9,14 +9,15 @@ get_taxonomicon_id(taxon, verbose = FALSE)
 \arguments{
 \item{taxon}{A character string giving the taxon name to search for.
 Typically a genus name (e.g., \code{"Tyrannosaurus"}) but species and higher
-ranks are also supported.}
+ranks are also supported. Leading, trailing, and repeated internal
+whitespace is ignored.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints status messages during retrieval.
 Default is \code{FALSE}.}
 }
 \value{
 A character string containing the Taxonomicon numeric ID, or \code{NULL}
-if the taxon is not found.
+if the taxon is not found or the server cannot be reached.
 }
 \description{
 Queries The Taxonomicon (taxonomy.nl) to retrieve the internal numeric
@@ -26,10 +27,14 @@ entities such as astronomical objects that may share the same name.
 \details{
 The function queries the static search endpoint at
 \code{taxonomicon.taxonomy.nl/TaxonList.aspx} and parses the resulting HTML
-to extract the taxon ID from the hierarchy link. When multiple matches
-exist (e.g., a genus name shared with an astronomical object), biological
-entries are prioritised by filtering for entries annotated as dinosaur,
-reptile, archosaur, animal, plant, fungus, or bacterium.
+to extract the taxon ID from the hierarchy link. Only candidates whose
+lineage descends from \code{Biota} are retained, which excludes astronomical
+and other non-biological homonyms. When several biological candidates
+remain, those whose lineage contains the queried name are preferred and a
+warning lists the alternatives.
+
+Transient network failures are retried (three attempts by default; see
+the \code{taxodist.max_tries} option in \link{taxodist-package}).
 }
 \examples{
 \donttest{
@@ -39,5 +44,5 @@ get_taxonomicon_id("Quercus")
 }
 }
 \seealso{
-\code{\link[=get_lineage]{get_lineage()}}, \code{\link[=taxo_distance]{taxo_distance()}}
+\code{\link[=get_lineage]{get_lineage()}}, \code{\link[=taxo_resolve]{taxo_resolve()}}, \code{\link[=check_coverage]{check_coverage()}}
 }

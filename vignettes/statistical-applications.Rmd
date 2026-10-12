@@ -126,6 +126,16 @@ Export can be performed when required:
 ape::write.tree(tree, file = "taxonomic-distance-dendrogram.nwk")
 ```
 
+When the lineages themselves are available, `taxo_tree()` provides an
+alternative that does not depend on a linkage method: the tree is built
+directly from the classification, internal nodes carry clade names, and
+patristic distances equal the taxonomic distances exactly.
+
+```{r taxo-tree, eval=FALSE}
+classification_tree <- taxo_tree(taxa)
+plot(classification_tree, show.node.label = TRUE, cex = 0.8)
+```
+
 ## Principal coordinates analysis
 
 Principal coordinates analysis, or classical multidimensional scaling,

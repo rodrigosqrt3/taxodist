@@ -38,5 +38,6 @@ if (!is.null(cl$hclust)) {
 }
 }
 \seealso{
-\code{\link[=taxo_ordinate]{taxo_ordinate()}}, \code{\link[=distance_matrix]{distance_matrix()}}
+\code{\link[=taxo_tree]{taxo_tree()}} for a tree whose internal nodes are the named clades
+of the classification, \code{\link[=taxo_ordinate]{taxo_ordinate()}}, \code{\link[=distance_matrix]{distance_matrix()}}
 }

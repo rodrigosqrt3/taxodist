@@ -8,7 +8,8 @@ taxo_resolve(
   taxa,
   ambiguity = c("warn", "first", "error"),
   verbose = FALSE,
-  progress = TRUE
+  progress = TRUE,
+  within = NULL
 )
 }
 \arguments{
@@ -22,6 +23,13 @@ after all inputs have been inspected.}
 \item{verbose}{Logical. If \code{TRUE}, prints retrieval messages.}
 
 \item{progress}{Logical. If \code{TRUE}, displays a progress bar.}
+
+\item{within}{Optional character string naming a clade (for example
+\code{"Animalia"} or \code{"Plantae"}). When supplied, only candidates whose
+lineage contains this clade are considered, which resolves many
+homonyms across kingdoms automatically. Matching is exact and
+case-insensitive. Names without any candidate inside the clade are
+reported as \code{"unresolved"}. Numeric IDs are not filtered.}
 }
 \value{
 A data frame of class \code{taxodist_resolution} with one row per input
@@ -44,6 +52,10 @@ match from a match chosen according to the requested policy. Numeric IDs
 bypass name search and are treated as single candidates when their lineage
 can be retrieved.
 
+Names are matched after trimming and collapsing whitespace, and the stored
+lineage is truncated at the queried taxon exactly as in \code{\link[=get_lineage]{get_lineage()}}, so
+\code{distance_matrix(taxo_resolve(x))} and \code{distance_matrix(x)} agree.
+
 Objects returned by \code{taxo_resolve()} can be passed directly to
 \code{\link[=distance_matrix]{distance_matrix()}}, which reuses the stored lineages and preserves the
 original input names as matrix labels.
@@ -52,6 +64,9 @@ original input names as matrix labels.
 \donttest{
 resolved <- taxo_resolve(c("Tyrannosaurus", "Nereis", "50841"))
 distance_matrix(resolved)
+
+# Restrict homonyms to animals
+taxo_resolve("Nereis", within = "Animalia")
 }
 }
 \seealso{

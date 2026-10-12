@@ -7,12 +7,14 @@
 #'
 #' @param taxa A character vector accepted by [taxo_resolve()] or an existing
 #'   `taxodist_resolution` object.
-#' @param ambiguity,verbose,progress Passed to [taxo_resolve()] when `taxa` is
-#'   a character vector.
+#' @param ambiguity,verbose,progress,within Passed to [taxo_resolve()] when
+#'   `taxa` is a character vector.
 #'
 #' @return An object of class `taxodist_bundle` containing `schema_version`,
 #'   `created_at`, `source`, `software`, `metric`, `resolution`, and `matrix`.
 #'
+#' @seealso [write_taxodist_bundle()], [read_taxodist_bundle()],
+#'   [compare_bundles()]
 #' @export
 #' @examples
 #' \donttest{
@@ -22,7 +24,8 @@
 taxo_bundle <- function(taxa,
                         ambiguity = c("warn", "first", "error"),
                         verbose = FALSE,
-                        progress = TRUE) {
+                        progress = TRUE,
+                        within = NULL) {
   ambiguity <- match.arg(ambiguity)
   resolution <- if (inherits(taxa, "taxodist_resolution")) {
     taxa
@@ -31,7 +34,8 @@ taxo_bundle <- function(taxa,
       taxa,
       ambiguity = ambiguity,
       verbose = verbose,
-      progress = progress
+      progress = progress,
+      within = within
     )
   }
 
@@ -81,7 +85,10 @@ taxo_bundle <- function(taxa,
   )
 }
 
-.validate_taxodist_bundle <- function(bundle) {
+# Structural validation is cheap and runs whenever a bundle is used. The
+# distance check recomputes the matrix from the stored lineages; it runs when
+# a bundle is written or read, where integrity matters most.
+.validate_taxodist_bundle <- function(bundle, check_distances = TRUE) {
   if (!inherits(bundle, "taxodist_bundle") || !is.list(bundle)) {
     cli::cli_abort("{.arg bundle} must be a {.cls taxodist_bundle} object.")
   }
@@ -167,6 +174,9 @@ taxo_bundle <- function(taxa,
     cli::cli_abort(
       "Invalid bundle: matrix labels do not match the resolution inputs."
     )
+  }
+  if (!check_distances) {
+    return(invisible(bundle))
   }
   expected_matrix <- distance_matrix(bundle$resolution, progress = FALSE)
   if (!isTRUE(all.equal(
@@ -438,7 +448,7 @@ read_taxodist_bundle <- function(file) {
 #' @return Invisibly returns `x`.
 #' @export
 print.taxodist_bundle <- function(x, ...) {
-  .validate_taxodist_bundle(x)
+  .validate_taxodist_bundle(x, check_distances = FALSE)
   counts <- table(factor(
     x$resolution$status,
     levels = c("resolved", "ambiguous", "unresolved", "retrieval_error")
@@ -453,5 +463,170 @@ print.taxodist_bundle <- function(x, ...) {
     "*" = "Unresolved: {counts[['unresolved']]}",
     "*" = "Retrieval errors: {counts[['retrieval_error']]}"
   ))
+  invisible(x)
+}
+
+#' Compare two taxodist bundles
+#'
+#' Reports how the resolution of each taxon and the pairwise distances changed
+#' between two bundles. A typical use is to re-run an analysis months later
+#' and check whether updates to The Taxonomicon changed any lineage, selected
+#' identifier, or distance.
+#'
+#' @param old,new `taxodist_bundle` objects, or paths to JSON files written
+#'   by [write_taxodist_bundle()].
+#' @param tolerance Numeric tolerance below which two distances are considered
+#'   equal.
+#'
+#' @return An object of class `taxodist_bundle_comparison`, a list with:
+#' \describe{
+#'   \item{`taxa`}{A data frame with one row per input label found in either
+#'     bundle and columns `input`, `change`, `status_old`, `status_new`,
+#'     `id_old`, `id_new`, `depth_old`, and `depth_new`. `change` is one of
+#'     `"unchanged"`, `"added"`, `"removed"`, `"status_changed"`,
+#'     `"id_changed"`, or `"lineage_changed"`.}
+#'   \item{`distances`}{A data frame of the pairs of inputs present in both
+#'     bundles whose distance changed, with columns `taxon_a`, `taxon_b`,
+#'     `distance_old`, and `distance_new`.}
+#'   \item{`created_old`, `created_new`}{Creation timestamps of the bundles.}
+#' }
+#'
+#' @seealso [taxo_bundle()], [read_taxodist_bundle()]
+#' @export
+#' @examples
+#' before <- taxo_bundle(taxo_from_lineages(list(
+#'   Alpha = c("Biota", "Animalia", "Alpha"),
+#'   Beta  = c("Biota", "Animalia", "Beta")
+#' )), progress = FALSE)
+#' after <- taxo_bundle(taxo_from_lineages(list(
+#'   Alpha = c("Biota", "Animalia", "Chordata", "Alpha"),
+#'   Beta  = c("Biota", "Animalia", "Beta")
+#' )), progress = FALSE)
+#' compare_bundles(before, after)
+compare_bundles <- function(old, new, tolerance = sqrt(.Machine$double.eps)) {
+  as_bundle <- function(x, arg) {
+    if (is.character(x) && length(x) == 1L) {
+      x <- read_taxodist_bundle(x)
+    }
+    if (!inherits(x, "taxodist_bundle")) {
+      cli::cli_abort(
+        "{.arg {arg}} must be a {.cls taxodist_bundle} or the path to a bundle file."
+      )
+    }
+    .validate_taxodist_bundle(x, check_distances = FALSE)
+    x
+  }
+  old <- as_bundle(old, "old")
+  new <- as_bundle(new, "new")
+  res_old <- old$resolution
+  res_new <- new$resolution
+
+  inputs <- unique(c(res_old$input, res_new$input))
+  idx_old <- match(inputs, res_old$input)
+  idx_new <- match(inputs, res_new$input)
+  pick <- function(resolution, idx, column, missing) {
+    out <- rep(missing, length(idx))
+    found <- !is.na(idx)
+    out[found] <- resolution[[column]][idx[found]]
+    out
+  }
+  status_old <- pick(res_old, idx_old, "status", NA_character_)
+  status_new <- pick(res_new, idx_new, "status", NA_character_)
+  id_old <- pick(res_old, idx_old, "id", NA_character_)
+  id_new <- pick(res_new, idx_new, "id", NA_character_)
+  same_id <- mapply(identical, id_old, id_new, USE.NAMES = FALSE)
+  same_lineage <- vapply(seq_along(inputs), function(k) {
+    is.na(idx_old[[k]]) || is.na(idx_new[[k]]) ||
+      identical(res_old$lineage[[idx_old[[k]]]], res_new$lineage[[idx_new[[k]]]])
+  }, logical(1))
+
+  change <- ifelse(
+    is.na(idx_old), "added",
+    ifelse(
+      is.na(idx_new), "removed",
+      ifelse(
+        status_old != status_new, "status_changed",
+        ifelse(!same_id, "id_changed",
+               ifelse(!same_lineage, "lineage_changed", "unchanged"))
+      )
+    )
+  )
+  taxa <- data.frame(
+    input = inputs,
+    change = change,
+    status_old = status_old,
+    status_new = status_new,
+    id_old = id_old,
+    id_new = id_new,
+    depth_old = pick(res_old, idx_old, "lineage_depth", NA_integer_),
+    depth_new = pick(res_new, idx_new, "lineage_depth", NA_integer_),
+    stringsAsFactors = FALSE
+  )
+
+  distances <- data.frame(
+    taxon_a = character(0),
+    taxon_b = character(0),
+    distance_old = numeric(0),
+    distance_new = numeric(0),
+    stringsAsFactors = FALSE
+  )
+  shared <- !is.na(idx_old) & !is.na(idx_new)
+  if (sum(shared) > 1L) {
+    matrix_old <- as.matrix(old$matrix)[idx_old[shared], idx_old[shared], drop = FALSE]
+    matrix_new <- as.matrix(new$matrix)[idx_new[shared], idx_new[shared], drop = FALSE]
+    pairs <- which(lower.tri(matrix_old), arr.ind = TRUE)
+    value_old <- matrix_old[pairs]
+    value_new <- matrix_new[pairs]
+    equal <- (is.na(value_old) & is.na(value_new)) |
+      (!is.na(value_old) & !is.na(value_new) &
+         (value_old == value_new | abs(value_old - value_new) <= tolerance))
+    labels <- inputs[shared]
+    distances <- data.frame(
+      taxon_a = labels[pairs[, "col"]],
+      taxon_b = labels[pairs[, "row"]],
+      distance_old = value_old,
+      distance_new = value_new,
+      stringsAsFactors = FALSE
+    )[!equal, , drop = FALSE]
+    rownames(distances) <- NULL
+  }
+
+  structure(
+    list(
+      taxa = taxa,
+      distances = distances,
+      created_old = old$created_at,
+      created_new = new$created_at
+    ),
+    class = "taxodist_bundle_comparison"
+  )
+}
+
+#' Print a taxodist bundle comparison
+#'
+#' @param x A `taxodist_bundle_comparison` returned by [compare_bundles()].
+#' @param ... Additional arguments (currently ignored).
+#'
+#' @return Invisibly returns `x`.
+#' @export
+print.taxodist_bundle_comparison <- function(x, ...) {
+  changed <- x$taxa[x$taxa$change != "unchanged", , drop = FALSE]
+  cli::cli_h2("taxodist Bundle Comparison")
+  cli::cli_bullets(c(
+    "*" = "Old bundle: {x$created_old}",
+    "*" = "New bundle: {x$created_new}",
+    "*" = "Taxa compared: {nrow(x$taxa)} ({nrow(changed)} changed)",
+    "*" = "Distances changed: {nrow(x$distances)}"
+  ))
+  if (nrow(changed) > 0L) {
+    cli::cli_text("")
+    cli::cli_bullets(stats::setNames(
+      paste0(.cli_escape(changed$input), ": ", changed$change),
+      rep(">", nrow(changed))
+    ))
+  } else {
+    cli::cli_text("")
+    cli::cli_alert_success("No taxon changed between the two bundles.")
+  }
   invisible(x)
 }

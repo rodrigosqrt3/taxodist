@@ -7,18 +7,18 @@
 get_lineage_by_id(taxon_id, clean = TRUE, verbose = FALSE)
 }
 \arguments{
-\item{taxon_id}{A numeric or character string giving the Taxonomicon ID.
+\item{taxon_id}{A single numeric or character Taxonomicon ID.
 Obtain this with \code{\link[=get_taxonomicon_id]{get_taxonomicon_id()}}.}
 
 \item{clean}{Logical. If \code{TRUE} (default), removes philosophical root nodes
-above \code{Biota} (i.e., Natura, actualia, Mundus, naturalia) and strips
-dagger and superscript markers from names.}
+above \code{Biota} (i.e., Natura, actualia, Mundus, naturalia). Dagger and
+superscript markers are always stripped from names.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints status messages. Default \code{FALSE}.}
 }
 \value{
 A character vector of clade names from root to tip, or \code{NULL} if
-retrieval fails.
+\code{taxon_id} is not a numeric ID or retrieval fails.
 }
 \description{
 Given a Taxonomicon numeric ID, retrieves and parses the complete
@@ -31,6 +31,9 @@ Systema Naturae 2000 (Brands, S.J., 1989 onwards). Lineage resolution varies
 among taxonomic groups and may change when the source classification is
 updated. Because hierarchy distances depend on lineage depth, analyses
 should record the retrieval date and package version.
+
+Cleaned and uncleaned lineages are cached separately, so the value of
+\code{clean} used in an earlier call never affects later calls.
 }
 \examples{
 \donttest{

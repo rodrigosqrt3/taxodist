@@ -11,7 +11,10 @@ Invisibly returns a list with elements:
 \describe{
 \item{\code{n_lineages}}{Integer. Number of cached lineages.}
 \item{\code{n_ids}}{Integer. Number of cached taxon IDs.}
-\item{\code{taxa}}{Character vector of taxa with cached lineages.}
+\item{\code{taxa}}{Character vector of the taxa whose lineages are cached
+(the terminal node of each lineage).}
+\item{\code{ids}}{Character vector of the Taxonomicon IDs of those lineages,
+in the same order as \code{taxa}.}
 \item{\code{size_bytes}}{Numeric. Total memory used by the cache.}
 }
 }

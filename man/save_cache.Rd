@@ -4,13 +4,15 @@
 \alias{save_cache}
 \title{Save the taxodist lineage cache to disk}
 \usage{
-save_cache(file)
+save_cache(file = NULL)
 }
 \arguments{
-\item{file}{Path to the \code{.rds} file to write.}
+\item{file}{Path to the \code{.rds} file to write. If \code{NULL} (default), the
+cache is written to a persistent per-user location given by
+\code{\link[tools:userdir]{tools::R_user_dir()}}, which is created if necessary.}
 }
 \value{
-Invisibly returns \code{NULL}.
+Invisibly returns the path of the written file.
 }
 \description{
 Serialises the current session cache to an \code{.rds} file so it can be

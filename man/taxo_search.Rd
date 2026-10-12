@@ -33,5 +33,5 @@ taxo_search("Tyrannosaurus")
 }
 }
 \seealso{
-\code{\link[=get_lineage]{get_lineage()}}, \code{\link[=taxo_distance]{taxo_distance()}}
+\code{\link[=get_lineage]{get_lineage()}}, \code{\link[=taxo_resolve]{taxo_resolve()}}
 }

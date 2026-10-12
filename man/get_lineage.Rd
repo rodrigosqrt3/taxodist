@@ -7,7 +7,10 @@
 get_lineage(taxon, clean = TRUE, verbose = FALSE)
 }
 \arguments{
-\item{taxon}{A character string giving the taxon name.}
+\item{taxon}{A single character string giving the taxon name or numeric
+Taxonomicon ID. Leading, trailing, and repeated internal whitespace is
+ignored, and the queried name is matched case-insensitively when
+truncating the lineage.}
 
 \item{clean}{Logical. If \code{TRUE} (default), removes philosophical root nodes
 and cleans formatting markers.}

@@ -13,7 +13,8 @@ check_coverage(taxa, verbose = FALSE)
 }
 \value{
 A named logical vector. \code{TRUE} indicates the taxon was found,
-\code{FALSE} indicates it was not.
+\code{FALSE} that it is absent from The Taxonomicon, and \code{NA} that the
+answer is unknown because the server could not be reached.
 }
 \description{
 Queries The Taxonomicon for a taxon name and returns a logical indicating
@@ -24,4 +25,7 @@ before running distance computations.
 \donttest{
 check_coverage(c("Tyrannosaurus", "Velociraptor", "Fakeosaurus"))
 }
+}
+\seealso{
+\code{\link[=taxo_resolve]{taxo_resolve()}} for a complete audit of each name.
 }

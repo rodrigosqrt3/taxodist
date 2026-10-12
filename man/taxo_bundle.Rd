@@ -8,15 +8,16 @@ taxo_bundle(
   taxa,
   ambiguity = c("warn", "first", "error"),
   verbose = FALSE,
-  progress = TRUE
+  progress = TRUE,
+  within = NULL
 )
 }
 \arguments{
 \item{taxa}{A character vector accepted by \code{\link[=taxo_resolve]{taxo_resolve()}} or an existing
 \code{taxodist_resolution} object.}
 
-\item{ambiguity, verbose, progress}{Passed to \code{\link[=taxo_resolve]{taxo_resolve()}} when \code{taxa} is
-a character vector.}
+\item{ambiguity, verbose, progress, within}{Passed to \code{\link[=taxo_resolve]{taxo_resolve()}} when
+\code{taxa} is a character vector.}
 }
 \value{
 An object of class \code{taxodist_bundle} containing \code{schema_version},
@@ -33,4 +34,8 @@ The bundle can be written to a language-independent JSON file with
 bundle <- taxo_bundle(c("Tyrannosaurus", "Triceratops", "Homo"))
 distance_matrix(bundle)
 }
+}
+\seealso{
+\code{\link[=write_taxodist_bundle]{write_taxodist_bundle()}}, \code{\link[=read_taxodist_bundle]{read_taxodist_bundle()}},
+\code{\link[=compare_bundles]{compare_bundles()}}
 }

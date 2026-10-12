@@ -44,5 +44,6 @@ focal_distances("Tyrannosaurus", community)
 }
 }
 \seealso{
-\code{\link[=closest_relative]{closest_relative()}}, \code{\link[=distance_matrix]{distance_matrix()}}, \code{\link[=taxo_distance]{taxo_distance()}}
+\code{\link[=closest_relative]{closest_relative()}}, \code{\link[=cross_distances]{cross_distances()}}, \code{\link[=distance_matrix]{distance_matrix()}},
+\code{\link[=taxo_distance]{taxo_distance()}}
 }

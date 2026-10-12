@@ -28,6 +28,13 @@ Given a vector of taxon names, computes all pairwise taxonomic hierarchy distanc
 and returns a symmetric distance matrix. Lineages are cached after first
 retrieval to minimise redundant network requests.
 }
+\details{
+Distances are computed in vectorized form: every lineage node is first
+replaced by an integer identifying its complete path from the root, so the
+MRCA depth of two taxa is simply the number of depths at which these
+identifiers agree. This gives exactly the same values as
+\code{\link[=taxo_distance]{taxo_distance()}} while scaling to thousands of taxa.
+}
 \examples{
 \donttest{
 theropods <- c("Tyrannosaurus", "Velociraptor", "Spinosaurus",
@@ -37,6 +44,6 @@ print(mat)
 }
 }
 \seealso{
-\code{\link[=taxo_distance]{taxo_distance()}}, \code{\link[=closest_relative]{closest_relative()}}, \code{\link[=taxo_resolve]{taxo_resolve()}},
-\code{\link[=taxo_bundle]{taxo_bundle()}}
+\code{\link[=taxo_distance]{taxo_distance()}}, \code{\link[=cross_distances]{cross_distances()}}, \code{\link[=closest_relative]{closest_relative()}},
+\code{\link[=taxo_resolve]{taxo_resolve()}}, \code{\link[=taxo_bundle]{taxo_bundle()}}, \code{\link[=taxo_tree]{taxo_tree()}}
 }

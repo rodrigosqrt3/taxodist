@@ -36,8 +36,11 @@ The package provides functions for:
 - taxonomic hierarchy distances;
 - clade membership and filtering;
 - paths between hierarchy nodes;
-- pairwise distance matrices;
+- auditable batch name resolution;
+- pairwise distance matrices and distances between two sets of taxa;
+- classification trees whose internal nodes are named clades;
 - clustering and principal coordinates analysis;
+- portable analysis bundles that can be compared over time;
 - session and persistent cache management.
 
 Inputs may represent species, genera, families, orders, named clades, or other
@@ -238,7 +241,29 @@ mat <- distance_matrix(
 mat
 ```
 
-Lineages are retrieved once and cached for subsequent comparisons.
+Lineages are retrieved once and cached for subsequent comparisons. The
+pairwise computation itself is vectorized, so matrices of several thousand taxa
+are computed in seconds once their lineages are available.
+
+### Distances between two sets of taxa
+
+When only the distances from one set of taxa to another are needed, such as
+from the members of a community to a set of reference taxa,
+`cross_distances()` returns the rectangular matrix directly. The example below
+uses user-supplied lineages and therefore runs offline:
+
+```{r cross-distances}
+community <- taxo_from_lineages(list(
+  Tyrannosaurus = c("Biota", "Dinosauria", "Theropoda", "Tyrannosaurus"),
+  Triceratops = c("Biota", "Dinosauria", "Ornithischia", "Triceratops")
+))
+reference <- taxo_from_lineages(list(
+  Velociraptor = c("Biota", "Dinosauria", "Theropoda", "Velociraptor"),
+  Homo = c("Biota", "Mammalia", "Homo")
+))
+
+cross_distances(community, reference)
+```
 
 ### Finding the closest candidates
 
@@ -369,6 +394,36 @@ plot(
 The result is a clustering dendrogram, not an independently inferred
 phylogenetic tree.
 
+### Classification trees
+
+`taxo_tree()` builds a tree directly from lineages rather than from distances.
+Its topology is the classification itself, its internal nodes are labeled with
+the named clades at which the taxa diverge, and its branch lengths are chosen
+so that patristic distances reproduce `distance_matrix()` exactly. The result
+is a standard `phylo` object.
+
+```{r taxo-tree, eval=requireNamespace("ape", quietly = TRUE), fig.width=7, fig.height=4}
+lineages <- taxo_from_lineages(list(
+  Tyrannosaurus = c("Biota", "Dinosauria", "Theropoda", "Tyrannosaurus"),
+  Velociraptor = c("Biota", "Dinosauria", "Theropoda", "Velociraptor"),
+  Triceratops = c("Biota", "Dinosauria", "Ornithischia", "Triceratops"),
+  Homo = c("Biota", "Mammalia", "Homo")
+))
+
+tree <- taxo_tree(lineages)
+tree$node.label
+
+plot(tree, show.node.label = TRUE, main = "Classification tree")
+
+tree_distances <- distance_matrix(lineages, progress = FALSE)
+all.equal(
+  ape::cophenetic.phylo(tree)[labels(tree_distances), labels(tree_distances)],
+  as.matrix(tree_distances)
+)
+```
+
+The tree can be written in Newick format with `ape::write.tree(tree)`.
+
 ### Principal coordinates analysis
 
 ```{r ordination, fig.width=7, fig.height=5}
@@ -392,9 +447,14 @@ low-dimensional representation.
 ```{r heatmap, fig.width=7, fig.height=6}
 taxo_heatmap(
   example_matrix,
-  main = "Taxonomic hierarchy distance matrix"
+  main = "Taxonomic hierarchy distance matrix",
+  col = hcl.colors(12, "YlOrRd", rev = TRUE)
 )
 ```
+
+Graphical arguments such as `main` and `col` are passed to
+`stats::heatmap()`, while `verbose` and `progress` control lineage retrieval
+when taxon names are supplied instead of a matrix.
 
 Additional statistical examples and interpretation are provided in:
 
@@ -418,6 +478,28 @@ When several valid biological entries exist, the package reports the available
 identifiers. A numeric identifier should be supplied when the intended
 taxonomic concept is known.
 
+Names are matched after removing surrounding whitespace and collapsing
+repeated spaces, and the queried name is located in the lineage without regard
+to case. Consequently, `"tyrannosaurus"` and `" Tyrannosaurus "` resolve to the
+same node as `"Tyrannosaurus"`.
+
+For batches of names, `taxo_resolve()` records the status, candidates, selected
+identifier, and lineage of every input. Homonyms in different parts of the
+classification can often be resolved automatically by restricting candidates
+to a clade with `within`:
+
+```{r live-resolve, eval=FALSE}
+resolved <- taxo_resolve(
+  c("Tyrannosaurus", "Nereis", "Not_a_real_taxon"),
+  within = "Animalia"
+)
+resolved
+distance_matrix(resolved)
+```
+
+A matrix computed from a resolution is identical to one computed from the same
+names, but it requires no further network requests and keeps an audit trail.
+
 Before calculating a large matrix, coverage can be checked explicitly:
 
 ```{r live-coverage, eval=FALSE}
@@ -430,6 +512,10 @@ taxa <- c(
 
 check_coverage(taxa)
 ```
+
+`check_coverage()` returns `TRUE` for names found, `FALSE` for names absent from
+The Taxonomicon, and `NA` when the server could not be reached, so a temporary
+network failure is never mistaken for missing coverage.
 
 Unresolved taxa generate missing pairwise distances. These values should be
 examined before clustering, ordination, or other methods requiring complete
@@ -453,9 +539,22 @@ clear_cache()
 load_cache("taxodist-cache.rds")
 ```
 
+Called without a file, `save_cache()` and `load_cache()` use a persistent
+per-user location given by `tools::R_user_dir("taxodist", "cache")`:
+
+```{r default-cache, eval=FALSE}
+save_cache()
+# In a later session:
+load_cache()
+```
+
 Cache files preserve retrieved lineages across sessions. They should be
 regenerated when an analysis is intended to incorporate subsequent revisions
 of the source classification.
+
+Requests to The Taxonomicon are retried automatically after transient network
+or server errors. The number of attempts can be changed with
+`options(taxodist.max_tries = 5)`.
 
 ## Interpretation and reproducibility
 
@@ -474,7 +573,17 @@ A reproducible analysis should record:
 - downstream clustering or ordination settings.
 
 Saved caches and distance matrices can preserve the exact input used in an
-analysis.
+analysis. `taxo_bundle()` collects the resolution, lineages, matrix, distance
+definition, and provenance in a single object that can be written to portable
+JSON. When an analysis is repeated later, `compare_bundles()` reports which
+taxa changed identifier, status, or lineage, and which distances changed as a
+result:
+
+```{r live-bundles, eval=FALSE}
+before <- read_taxodist_bundle("analysis-2026.json")
+after <- taxo_bundle(before$resolution$input)
+compare_bundles(before, after)
+```
 
 ## Data source and citation
 

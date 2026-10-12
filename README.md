@@ -31,6 +31,13 @@ mrca("Tyrannosaurus", "Homo")          # "Amniota"
 theropods <- c("Tyrannosaurus", "Velociraptor", "Spinosaurus", "Allosaurus")
 distance_matrix(theropods)
 
+# Distances between two sets of taxa (rows x columns)
+cross_distances(c("Tyrannosaurus", "Triceratops"), c("Velociraptor", "Homo"))
+
+# Classification tree with named clades (an ape-compatible phylo object)
+tree <- taxo_tree(theropods)
+ape::plot.phylo(tree, show.node.label = TRUE)
+
 # Filter taxa by clade
 taxa <- c("Tyrannosaurus", "Triceratops", "Homo", "Quercus")
 filter_clade(taxa, "Dinosauria")
@@ -39,11 +46,15 @@ filter_clade(taxa, "Dinosauria")
 taxo_path("Tyrannosaurus", "Velociraptor")
 
 # Save and restore the lineage cache across sessions
-save_cache("my_cache.rds")
-load_cache("my_cache.rds")
+save_cache()   # persistent per-user location; or save_cache("my_cache.rds")
+load_cache()
 
-# Resolve a batch first and preserve ambiguity, coverage, IDs, and lineages
-resolved <- taxo_resolve(c("Tyrannosaurus", "Nereis", "Unknown taxon"))
+# Resolve a batch first and preserve ambiguity, coverage, IDs, and lineages;
+# `within` restricts homonyms to a clade
+resolved <- taxo_resolve(
+  c("Tyrannosaurus", "Nereis", "Unknown taxon"),
+  within = "Animalia"
+)
 distance_matrix(resolved)
 
 # Work completely offline with curated or unpublished lineages
@@ -57,6 +68,9 @@ distance_matrix(local)
 bundle <- taxo_bundle(resolved)
 write_taxodist_bundle(bundle, "analysis.json")
 restored <- read_taxodist_bundle("analysis.json")
+
+# Months later: what changed in the source classification?
+compare_bundles("analysis.json", taxo_bundle(restored$resolution$input))
 ```
 
 ## The distance metric
@@ -80,8 +94,10 @@ The numerical values depend on the resolution of the classification returned by 
 ## Caching
 
 Lineages are cached in memory automatically during a session. To persist the
-cache across sessions and avoid redundant network requests, use
-`save_cache("file.rds")` and `load_cache("file.rds")`.
+cache across sessions and avoid redundant network requests, use `save_cache()`
+and `load_cache()`, which default to a per-user cache directory, or pass an
+explicit file path. Requests are retried automatically after transient network
+errors (`options(taxodist.max_tries = ...)`, default 3).
 
 ## Data source
 

@@ -189,10 +189,10 @@ is_member <- function(taxon, clade, verbose = FALSE) {
 #' filter_clade(taxa, "Dinosauria")
 #' }
 filter_clade <- function(taxa, clade, verbose = FALSE) {
-  keep <- purrr::map_lgl(taxa, function(t) {
+  keep <- vapply(taxa, function(t) {
     result <- is_member(t, clade, verbose = verbose)
     if (is.null(result)) FALSE else result
-  })
+  }, logical(1), USE.NAMES = FALSE)
   taxa[keep]
 }
 
@@ -305,9 +305,12 @@ summary.taxodist_ord <- function(object, ...) {
 #' clustering dendrograms on the margins. Darker/hotter colors typically
 #' represent smaller distances (closer relatives).
 #'
-#' @param taxa A character vector of taxon names, or a \code{dist} object from
-#'   \code{\link{distance_matrix}}.
-#' @param ... Additional arguments passed to \code{\link[stats]{heatmap}}.
+#' @param taxa A character vector of taxon names, a `taxodist_resolution`, a
+#'   `taxodist_bundle`, or a `dist` object from [distance_matrix()].
+#' @param ... Additional graphical arguments passed to [stats::heatmap()]
+#'   (for example `col` or `main`).
+#' @param verbose,progress Passed to [distance_matrix()] when `taxa` is not
+#'   already a `dist` object.
 #'
 #' @return Invisibly returns the underlying \code{dist} object.
 #'   Called primarily for its side effect (plotting).
@@ -316,10 +319,14 @@ summary.taxodist_ord <- function(object, ...) {
 #' @examples
 #' \donttest{
 #' taxa <- c("Tyrannosaurus", "Velociraptor", "Homo", "Panthera", "Quercus")
-#' taxo_heatmap(taxa)
+#' taxo_heatmap(taxa, col = hcl.colors(12, "YlOrRd"), progress = FALSE)
 #' }
-taxo_heatmap <- function(taxa, ...) {
-  d <- if (inherits(taxa, "dist")) taxa else distance_matrix(taxa, ...)
+taxo_heatmap <- function(taxa, ..., verbose = FALSE, progress = TRUE) {
+  d <- if (inherits(taxa, "dist")) {
+    taxa
+  } else {
+    distance_matrix(taxa, verbose = verbose, progress = progress)
+  }
   if (any(is.na(d))) {
     cli::cli_warn("Distance matrix contains NA values. Heatmap skipped.")
     return(invisible(d))
