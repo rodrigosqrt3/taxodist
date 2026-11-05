@@ -10,12 +10,15 @@ Description: Computes distances between taxonomic hierarchy nodes using lineage
     data retrieved from The Taxonomicon <http://taxonomicon.taxonomy.nl>. For
     distinct nodes, distance is defined as the reciprocal of the depth of their
     most recent common ancestor; identical nodes have distance zero. This
-    definition yields an ultrametric within each connected hierarchy. Functions
-    are provided for auditable name resolution, online or user-supplied lineage
-    analysis, clade membership, pairwise, matrix, and cross-set distance
-    calculation, classification trees with named clades, hierarchical
-    clustering, principal coordinates analysis, portable and comparable JSON
-    analysis bundles, and cache management. Distance matrices are returned as
+    definition yields an ultrametric within each connected hierarchy. Path
+    length, Wu-Palmer, and rank-based distances are also available, together
+    with the taxonomic diversity and distinctness indices of Clarke and Warwick
+    (1998) <doi:10.1046/j.1365-2664.1998.3540523.x> and their randomization
+    test. Functions are provided for auditable name resolution, online or
+    user-supplied lineage analysis, node ranks, clade membership, pairwise,
+    matrix, and cross-set distance calculation, classification trees with named
+    clades, hierarchical clustering, principal coordinates analysis, portable
+    and comparable JSON analysis bundles, and cache management. Distance matrices are returned as
     base R 'dist' objects. The distances represent classification depth rather
     than evolutionary time or phylogenetic branch length.
 Language: en-US
