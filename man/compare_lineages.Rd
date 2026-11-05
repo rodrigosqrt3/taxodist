@@ -22,8 +22,8 @@ Prints the lineages of two taxa aligned at their most recent common
 ancestor, making the point of divergence easy to identify.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 compare_lineages("Tyrannosaurus", "Velociraptor")
 compare_lineages("Tyrannosaurus", "Triceratops")
-}
+\dontshow{\}) # examplesIf}
 }

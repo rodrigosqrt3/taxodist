@@ -21,12 +21,10 @@ session. The file structure is validated before the current cache is
 modified.
 }
 \examples{
-\donttest{
 tmp <- tempfile(fileext = ".rds")
 save_cache(tmp)
 load_cache(tmp)
 unlink(tmp)
-}
 }
 \seealso{
 \code{\link[=save_cache]{save_cache()}}, \code{\link[=clear_cache]{clear_cache()}}

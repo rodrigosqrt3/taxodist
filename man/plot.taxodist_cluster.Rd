@@ -30,9 +30,9 @@ Invisibly returns \code{x}. Called for side effects (plotting).
 Plots the hierarchical clustering dendrogram produced by \code{\link[=taxo_cluster]{taxo_cluster()}}.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 taxa <- c("Tyrannosaurus", "Velociraptor", "Triceratops", "Brachiosaurus")
 cl <- taxo_cluster(taxa)
 plot(cl)
-}
+\dontshow{\}) # examplesIf}
 }

@@ -35,10 +35,10 @@ The bundle can be written to a language-independent JSON file with
 \code{\link[=write_taxodist_bundle]{write_taxodist_bundle()}}.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 bundle <- taxo_bundle(c("Tyrannosaurus", "Triceratops", "Homo"))
 distance_matrix(bundle)
-}
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \code{\link[=write_taxodist_bundle]{write_taxodist_bundle()}}, \code{\link[=read_taxodist_bundle]{read_taxodist_bundle()}},

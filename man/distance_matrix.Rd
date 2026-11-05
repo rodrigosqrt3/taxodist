@@ -40,12 +40,12 @@ identifiers agree. This gives exactly the same values as
 \code{\link[=taxo_distance]{taxo_distance()}} while scaling to thousands of taxa.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 theropods <- c("Tyrannosaurus", "Velociraptor", "Spinosaurus",
                "Allosaurus", "Carnotaurus")
 mat <- distance_matrix(theropods)
 print(mat)
-}
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \code{\link[=taxo_distance]{taxo_distance()}}, \code{\link[=cross_distances]{cross_distances()}}, \code{\link[=closest_relative]{closest_relative()}},

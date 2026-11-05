@@ -26,11 +26,11 @@ for exploring homonyms, historical ranks, or taxonomic synonyms before
 computing distances.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 taxo_search("Bacteria")
 taxo_search("Nereis")
 taxo_search("Tyrannosaurus")
-}
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \code{\link[=get_lineage]{get_lineage()}}, \code{\link[=taxo_resolve]{taxo_resolve()}}

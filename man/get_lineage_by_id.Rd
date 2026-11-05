@@ -36,11 +36,11 @@ Cleaned and uncleaned lineages are cached separately, so the value of
 \code{clean} used in an earlier call never affects later calls.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 id <- get_taxonomicon_id("Tyrannosaurus")
 lin <- get_lineage_by_id(id)
 print(lin)
-}
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \code{\link[=get_lineage]{get_lineage()}}, \code{\link[=taxo_distance]{taxo_distance()}}

@@ -3,8 +3,7 @@
 skip_if_taxonomicon_down <- function() {
   testthat::skip_on_cran()
   testthat::skip_on_ci()
-  res <- tryCatch(httr::GET("http://taxonomicon.taxonomy.nl", httr::timeout(3)), error = function(e) NULL)
-  if (is.null(res) || httr::status_code(res) != 200) {
+  if (!taxonomicon_available()) {
     testthat::skip("Taxonomicon server is currently offline.")
   }
 }

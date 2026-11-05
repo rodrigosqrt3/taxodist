@@ -77,8 +77,7 @@
 #' Computational Linguistics*, 133--138.
 #'
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' # Distance between two theropods
 #' taxo_distance("Tyrannosaurus", "Velociraptor")
 #'
@@ -88,7 +87,6 @@
 #' # The same pair under other metrics
 #' taxo_distance("Tyrannosaurus", "Velociraptor", metric = "path")
 #' taxo_distance("Tyrannosaurus", "Velociraptor", metric = "ranked")
-#' }
 taxo_distance <- function(taxon_a, taxon_b, verbose = FALSE,
                           metric = "reciprocal") {
   metric <- .match_metric(metric)
@@ -120,12 +118,10 @@ taxo_distance <- function(taxon_a, taxon_b, verbose = FALSE,
 #'   either taxon cannot be found or no common ancestor exists.
 #'
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' mrca("Tyrannosaurus", "Velociraptor")   # "Tyrannoraptora"
 #' mrca("Tyrannosaurus", "Triceratops")    # "Dinosauria"
 #' mrca("Tyrannosaurus", "Homo")           # "Amniota"
-#' }
 mrca <- function(taxon_a, taxon_b, verbose = FALSE) {
   result <- taxo_distance(taxon_a, taxon_b, verbose = verbose)
   if (is.null(result)) return(NULL)
@@ -165,13 +161,11 @@ mrca <- function(taxon_a, taxon_b, verbose = FALSE) {
 #'   [taxo_resolve()], [taxo_bundle()], [taxo_tree()]
 #'
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' theropods <- c("Tyrannosaurus", "Velociraptor", "Spinosaurus",
 #'                "Allosaurus", "Carnotaurus")
 #' mat <- distance_matrix(theropods)
 #' print(mat)
-#' }
 distance_matrix <- function(taxa, verbose = FALSE, progress = TRUE,
                             metric = "reciprocal") {
   if (inherits(taxa, "taxodist_bundle")) {
@@ -296,11 +290,9 @@ cross_distances <- function(x, y, verbose = FALSE, progress = TRUE,
 #'   empty data frame with the same columns.
 #'
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' closest_relative("Tyrannosaurus",
 #'   c("Velociraptor", "Triceratops", "Brachiosaurus", "Allosaurus"))
-#' }
 closest_relative <- function(taxon, candidates, verbose = FALSE,
                              metric = "reciprocal") {
   metric <- .match_metric(metric)
@@ -356,12 +348,10 @@ closest_relative <- function(taxon, candidates, verbose = FALSE,
 #' @seealso [closest_relative()], [cross_distances()], [distance_matrix()],
 #'   [taxo_distance()]
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' community <- c("Velociraptor", "Triceratops", "Brachiosaurus",
 #'                "Allosaurus", "Homo", "Quercus")
 #' focal_distances("Tyrannosaurus", community)
-#' }
 focal_distances <- function(focal, community, verbose = FALSE, progress = TRUE,
                             metric = "reciprocal") {
   metric <- .match_metric(metric)
@@ -435,11 +425,9 @@ focal_distances <- function(focal, community, verbose = FALSE, progress = TRUE,
 #'   be found.
 #'
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' lineage_depth("Tyrannosaurus")   # deep — many intermediate clades
 #' lineage_depth("Biota")           # shallow — near root
-#' }
 lineage_depth <- function(taxon, verbose = FALSE) {
   lin <- get_lineage(taxon, verbose = verbose)
   if (is.null(lin)) return(NULL)
@@ -461,10 +449,8 @@ lineage_depth <- function(taxon, verbose = FALSE) {
 #'
 #' @seealso [taxo_resolve()] for a complete audit of each name.
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' check_coverage(c("Tyrannosaurus", "Velociraptor", "Fakeosaurus"))
-#' }
 check_coverage <- function(taxa, verbose = FALSE) {
   result <- vapply(taxa, function(t) {
     lookup <- .lookup_taxonomicon_id(t, verbose = verbose)
@@ -500,13 +486,11 @@ check_coverage <- function(taxa, verbose = FALSE) {
 #' @seealso [taxo_tree()] for a tree whose internal nodes are the named clades
 #'   of the classification, [taxo_ordinate()], [distance_matrix()]
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' taxa <- c("Tyrannosaurus", "Velociraptor", "Triceratops", "Brachiosaurus")
 #' cl <- taxo_cluster(taxa)
 #' if (!is.null(cl$hclust)) {
 #'   plot(cl)
-#' }
 #' }
 taxo_cluster <- function(taxa, method = "average", ...) {
   d <- if (inherits(taxa, "dist")) taxa else distance_matrix(taxa, ...)
@@ -549,14 +533,12 @@ taxo_cluster <- function(taxa, method = "average", ...) {
 #'
 #' @seealso [taxo_cluster()], [distance_matrix()]
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' taxa <- c("Tyrannosaurus", "Velociraptor", "Triceratops", "Brachiosaurus")
 #' ord <- taxo_ordinate(taxa)
 #' if (!is.null(ord$points)) {
 #'   plot(ord$points, type = "n")
 #'   text(ord$points, labels = rownames(ord$points))
-#' }
 #' }
 taxo_ordinate <- function(taxa, k = 2, ...) {
   d <- if (inherits(taxa, "dist")) taxa else distance_matrix(taxa, ...)

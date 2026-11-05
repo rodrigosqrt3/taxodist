@@ -623,3 +623,23 @@ test_that("get_lineage_by_id parses #divPageContent path with nav header and ᵀ
   expect_false(any(grepl("melanogaster", lin)))
 })
 
+
+test_that("taxonomicon_available reports whether the server answers", {
+  up <- taxonomicon_available
+  mockery::stub(up, "httr::GET", function(...) structure(list(), class = "response"))
+  mockery::stub(up, "httr::status_code", function(...) 200L)
+  expect_true(up())
+
+  error_page <- taxonomicon_available
+  mockery::stub(error_page, "httr::GET", function(...) structure(list(), class = "response"))
+  mockery::stub(error_page, "httr::status_code", function(...) 503L)
+  expect_false(error_page())
+
+  down <- taxonomicon_available
+  mockery::stub(down, "httr::GET", function(...) stop("Timeout was reached"))
+  expect_false(down(timeout = 0.5))
+
+  expect_error(taxonomicon_available(timeout = 0), "positive number")
+  expect_error(taxonomicon_available(timeout = c(1, 2)), "positive number")
+  expect_error(taxonomicon_available(timeout = "3"), "positive number")
+})

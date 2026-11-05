@@ -56,6 +56,36 @@ regexEscape <- function(x) gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", x)
   as.integer(tries)
 }
 
+#' Check whether The Taxonomicon can be reached
+#'
+#' Sends a single quick request to The Taxonomicon and reports whether it
+#' answered. Useful to skip code that needs the server, such as examples, when
+#' there is no internet connection or the server is down; lineage retrieval
+#' itself already handles failed requests.
+#'
+#' @param timeout Maximum time to wait for an answer, in seconds.
+#'
+#' @return `TRUE` if the server answered with a successful response, `FALSE`
+#'   otherwise, including when there is no internet connection.
+#' @export
+#' @examples
+#' taxonomicon_available()
+taxonomicon_available <- function(timeout = 3) {
+  if (!is.numeric(timeout) || length(timeout) != 1L || is.na(timeout) ||
+      timeout <= 0) {
+    cli::cli_abort("{.arg timeout} must be a single positive number of seconds.")
+  }
+  res <- tryCatch(
+    httr::GET(
+      "http://taxonomicon.taxonomy.nl/",
+      httr::add_headers("User-Agent" = .taxodist_user_agent()),
+      httr::timeout(timeout)
+    ),
+    error = function(e) NULL
+  )
+  !is.null(res) && identical(as.integer(httr::status_code(res)), 200L)
+}
+
 # Collapse internal runs of whitespace and trim the ends, so that
 # "Homo  sapiens " and "Homo sapiens" query and cache the same name.
 .normalize_taxon <- function(taxon) {
@@ -292,9 +322,7 @@ regexEscape <- function(x) gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", x)
 #' @return Invisibly returns `NULL`.
 #' @export
 #' @examples
-#' \donttest{
 #' clear_cache()
-#' }
 clear_cache <- function() {
   rm(
     list = ls(envir = .taxodist_cache, all.names = TRUE),
@@ -317,11 +345,9 @@ clear_cache <- function() {
 #' @seealso [load_cache()], [clear_cache()]
 #' @export
 #' @examples
-#' \donttest{
 #' tmp <- tempfile(fileext = ".rds")
 #' save_cache(tmp)
 #' unlink(tmp)
-#' }
 save_cache <- function(file = NULL) {
   if (is.null(file)) {
     file <- .default_cache_file()
@@ -350,12 +376,10 @@ save_cache <- function(file = NULL) {
 #' @seealso [save_cache()], [clear_cache()]
 #' @export
 #' @examples
-#' \donttest{
 #' tmp <- tempfile(fileext = ".rds")
 #' save_cache(tmp)
 #' load_cache(tmp)
 #' unlink(tmp)
-#' }
 load_cache <- function(file = NULL) {
   if (is.null(file)) file <- .default_cache_file()
   if (!file.exists(file)) {
@@ -471,12 +495,10 @@ load_cache <- function(file = NULL) {
 #'
 #' @seealso [save_cache()], [load_cache()], [clear_cache()]
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' get_lineage("Tyrannosaurus")
 #' get_lineage("Velociraptor")
 #' cache_info()
-#' }
 cache_info <- function() {
   keys <- ls(envir = .taxodist_cache, all.names = TRUE)
 
@@ -552,12 +574,10 @@ cache_info <- function() {
 #' @seealso [get_lineage()], [taxo_resolve()], [check_coverage()]
 #'
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' get_taxonomicon_id("Tyrannosaurus")   # returns "50841"
 #' get_taxonomicon_id("Homo")
 #' get_taxonomicon_id("Quercus")
-#' }
 get_taxonomicon_id <- function(taxon, verbose = FALSE) {
   .lookup_taxonomicon_id(taxon, verbose = verbose)$id
 }
@@ -701,12 +721,10 @@ get_taxonomicon_id <- function(taxon, verbose = FALSE) {
 #' @seealso [get_lineage()], [taxo_distance()]
 #'
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' id <- get_taxonomicon_id("Tyrannosaurus")
 #' lin <- get_lineage_by_id(id)
 #' print(lin)
-#' }
 get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
   if (is.null(taxon_id) || length(taxon_id) == 0L) {
     return(NULL)
@@ -977,12 +995,10 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
 #'   `NULL` if the taxon cannot be found.
 #'
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' get_lineage("Tyrannosaurus")
 #' get_lineage("Homo sapiens")
 #' get_lineage("Quercus robur")
-#' }
 get_lineage <- function(taxon, clean = TRUE, verbose = FALSE) {
   if (length(taxon) != 1L) {
     cli::cli_abort("{.arg taxon} must be a single taxon name or ID.")
@@ -1026,10 +1042,8 @@ get_lineage <- function(taxon, clean = TRUE, verbose = FALSE) {
 #'
 #' @seealso [get_lineage()], [taxo_distance()]
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' lineage_ranks("Passer")
-#' }
 lineage_ranks <- function(taxon, clean = TRUE, verbose = FALSE) {
   if (length(taxon) != 1L) {
     cli::cli_abort("{.arg taxon} must be a single taxon name or ID.")
@@ -1076,12 +1090,10 @@ lineage_ranks <- function(taxon, clean = TRUE, verbose = FALSE) {
 #'
 #' @seealso [get_lineage()], [taxo_resolve()]
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' taxo_search("Bacteria")
 #' taxo_search("Nereis")
 #' taxo_search("Tyrannosaurus")
-#' }
 taxo_search <- function(taxon, verbose = FALSE) {
   .taxo_search_details(taxon, verbose = verbose)$results
 }
@@ -1172,14 +1184,12 @@ taxo_search <- function(taxon, verbose = FALSE) {
 #'
 #' @seealso [taxo_search()], [distance_matrix()], [check_coverage()]
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' resolved <- taxo_resolve(c("Tyrannosaurus", "Nereis", "50841"))
 #' distance_matrix(resolved)
 #'
 #' # Restrict homonyms to animals
 #' taxo_resolve("Nereis", within = "Animalia")
-#' }
 taxo_resolve <- function(taxa,
                          ambiguity = c("warn", "first", "error"),
                          verbose = FALSE,

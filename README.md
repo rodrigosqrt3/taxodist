@@ -4,11 +4,17 @@
 
 **Taxonomic hierarchy distances derived from lineage classifications.**
 
-`taxodist` retrieves taxonomic lineages from [The Taxonomicon](http://taxonomicon.taxonomy.nl) and computes distances from the depth of the most recent common ancestor. It supports comparisons among named taxa at any level represented in the source hierarchy.
+`taxodist` retrieves taxonomic lineages from [The Taxonomicon](http://taxonomicon.taxonomy.nl) and computes distances from the depth of the most recent common ancestor. It supports comparisons among named taxa at any level represented in the source hierarchy, offers alternative distance metrics, and computes Clarke and Warwick's taxonomic distinctness indices.
+
+The same package is available for [Python](https://github.com/rodrigosqrt3/taxodist-py) and [Julia](https://github.com/rodrigosqrt3/Taxodist.jl); the three implementations give identical results and exchange analyses through a common JSON bundle format.
 
 ## Installation
 
 ```r
+# Release version from CRAN
+install.packages("taxodist")
+
+# Development version from GitHub
 devtools::install_github("rodrigosqrt3/taxodist")
 ```
 
@@ -17,11 +23,15 @@ devtools::install_github("rodrigosqrt3/taxodist")
 ```r
 library(taxodist)
 
-# Get a full lineage
+# Get a full lineage, and the rank of each of its nodes
 get_lineage("Tyrannosaurus")
+lineage_ranks("Tyrannosaurus")
 
 # Distance between two taxa
 taxo_distance("Tyrannosaurus", "Velociraptor")
+
+# The same distance with another metric (see "Distance metrics" below)
+taxo_distance("Tyrannosaurus", "Velociraptor", metric = "wu_palmer")
 
 # Most recent common ancestor
 mrca("Tyrannosaurus", "Triceratops")   # "Dinosauria"
@@ -44,6 +54,14 @@ filter_clade(taxa, "Dinosauria")
 
 # Get the path between two taxa
 taxo_path("Tyrannosaurus", "Velociraptor")
+
+# Taxonomic distinctness of a community (Clarke & Warwick), and a test
+# against random samples from a master list
+pool <- c("Tyrannosaurus", "Velociraptor", "Triceratops", "Stegosaurus",
+          "Brachiosaurus", "Diplodocus", "Allosaurus", "Spinosaurus")
+d <- distance_matrix(pool, metric = "ranked")
+taxo_distinctness(c("Tyrannosaurus", "Velociraptor", "Allosaurus"), d)
+taxo_distinctness_test(c("Tyrannosaurus", "Velociraptor", "Allosaurus"), d)
 
 # Save and restore the lineage cache across sessions
 save_cache()   # persistent per-user location; or save_cache("my_cache.rds")
@@ -73,9 +91,9 @@ restored <- read_taxodist_bundle("analysis.json")
 compare_bundles("analysis.json", taxo_bundle(restored$resolution$input))
 ```
 
-## The distance metric
+## Distance metrics
 
-`taxodist` measures relatedness by asking a single question: how deep is the most recent common ancestor (MRCA)?
+By default, `taxodist` measures relatedness by asking a single question: how deep is the most recent common ancestor (MRCA)?
 
 $$
 d(A,B) =
@@ -91,13 +109,27 @@ Distance and membership answer different questions. For example, *Tyrannosaurus*
 
 The numerical values depend on the resolution of the classification returned by The Taxonomicon. They represent separation within that hierarchy and should not be interpreted as evolutionary time or phylogenetic branch length.
 
+Every distance function accepts a `metric` argument. With *h* the depth of the MRCA and *d<sub>A</sub>*, *d<sub>B</sub>* the depths of the two taxa:
+
+| `metric` | Distance | Properties |
+|---|---|---|
+| `"reciprocal"` (default) | 1 / *h* | ultrametric; best tracks divergence time within a clade |
+| `"path"` | *d<sub>A</sub>* + *d<sub>B</sub>* − 2*h* | number of edges between the two taxa |
+| `"wu_palmer"` | 1 − 2*h* / (*d<sub>A</sub>* + *d<sub>B</sub>*) | between 0 and 1; corrects for uneven resolution of the classification |
+| `"ranked"` | half the path through the standard ranks only | the step weights of Clarke and Warwick's taxonomic distinctness |
+
+All metrics are 0 for identical taxa. The ranks used by `"ranked"` (kingdom to species by default) can be changed with `options(taxodist.rank_levels = ...)`.
+
 ## Caching
 
 Lineages are cached in memory automatically during a session. To persist the
 cache across sessions and avoid redundant network requests, use `save_cache()`
 and `load_cache()`, which default to a per-user cache directory, or pass an
 explicit file path. Requests are retried automatically after transient network
-errors (`options(taxodist.max_tries = ...)`, default 3).
+errors (`options(taxodist.max_tries = ...)`, default 3), and consecutive
+requests are spaced by at least 0.25 s (`options(taxodist.min_interval = ...)`)
+so that large batches do not overload the server. `taxonomicon_available()`
+checks quickly whether the server can be reached.
 
 ## Data source
 

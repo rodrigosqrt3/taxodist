@@ -29,13 +29,13 @@ object is preserved.
 Computes pairwise taxonomic distances and performs hierarchical clustering.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 taxa <- c("Tyrannosaurus", "Velociraptor", "Triceratops", "Brachiosaurus")
 cl <- taxo_cluster(taxa)
 if (!is.null(cl$hclust)) {
   plot(cl)
 }
-}
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \code{\link[=taxo_tree]{taxo_tree()}} for a tree whose internal nodes are the named clades

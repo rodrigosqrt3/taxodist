@@ -37,11 +37,11 @@ Transient network failures are retried (three attempts by default; see
 the \code{taxodist.max_tries} option in \link{taxodist-package}).
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 get_taxonomicon_id("Tyrannosaurus")   # returns "50841"
 get_taxonomicon_id("Homo")
 get_taxonomicon_id("Quercus")
-}
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \code{\link[=get_lineage]{get_lineage()}}, \code{\link[=taxo_resolve]{taxo_resolve()}}, \code{\link[=check_coverage]{check_coverage()}}

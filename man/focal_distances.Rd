@@ -45,11 +45,11 @@ common ancestor (MRCA) for each pair, making it easy to interpret \emph{why} a
 taxon is close or distant.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 community <- c("Velociraptor", "Triceratops", "Brachiosaurus",
                "Allosaurus", "Homo", "Quercus")
 focal_distances("Tyrannosaurus", community)
-}
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \code{\link[=closest_relative]{closest_relative()}}, \code{\link[=cross_distances]{cross_distances()}}, \code{\link[=distance_matrix]{distance_matrix()}},

@@ -31,14 +31,14 @@ Computes pairwise taxonomic distances and applies classical multidimensional
 scaling (PCoA) to project taxa into a low-dimensional space.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 taxa <- c("Tyrannosaurus", "Velociraptor", "Triceratops", "Brachiosaurus")
 ord <- taxo_ordinate(taxa)
 if (!is.null(ord$points)) {
   plot(ord$points, type = "n")
   text(ord$points, labels = rownames(ord$points))
 }
-}
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \code{\link[=taxo_cluster]{taxo_cluster()}}, \code{\link[=distance_matrix]{distance_matrix()}}

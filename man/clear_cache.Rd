@@ -14,7 +14,5 @@ Clears all cached lineages stored in the current R session. Useful when
 you suspect cached data is stale or want to force fresh retrieval.
 }
 \examples{
-\donttest{
 clear_cache()
-}
 }

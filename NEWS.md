@@ -375,6 +375,10 @@ definitions and continue to read bundles written by this version.
   presence or abundance data. Results agree with `vegan::taxondive()`.
   `taxo_distinctness_test()` compares Δ+ and Λ+ of a sample with random
   samples of the same size from a master list.
+* `taxonomicon_available()` reports whether The Taxonomicon can be reached,
+  with a short timeout. Examples that need the server now run only when it
+  answers (`@examplesIf`), so checking the package no longer waits on network
+  timeouts when the server is down.
 * **Bundle schema 1.1.** Bundles record the metric used (and, for
   `"ranked"`, its rank levels) and the lineage ranks. Distances are verified
   with the stored metric. Schema 1.0 bundles are still read.

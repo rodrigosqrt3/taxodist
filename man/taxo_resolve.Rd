@@ -61,13 +61,13 @@ Objects returned by \code{taxo_resolve()} can be passed directly to
 original input names as matrix labels.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 resolved <- taxo_resolve(c("Tyrannosaurus", "Nereis", "50841"))
 distance_matrix(resolved)
 
 # Restrict homonyms to animals
 taxo_resolve("Nereis", within = "Animalia")
-}
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \code{\link[=taxo_search]{taxo_search()}}, \code{\link[=distance_matrix]{distance_matrix()}}, \code{\link[=check_coverage]{check_coverage()}}

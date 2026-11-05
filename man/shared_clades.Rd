@@ -22,8 +22,8 @@ Returns the vector of clade names forming the shared trunk of two taxa's
 lineages, from root down to (and including) their MRCA.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 shared_clades("Tyrannosaurus", "Velociraptor")
 shared_clades("Tyrannosaurus", "Homo")
-}
+\dontshow{\}) # examplesIf}
 }

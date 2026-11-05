@@ -38,9 +38,9 @@ name. Many nodes are unranked clades (\code{"Clade"}). Ranks are used by the
 \code{"ranked"} distance method; see \code{\link[=taxo_distance]{taxo_distance()}}.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 lineage_ranks("Passer")
-}
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \code{\link[=get_lineage]{get_lineage()}}, \code{\link[=taxo_distance]{taxo_distance()}}

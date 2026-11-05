@@ -33,10 +33,10 @@ data frame with one row per node, making it easy to inspect, filter, or
 pipe into other functions.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 taxo_path("Tyrannosaurus", "Velociraptor")
 taxo_path("Tyrannosaurus", "Homo")
-}
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \code{\link[=mrca]{mrca()}}, \code{\link[=shared_clades]{shared_clades()}}, \code{\link[=compare_lineages]{compare_lineages()}}

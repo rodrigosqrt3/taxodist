@@ -25,11 +25,11 @@ Useful for understanding what has already been retrieved before running
 further computations.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 get_lineage("Tyrannosaurus")
 get_lineage("Velociraptor")
 cache_info()
-}
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \code{\link[=save_cache]{save_cache()}}, \code{\link[=load_cache]{load_cache()}}, \code{\link[=clear_cache]{clear_cache()}}

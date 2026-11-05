@@ -33,9 +33,9 @@ Invisibly returns \code{x}. Called for side effects (plotting).
 Plots the PCoA ordination produced by \code{\link[=taxo_ordinate]{taxo_ordinate()}}.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 taxa <- c("Tyrannosaurus", "Velociraptor", "Triceratops", "Brachiosaurus")
 ord <- taxo_ordinate(taxa)
 plot(ord)
-}
+\dontshow{\}) # examplesIf}
 }

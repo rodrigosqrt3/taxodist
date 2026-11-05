@@ -21,10 +21,10 @@ Given a vector of taxon names and a clade name, returns only those taxa
 whose lineage includes the specified clade.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 taxa <- c("Tyrannosaurus", "Triceratops", "Velociraptor",
           "Brachiosaurus", "Homo")
 filter_clade(taxa, "Theropoda")
 filter_clade(taxa, "Dinosauria")
-}
+\dontshow{\}) # examplesIf}
 }

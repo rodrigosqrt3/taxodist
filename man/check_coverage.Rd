@@ -22,9 +22,9 @@ whether the taxon was found. Useful for pre-screening a list of names
 before running distance computations.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 check_coverage(c("Tyrannosaurus", "Velociraptor", "Fakeosaurus"))
-}
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \code{\link[=taxo_resolve]{taxo_resolve()}} for a complete audit of each name.

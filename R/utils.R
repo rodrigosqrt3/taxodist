@@ -62,11 +62,9 @@ print.taxodist_resolution <- function(x, ...) {
 #'   and `mrca_depth`.
 #'
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' compare_lineages("Tyrannosaurus", "Velociraptor")
 #' compare_lineages("Tyrannosaurus", "Triceratops")
-#' }
 compare_lineages <- function(taxon_a, taxon_b, verbose = FALSE) {
   lin_a <- get_lineage(taxon_a, verbose = verbose)
   lin_b <- get_lineage(taxon_b, verbose = verbose)
@@ -128,11 +126,9 @@ compare_lineages <- function(taxon_a, taxon_b, verbose = FALSE) {
 #'   or `NULL` if either taxon cannot be found.
 #'
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' shared_clades("Tyrannosaurus", "Velociraptor")
 #' shared_clades("Tyrannosaurus", "Homo")
-#' }
 shared_clades <- function(taxon_a, taxon_b, verbose = FALSE) {
   lin_a <- get_lineage(taxon_a, verbose = verbose)
   lin_b <- get_lineage(taxon_b, verbose = verbose)
@@ -156,12 +152,10 @@ shared_clades <- function(taxon_a, taxon_b, verbose = FALSE) {
 #' @return A logical value, or `NULL` if the taxon cannot be found.
 #'
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' is_member("Tyrannosaurus", "Theropoda")    # TRUE
 #' is_member("Triceratops", "Theropoda")      # FALSE
 #' is_member("Homo", "Amniota")               # TRUE
-#' }
 is_member <- function(taxon, clade, verbose = FALSE) {
   lin <- get_lineage(taxon, verbose = verbose)
   if (is.null(lin)) return(NULL)
@@ -182,13 +176,11 @@ is_member <- function(taxon, clade, verbose = FALSE) {
 #' @return A character vector of taxa that are members of the specified clade.
 #'
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' taxa <- c("Tyrannosaurus", "Triceratops", "Velociraptor",
 #'           "Brachiosaurus", "Homo")
 #' filter_clade(taxa, "Theropoda")
 #' filter_clade(taxa, "Dinosauria")
-#' }
 filter_clade <- function(taxa, clade, verbose = FALSE) {
   keep <- vapply(taxa, function(t) {
     result <- is_member(t, clade, verbose = verbose)
@@ -209,12 +201,10 @@ filter_clade <- function(taxa, clade, verbose = FALSE) {
 #'
 #' @return Invisibly returns `x`. Called for side effects (plotting).
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' taxa <- c("Tyrannosaurus", "Velociraptor", "Triceratops", "Brachiosaurus")
 #' cl <- taxo_cluster(taxa)
 #' plot(cl)
-#' }
 plot.taxodist_cluster <- function(x, main = "Taxonomic Clustering",
                                   xlab = "",
                                   sub  = paste("Method:", if(!is.null(x$hclust)) x$hclust$method else "None"),
@@ -237,12 +227,10 @@ plot.taxodist_cluster <- function(x, main = "Taxonomic Clustering",
 #'
 #' @return Invisibly returns `x`. Called for side effects (plotting).
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' taxa <- c("Tyrannosaurus", "Velociraptor", "Triceratops", "Brachiosaurus")
 #' ord <- taxo_ordinate(taxa)
 #' plot(ord)
-#' }
 plot.taxodist_ord <- function(x, main   = "Taxonomic Ordination (PCoA)",
                               xlab   = "PC1",
                               ylab   = "PC2",
@@ -317,11 +305,9 @@ summary.taxodist_ord <- function(object, ...) {
 #'   Called primarily for its side effect (plotting).
 #'   If fewer than two taxa are supplied, plotting is skipped.
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' taxa <- c("Tyrannosaurus", "Velociraptor", "Homo", "Panthera", "Quercus")
 #' taxo_heatmap(taxa, col = hcl.colors(12, "YlOrRd"), progress = FALSE)
-#' }
 taxo_heatmap <- function(taxa, ..., verbose = FALSE, progress = TRUE,
                          metric = "reciprocal") {
   d <- if (inherits(taxa, "dist")) {
@@ -371,11 +357,9 @@ taxo_heatmap <- function(taxa, ..., verbose = FALSE, progress = TRUE,
 #'
 #' @seealso [mrca()], [shared_clades()], [compare_lineages()]
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' taxo_path("Tyrannosaurus", "Velociraptor")
 #' taxo_path("Tyrannosaurus", "Homo")
-#' }
 taxo_path <- function(taxon_a, taxon_b, verbose = FALSE) {
   lin_a <- get_lineage(taxon_a, verbose = verbose)
   lin_b <- get_lineage(taxon_b, verbose = verbose)

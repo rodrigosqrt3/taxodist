@@ -22,9 +22,9 @@ clade name appears in the taxon's lineage. Matching is case-insensitive and
 ignores leading and trailing whitespace.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 is_member("Tyrannosaurus", "Theropoda")    # TRUE
 is_member("Triceratops", "Theropoda")      # FALSE
 is_member("Homo", "Amniota")               # TRUE
-}
+\dontshow{\}) # examplesIf}
 }

@@ -27,8 +27,8 @@ Given a query taxon and a vector of candidate taxa, returns the candidate
 with the smallest taxonomic hierarchy distance to the query.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 closest_relative("Tyrannosaurus",
   c("Velociraptor", "Triceratops", "Brachiosaurus", "Allosaurus"))
-}
+\dontshow{\}) # examplesIf}
 }

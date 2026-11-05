@@ -22,9 +22,9 @@ Retrieves the lineages of two taxa and returns the name of their most
 recent common ancestor (MRCA) — the deepest node shared by both lineages.
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 mrca("Tyrannosaurus", "Velociraptor")   # "Tyrannoraptora"
 mrca("Tyrannosaurus", "Triceratops")    # "Dinosauria"
 mrca("Tyrannosaurus", "Homo")           # "Amniota"
-}
+\dontshow{\}) # examplesIf}
 }

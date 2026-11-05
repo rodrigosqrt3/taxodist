@@ -19,11 +19,9 @@
 #' @seealso [write_taxodist_bundle()], [read_taxodist_bundle()],
 #'   [compare_bundles()]
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf taxonomicon_available()
 #' bundle <- taxo_bundle(c("Tyrannosaurus", "Triceratops", "Homo"))
 #' distance_matrix(bundle)
-#' }
 taxo_bundle <- function(taxa,
                         ambiguity = c("warn", "first", "error"),
                         verbose = FALSE,

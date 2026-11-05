@@ -77,7 +77,7 @@ Lineages without a shared root have infinite distance, except under
 }
 
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 # Distance between two theropods
 taxo_distance("Tyrannosaurus", "Velociraptor")
 
@@ -87,7 +87,7 @@ taxo_distance("Tyrannosaurus", "Quercus")
 # The same pair under other metrics
 taxo_distance("Tyrannosaurus", "Velociraptor", metric = "path")
 taxo_distance("Tyrannosaurus", "Velociraptor", metric = "ranked")
-}
+\dontshow{\}) # examplesIf}
 }
 \references{
 Brands, S.J. (1989 onwards). Systema Naturae 2000. Amsterdam, The

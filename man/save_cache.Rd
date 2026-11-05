@@ -20,11 +20,9 @@ restored in a future session with \code{\link[=load_cache]{load_cache()}}. Usefu
 reproducibility and for avoiding repeated network requests.
 }
 \examples{
-\donttest{
 tmp <- tempfile(fileext = ".rds")
 save_cache(tmp)
 unlink(tmp)
-}
 }
 \seealso{
 \code{\link[=load_cache]{load_cache()}}, \code{\link[=clear_cache]{clear_cache()}}

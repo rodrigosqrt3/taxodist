@@ -33,8 +33,8 @@ clustering dendrograms on the margins. Darker/hotter colors typically
 represent smaller distances (closer relatives).
 }
 \examples{
-\donttest{
+\dontshow{if (taxonomicon_available()) withAutoprint(\{ # examplesIf}
 taxa <- c("Tyrannosaurus", "Velociraptor", "Homo", "Panthera", "Quercus")
 taxo_heatmap(taxa, col = hcl.colors(12, "YlOrRd"), progress = FALSE)
-}
+\dontshow{\}) # examplesIf}
 }
