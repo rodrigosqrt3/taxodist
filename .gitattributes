@@ -1,0 +1,3 @@
+# Saved Taxonomicon pages used as parser test fixtures: keep them out of
+# GitHub's language statistics.
+tests/testthat/fixtures/** linguist-vendored
