@@ -56,6 +56,9 @@
 #' - `taxodist.max_tries`: number of attempts made for each request to The
 #'   Taxonomicon (default `3`). Network errors and server errors (5xx) are
 #'   retried with exponential backoff; client errors (4xx) are not.
+#' - `taxodist.min_interval`: minimum time in seconds between consecutive
+#'   requests to The Taxonomicon (default `0.25`), so that large batches do
+#'   not overload the server. Set to `0` to disable.
 #'
 #' @references
 #' Brands, S.J. (1989 onwards). Systema Naturae 2000. Amsterdam,

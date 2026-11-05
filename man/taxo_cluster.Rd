@@ -14,7 +14,7 @@ taxo_cluster(taxa, method = "average", ...)
 \code{"average"} (UPGMA), which works well with taxonomic distances.}
 
 \item{...}{Additional arguments passed to \code{\link[=distance_matrix]{distance_matrix()}} (e.g.
-\code{verbose}, \code{progress}).}
+\code{verbose}, \code{progress}, or \code{metric}).}
 }
 \value{
 An object of class \code{"taxodist_cluster"} — a list with:

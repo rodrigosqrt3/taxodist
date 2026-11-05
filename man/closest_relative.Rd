@@ -4,7 +4,7 @@
 \alias{closest_relative}
 \title{Find the closest relative of a taxon among a set of candidates}
 \usage{
-closest_relative(taxon, candidates, verbose = FALSE)
+closest_relative(taxon, candidates, verbose = FALSE, metric = "reciprocal")
 }
 \arguments{
 \item{taxon}{A character string giving the query taxon name.}
@@ -13,10 +13,12 @@ closest_relative(taxon, candidates, verbose = FALSE)
 against.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages. Default \code{FALSE}.}
+
+\item{metric}{Distance metric; see \code{\link[=taxo_distance]{taxo_distance()}}.}
 }
 \value{
-A data frame with columns \code{taxon} (candidate name) and \code{distance}
-(ultrametric distance), sorted by distance ascending. Returns \code{NULL} if
+A data frame with columns \code{taxon} (candidate name) and \code{distance},
+sorted by distance ascending. Returns \code{NULL} if
 the query taxon cannot be found. An empty candidate vector returns an
 empty data frame with the same columns.
 }

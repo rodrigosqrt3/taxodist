@@ -12,7 +12,8 @@ taxo_ordinate(taxa, k = 2, ...)
 
 \item{k}{Number of dimensions. Default \code{2}.}
 
-\item{...}{Additional arguments passed to \code{\link[=distance_matrix]{distance_matrix()}}.}
+\item{...}{Additional arguments passed to \code{\link[=distance_matrix]{distance_matrix()}} (e.g.
+\code{metric}).}
 }
 \value{
 An object of class \code{"taxodist_ord"} — a list with:

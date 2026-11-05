@@ -3,7 +3,39 @@
 #' @importFrom stringr str_remove str_remove_all str_extract str_trim
 NULL
 
-regexEscape <- function(x) gsub("([.\\^$*+?{}\\[\\]|()])", "\\\\\\1", x)
+# Escape every regular-expression metacharacter so that `x` is matched
+# literally. The bracket expression lists `]` first so it is taken literally.
+regexEscape <- function(x) gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", x)
+
+# PCRE pattern matching `x` as a whole word. Unicode-aware lookarounds are used
+# instead of `\b`, which fails next to non-word characters (e.g. a name ending
+# in ")") and ignores non-ASCII letters. Use with `perl = TRUE`.
+.word_pattern <- function(x) {
+  paste0("(*UCP)(?<!\\w)", regexEscape(x), "(?!\\w)")
+}
+
+.contains_word <- function(text, word, ignore.case = FALSE) {
+  grepl(.word_pattern(word), text, perl = TRUE, ignore.case = ignore.case)
+}
+
+# Minimum interval, in seconds, between consecutive requests to The
+# Taxonomicon, so that large batches do not overload the server.
+.last_request <- new.env(parent = emptyenv())
+
+.throttle <- function() {
+  interval <- getOption("taxodist.min_interval", 0.25)
+  if (!is.numeric(interval) || length(interval) != 1L || is.na(interval) ||
+      interval <= 0) {
+    return(invisible(NULL))
+  }
+  last <- .last_request$time
+  if (!is.null(last)) {
+    wait <- interval - as.numeric(difftime(Sys.time(), last, units = "secs"))
+    if (wait > 0) Sys.sleep(wait)
+  }
+  .last_request$time <- Sys.time()
+  invisible(NULL)
+}
 
 .taxodist_user_agent <- function() {
   version <- tryCatch(
@@ -91,31 +123,157 @@ regexEscape <- function(x) gsub("([.\\^$*+?{}\\[\\]|()])", "\\\\\\1", x)
 # only when it is absent from the page (e.g. genera whose page links only to
 # their species).
 .finalize_lineage <- function(lineage, taxon) {
-  match_target <- function(lineage) {
-    idx <- which(lineage == taxon)
-    if (length(idx) == 0L) idx <- which(tolower(lineage) == tolower(taxon))
-    idx
+  plan <- .finalize_plan(lineage, taxon)
+  out <- lineage[plan$keep]
+  if (plan$append) c(out, taxon) else out
+}
+
+# Apply the same truncation to a rank vector aligned with `lineage`. An
+# appended taxon receives the rank implied by the form of its name.
+.finalize_ranks <- function(ranks, lineage, taxon) {
+  plan <- .finalize_plan(lineage, taxon)
+  out <- ranks[plan$keep]
+  if (plan$append) c(out, .rank_from_name(taxon)) else out
+}
+
+# Indices of `lineage` retained by .finalize_lineage(), and whether the
+# queried taxon must be appended.
+.finalize_plan <- function(lineage, taxon) {
+  candidates <- which(!grepl("^\\[", lineage))
+  candidates <- candidates[.keep_lineage_node(lineage[candidates], taxon)]
+  kept <- lineage[candidates]
+  target <- which(kept == taxon)
+  if (length(target) == 0L) target <- which(tolower(kept) == tolower(taxon))
+  if (length(target) > 0L) {
+    list(keep = candidates[seq_len(target[[length(target)]])], append = FALSE)
+  } else {
+    list(keep = candidates, append = TRUE)
+  }
+}
+
+# Nodes without spaces are always kept. A node with spaces (a species,
+# subspecies, or subgenus name) is kept only when it is the queried taxon or
+# one of its name-ancestors: the species of a queried subspecies, or the
+# subgenus of a queried species. Other multi-word nodes are descendants of the
+# queried taxon or residual text and are dropped.
+.keep_lineage_node <- function(lineage, taxon) {
+  lower <- tolower(lineage)
+  target <- tolower(taxon)
+  plain <- !grepl(" ", lineage)
+  if (!grepl(" ", taxon)) return(plain)
+
+  genus <- sub(" .*$", "", target)
+  is_target <- lower == target
+  species_of_target <- startsWith(target, paste0(lower, " "))
+  subgenus_of_target <- grepl("^\\S+ \\([^()]+\\)$", lineage) &
+    sub(" .*$", "", lower) == genus
+  plain | is_target | species_of_target | subgenus_of_target
+}
+
+# Parse the classification tree of a TaxonTree page. Each row of
+# `#ctl00_cphTabContent_divHierarchy` is an <a> (an ancestor) or a <span>
+# (the page's own taxon), followed by a <br>. The taxon name is the text of
+# the row's <b> element; ranks, dagger and type markers, and author strings
+# live outside it, so no regular-expression cleaning is needed. Rows after the
+# page's own taxon are its children and are excluded. Returns NULL when the
+# page has no such hierarchy block, so the caller can fall back to text
+# parsing.
+.parse_hierarchy <- function(page) {
+  container <- rvest::html_element(page, "#ctl00_cphTabContent_divHierarchy")
+  if (inherits(container, "xml_missing") || length(container) == 0L) {
+    return(NULL)
   }
 
-  if (!grepl(" ", taxon)) {
-    lineage <- lineage[!grepl(" ", lineage)]
-    lineage <- lineage[!grepl("^\\[", lineage)]
-    target_idx <- match_target(lineage)
-    if (length(target_idx) > 0) {
-      lineage <- lineage[seq_len(target_idx[length(target_idx)])]
-    } else {
-      lineage <- c(lineage, taxon)
+  nodes <- xml2::xml_find_all(
+    container,
+    paste0(
+      ".//node()[not(ancestor::a) and not(ancestor::span)]",
+      "[self::text() or self::a or self::span or self::br]"
+    )
+  )
+
+  names <- character(0)
+  ranks <- character(0)
+  indents <- integer(0)
+  is_self <- logical(0)
+  indent <- 0L
+  for (node in nodes) {
+    tag <- xml2::xml_name(node)
+    if (tag == "text") {
+      txt <- xml2::xml_text(node)
+      indent <- indent + lengths(regmatches(txt, gregexpr("\u00a0", txt)))
+      next
     }
-  } else {
-    lineage <- lineage[!grepl(" ", lineage) | tolower(lineage) == tolower(taxon)]
-    target_idx <- match_target(lineage)
-    if (length(target_idx) > 0) {
-      lineage <- lineage[seq_len(target_idx[1])]
-    } else {
-      lineage <- c(lineage, taxon)
+    if (tag == "br") {
+      indent <- 0L
+      next
     }
+    cls <- xml2::xml_attr(node, "class")
+    if (!is.na(cls) && cls %in% c("Ordinal", "Small")) next
+
+    bold <- xml2::xml_find_first(node, ".//b")
+    if (inherits(bold, "xml_missing")) next
+    name <- gsub("\\s+", " ", trimws(xml2::xml_text(bold)))
+    if (!nzchar(name)) next
+
+    names <- c(names, name)
+    ranks <- c(ranks, .rank_before_name(xml2::xml_text(node), name))
+    indents <- c(indents, indent)
+    is_self <- c(is_self, tag == "span")
   }
-  lineage
+  if (length(names) == 0L) return(NULL)
+
+  self_idx <- which(is_self)
+  if (length(self_idx) > 0L) {
+    keep <- self_idx[[1L]]
+    self_missing <- FALSE
+  } else {
+    # Some pages (e.g. unverified taxa) omit the row of the page's own taxon.
+    # Keep the leading run of strictly increasing indentation, i.e. the path
+    # from the root, and let the caller append the subject name.
+    keep <- 1L
+    while (keep < length(indents) && indents[[keep + 1L]] > indents[[keep]]) {
+      keep <- keep + 1L
+    }
+    self_missing <- TRUE
+  }
+  out <- names[seq_len(keep)]
+  attr(out, "ranks") <- ranks[seq_len(keep)]
+  if (self_missing) attr(out, "self_missing") <- TRUE
+  out
+}
+
+# -- Ranks --------------------------------------------------------------------
+
+# Rank of a tree row: the text that precedes the taxon name (e.g.
+# "[crown] Clade", "Superfamily \u2021?", "Anamorph genus"), without crown,
+# plesion, or stem qualifiers, extinction and type markers, quotes, or a
+# "Taxon:" caption. Rows without such text are species, subspecies, or
+# subgenera, whose rank is implied by the form of the name.
+.rank_before_name <- function(row_text, name) {
+  row_text <- gsub("\\s+", " ", row_text)
+  pos <- regexpr(name, row_text, fixed = TRUE)
+  prefix <- if (pos > 0L) substr(row_text, 1L, pos - 1L) else ""
+  .normalize_rank(prefix, name)
+}
+
+.normalize_rank <- function(prefix, name) {
+  prefix <- sub("^.*:", "", prefix)
+  prefix <- gsub("\\[(crown|plesion|stem)\\]", "", prefix)
+  prefix <- gsub("[\u2020\u2021\u1D40?\"]", "", prefix)
+  prefix <- trimws(gsub("\\s+", " ", prefix))
+  if (nzchar(prefix)) prefix else .rank_from_name(name)
+}
+
+# Rank implied by the form of a scientific name: "Genus (Subgenus)" is a
+# subgenus, a binomial a species, and a trinomial a subspecies. Uninomials
+# carry no rank information.
+.rank_from_name <- function(name) {
+  if (grepl("^\\S+ \\([^()]+\\)$", name)) return("Subgenus")
+  words <- length(strsplit(trimws(name), "\\s+")[[1L]])
+  if (words == 2L) return("Species")
+  if (words == 3L) return("Subspecies")
+  NA_character_
 }
 
 # -- Internal cache -----------------------------------------------------------
@@ -170,8 +328,10 @@ save_cache <- function(file = NULL) {
     dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
   }
   data <- as.list(.taxodist_cache)
+  n_entries <- length(data)
+  data[[.parser_version_key]] <- .parser_version
   saveRDS(data, file = file)
-  cli::cli_alert_success("Cache saved to {.file {file}} ({length(data)} entries).")
+  cli::cli_alert_success("Cache saved to {.file {file}} ({n_entries} entries).")
   invisible(file)
 }
 
@@ -249,10 +409,47 @@ load_cache <- function(file = NULL) {
     )
   }
 
+  # Lineages saved by an older parser may contain malformed nodes. Taxon IDs
+  # remain valid, so only those are restored from such a cache.
+  parser_version <- data[[.parser_version_key]]
+  data[[.parser_version_key]] <- NULL
+  current <- is.numeric(parser_version) && length(parser_version) == 1L &&
+    !is.na(parser_version) && parser_version >= .parser_version
+  if (!current) {
+    entry_names <- names(data)
+    if (is.null(entry_names)) entry_names <- character(0)
+    keep <- startsWith(entry_names, "id_")
+    n_dropped <- sum(!keep)
+    data <- data[keep]
+    if (n_dropped > 0L) {
+      cli::cli_warn(c(
+        "!" = "The cache was written by an older version of taxodist.",
+        "i" = paste(
+          "{n_dropped} lineage entr{?y was/ies were} discarded and will be",
+          "retrieved again; taxon IDs were kept."
+        )
+      ))
+    }
+  }
+
   list2env(data, envir = .taxodist_cache)
   cli::cli_alert_success("Cache loaded from {.file {file}} ({length(data)} entries).")
   invisible(NULL)
 }
+
+# Order of homonymous candidates: entries whose search description marks the
+# name as invalid or rejected (e.g. "nom. inval.", "nom. rej.") are moved
+# after the others, keeping the search order within each group.
+.candidate_order <- function(descriptions) {
+  invalid <- grepl("\\bnom\\.\\s*(inval|rej|nud|illeg)\\.", descriptions,
+                   ignore.case = TRUE)
+  order(invalid)
+}
+
+# Version of the lineage parser. Saved caches record it so that lineages
+# produced by an older parser are not reused.
+.parser_version <- 2L
+.parser_version_key <- "meta_parser_version"
 
 #' Inspect the current taxodist lineage cache
 #'
@@ -381,6 +578,7 @@ get_taxonomicon_id <- function(taxon, verbose = FALSE) {
 
   if (verbose) cli::cli_alert_info("Searching Taxonomicon for {taxon}...")
 
+  .throttle()
   res <- tryCatch(
     httr::RETRY(
       "GET", .search_url(taxon),
@@ -429,14 +627,16 @@ get_taxonomicon_id <- function(taxon, verbose = FALSE) {
   }
 
   if (length(bio_ids) > 1L) {
-    pattern <- paste0("\\b", regexEscape(taxon), "\\b")
     matched <- vapply(bio_lineages, function(lin) {
-      any(grepl(pattern, lin, ignore.case = TRUE))
+      any(.contains_word(lin, taxon, ignore.case = TRUE))
     }, logical(1))
     if (any(matched)) {
       bio_ids <- bio_ids[matched]
       bio_text <- bio_text[matched]
     }
+    preferred <- .candidate_order(bio_text)
+    bio_ids <- bio_ids[preferred]
+    bio_text <- bio_text[preferred]
   }
 
   if (length(bio_ids) == 0L) {
@@ -519,10 +719,7 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
   if (is.na(taxon_id)) {
     return(NULL)
   }
-  if (is.numeric(taxon_id)) {
-    taxon_id <- format(taxon_id, scientific = FALSE, trim = TRUE)
-  }
-  taxon_id <- trimws(as.character(taxon_id))
+  taxon_id <- .format_taxon_id(taxon_id)
   if (!grepl("^[0-9]+$", taxon_id)) {
     return(NULL)
   }
@@ -538,6 +735,7 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
     "http://taxonomicon.taxonomy.nl/TaxonTree.aspx?id=",
     taxon_id, "&src=0"
   )
+  .throttle()
   res <- tryCatch(
     httr::RETRY(
       "GET", url,
@@ -563,12 +761,109 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
     return(NULL)
   }
 
+  parsed <- .lineage_from_page(page, taxon_id)
+  if (length(parsed) == 0) return(NULL)
+  lineage <- as.character(parsed)
+  ranks <- attr(parsed, "ranks", exact = TRUE)
+  if (is.null(ranks)) ranks <- rep(NA_character_, length(lineage))
+
+  # One request serves both variants, so cache both, with their ranks.
+  start <- 1L
+  idx_biota <- which(lineage == "Biota")
+  if (length(idx_biota) > 0) start <- idx_biota[[1L]]
+  kept <- seq.int(start, length(lineage))
+  cleaned <- lineage[kept]
+  assign(raw_key, lineage, envir = .taxodist_cache)
+  assign(clean_key, cleaned, envir = .taxodist_cache)
+  assign(paste0("rawranks_", taxon_id), ranks, envir = .taxodist_cache)
+  assign(paste0("ranks_", taxon_id), ranks[kept], envir = .taxodist_cache)
+  if (clean) cleaned else lineage
+}
+
+# Ranks aligned with get_lineage_by_id(taxon_id, clean). Lineages cached
+# without ranks (e.g. restored from a cache file of an older version) are
+# retrieved again.
+.ranks_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
+  lineage <- get_lineage_by_id(taxon_id, clean = clean, verbose = verbose)
+  if (is.null(lineage)) return(NULL)
+  taxon_id <- .format_taxon_id(taxon_id)
+  key <- paste0(if (clean) "ranks_" else "rawranks_", taxon_id)
+  if (!exists(key, envir = .taxodist_cache, inherits = FALSE)) {
+    rm(
+      list = intersect(
+        paste0(c("lin_", "rawlin_"), taxon_id),
+        ls(envir = .taxodist_cache, all.names = TRUE)
+      ),
+      envir = .taxodist_cache
+    )
+    lineage <- get_lineage_by_id(taxon_id, clean = clean, verbose = verbose)
+    if (is.null(lineage) || !exists(key, envir = .taxodist_cache, inherits = FALSE)) {
+      return(NULL)
+    }
+  }
+  ranks <- get(key, envir = .taxodist_cache, inherits = FALSE)
+  if (length(ranks) != length(lineage)) return(rep(NA_character_, length(lineage)))
+  ranks
+}
+
+# Cached ranks of a cleaned lineage, without any network request. Returns
+# NA ranks when none are cached or they do not align with `lineage`.
+.cached_ranks <- function(taxon_id, lineage) {
+  key <- paste0("ranks_", .format_taxon_id(taxon_id))
+  if (exists(key, envir = .taxodist_cache, inherits = FALSE)) {
+    ranks <- get(key, envir = .taxodist_cache, inherits = FALSE)
+    if (length(ranks) == length(lineage)) return(ranks)
+  }
+  rep(NA_character_, length(lineage))
+}
+
+.format_taxon_id <- function(taxon_id) {
+  if (is.numeric(taxon_id)) {
+    taxon_id <- format(taxon_id, scientific = FALSE, trim = TRUE)
+  }
+  trimws(as.character(taxon_id))
+}
+
+# Extract the raw lineage (from the root of the page, before any trimming at
+# Biota) of a parsed TaxonTree page. Uses the structured hierarchy block when
+# present and falls back to text parsing otherwise. Repeated names are
+# collapsed to their first occurrence.
+.lineage_from_page <- function(page, taxon_id) {
   current_name <- rvest::html_text(
     rvest::html_element(page, "#ctl00_divSubject b"), trim = TRUE
   )
+  if (!is.na(current_name)) {
+    current_name <- trimws(gsub("[\u2020\u2021\u1D40?]", "", current_name))
+  }
+
+  structured <- .parse_hierarchy(page)
+  if (!is.null(structured)) {
+    nodes <- as.character(structured)
+    ranks <- attr(structured, "ranks", exact = TRUE)
+    if (isTRUE(attr(structured, "self_missing")) && !is.na(current_name) &&
+        nzchar(current_name) && !identical(nodes[[length(nodes)]], current_name)) {
+      subject_text <- rvest::html_text(rvest::html_element(page, "#ctl00_divSubject"))
+      nodes <- c(nodes, current_name)
+      ranks <- c(ranks, .rank_before_name(subject_text, current_name))
+    }
+  } else {
+    nodes <- .parse_lineage_text(page, current_name, taxon_id)
+    ranks <- attr(nodes, "ranks", exact = TRUE)
+    nodes <- as.character(nodes)
+  }
+  first <- !duplicated(nodes)
+  out <- nodes[first]
+  attr(out, "ranks") <- unname(ranks[first])
+  out
+}
+
+# Fallback parser for pages without the structured hierarchy block: the tree
+# is read as plain text, one node per line, and rank prefixes, markers, and
+# author strings are removed with regular expressions.
+.parse_lineage_text <- function(page, current_name, taxon_id) {
   content_node <- rvest::html_element(page, "#divPageContent")
 
-  if (!is.na(current_name) && !is.null(content_node)) {
+  if (!is.na(current_name) && !inherits(content_node, "xml_missing")) {
     tree_text <- rvest::html_text(content_node, trim = TRUE)
     raw_lines <- strsplit(tree_text, "\n")[[1]]
     raw_lines <- trimws(raw_lines)
@@ -576,7 +871,7 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
     tree_start <- grep("^Natura", raw_lines)[1]
     if (!is.na(tree_start)) raw_lines <- raw_lines[tree_start:length(raw_lines)]
     raw_lines_search <- stringr::str_remove_all(raw_lines, "[\u2020\u1D40]")
-    cutoff <- grep(paste0("\\b", regexEscape(current_name), "\\b"), raw_lines_search)[1]
+    cutoff <- which(.contains_word(raw_lines_search, current_name))[1]
     texts <- if (!is.na(cutoff)) raw_lines[seq_len(cutoff)] else raw_lines
   } else {
     links <- rvest::html_elements(page, "a[href*='TaxonTree']")
@@ -587,22 +882,22 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
     if (length(own_idx) > 0) links <- links[seq_len(max(own_idx))]
     texts <- rvest::html_text(links, trim = TRUE)
   }
-  lineage <- texts |>
-    stringr::str_remove_all("[\u2020\u1D40]") |>
-    stringr::str_remove("^\\[crown\\]\\s+(Clade|Grandorder|Order|Superorder|Infraorder|Suborder|Class|Superclass|Subclass|Infraclass|Family|Superfamily|Subfamily|Tribe|Subtribe|Kingdom|Subkingdom|Infrakingdom|Domain|Superkingdom|Phylum|Subphylum|Genus|Species)?\\s*") |>
-    stringr::str_remove("^(Clade |Kingdom |Phylum |Superphylum |Subphylum |Infraphylum |Class |Order |Suborder |Infraorder |Parvorder |Grandorder |Magnorder |Cohort |Subcohort |Legion |Family |Subfamily |Tribe |Subtribe |Genus |Species |Subkingdom |Infrakingdom |Superclass |Subclass |Infraclass |Superorder |Superfamily |Domain |Superkingdom |Grade |Subgrade |Supergrade )") |>
-    stringr::str_remove("\\s+[A-Z][a-z\u00e1\u00e0\u00e2\u00e3\u00e9\u00e8\u00ea\u00ed\u00ef\u00f3\u00f4\u00f5\u00f6\u00fa\u00fc\u00e7].*$") |>
-    stringr::str_remove("\\s+[A-Z]\\.[A-Z]\\..*$") |>
-    stringr::str_remove("\\s+auct\\..*$") |>
-    stringr::str_remove("\\s+von.*$") |>
-    stringr::str_remove("\\s+\\([A-Z][a-z].*$") |>
-    stringr::str_remove("\\s+\\(\\d{4}\\).*$") |>
-    stringr::str_remove("\\s+\\[.*$") |>
-    stringr::str_remove("\\s+[A-Z]\\.$") |>
-    stringr::str_remove("\\s+\\([a-z].*$") |>
-    stringr::str_remove('\\s+".*$') |>
-    stringr::str_remove("^\".*") |>
-    stringr::str_trim()
+  marked <- texts |>
+    stringr::str_remove_all("[\u2020\u2021\u1D40]") |>
+    stringr::str_remove("^\\?\\s*")
+  rank_match <- stringr::str_match(marked, paste0(
+    "^(?:\\[(?:crown|plesion|stem)\\]\\s+)?",
+    "(Anamorph\\s+\\w+|", .rank_alternatives, ")\\s+"
+  ))[, 2L]
+  lineage <- marked |>
+    stringr::str_remove(paste0(
+      "^\\[(crown|plesion|stem)\\]\\s+",
+      "(?:(?:", .rank_alternatives, ")\\s+)?"
+    )) |>
+    stringr::str_remove(paste0("^(?:Anamorph\\s+\\w+|", .rank_alternatives, ")\\s+")) |>
+    stringr::str_remove_all("[\u2020\u2021?]") |>
+    stringr::str_trim() |>
+    .extract_scientific_name()
   bare_ranks <- c(
     "Go to", "Superphylum", "Subfamily", "Suborder", "Epifamily",
     "Infraorder", "Superclass", "Subclass", "Superfamily",
@@ -611,22 +906,57 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
     "Grade", "[unranked]", "(Supercluster)", "(Region)",
     "[crown]", ""
   )
-  lineage <- lineage[!lineage %in% bare_ranks]
-  lineage <- lineage[lineage != "" & !grepl("^\\s*$", lineage)]
-  lineage <- lineage[!grepl("^\"", lineage)]
-  lineage <- lineage[!grepl("^Population", lineage)]
-  lineage <- unique(lineage)
-  if (length(lineage) == 0) return(NULL)
+  keep <- !is.na(lineage) & !lineage %in% bare_ranks &
+    lineage != "" & !grepl("^\\s*$", lineage) &
+    !grepl("^\"", lineage) & !grepl("^Population", lineage)
+  keep[is.na(keep)] <- FALSE
+  out <- lineage[keep]
+  ranks <- rank_match[keep]
+  missing_rank <- is.na(ranks)
+  ranks[missing_rank] <- vapply(out[missing_rank], .rank_from_name, character(1))
+  attr(out, "ranks") <- unname(ranks)
+  out
+}
 
-  # One request serves both variants, so cache both.
-  cleaned <- lineage
-  idx_biota <- which(lineage == "Biota")
-  if (length(idx_biota) > 0) {
-    cleaned <- lineage[idx_biota[1]:length(lineage)]
-  }
-  assign(raw_key, lineage, envir = .taxodist_cache)
-  assign(clean_key, cleaned, envir = .taxodist_cache)
-  if (clean) cleaned else lineage
+.rank_alternatives <- paste(c(
+  "Superdomain", "Domain", "Superkingdom", "Kingdom", "Subkingdom",
+  "Infrakingdom", "Superphylum", "Phylum", "Subphylum", "Infraphylum",
+  "Superclass", "Class", "Subclass", "Infraclass", "Supercohort", "Cohort",
+  "Subcohort", "Magnorder", "Grandorder", "Superorder", "Order", "Suborder",
+  "Infraorder", "Parvorder", "Legion", "Superfamily", "Family", "Subfamily",
+  "Tribe", "Subtribe", "Genus", "Species", "Subspecies", "Clade",
+  "Supergrade", "Grade", "Subgrade"
+), collapse = "|")
+
+# Lower-case words that start an author string rather than continue a
+# scientific name (e.g. "de Blainville", "van der Hoeven", "R.Br. ex").
+.author_particles <- c(
+  "de", "del", "della", "des", "di", "do", "dos", "da", "das", "du", "d",
+  "van", "von", "der", "den", "ter", "zu", "zur", "la", "le", "les", "ex",
+  "in", "et", "al", "auct", "sensu", "nom", "non", "emend", "corrig", "ms",
+  "pro", "sp", "spp", "var", "nec", "fide"
+)
+
+# Keep only the scientific name at the start of a cleaned tree line: the first
+# word (a uninomial, possibly hyphenated), followed by up to two lower-case
+# epithets for species and subspecies. Author names, years, vernacular names
+# and annotations that follow are discarded, whatever their capitalization or
+# alphabet. Quoted and bracketed lines are returned unchanged so the caller's
+# filters can recognise them.
+.extract_scientific_name <- function(x) {
+  particles <- paste(.author_particles, collapse = "|")
+  pattern <- paste0(
+    "(*UCP)^[^\\s\",\\[(]+",
+    "(?:\\s(?!(?:", particles, ")(?![\\w'\u2019-]))",
+    "[a-z\u00e0-\u00ff][\\w-]*(?![\\w.'\u2019]))",
+    "{0,2}"
+  )
+  plain <- !is.na(x) & !grepl("^[\"\\[(]", x)
+  xs <- x[plain]
+  m <- regexpr(pattern, xs, perl = TRUE)
+  xs[m > 0] <- regmatches(xs, m)
+  x[plain] <- xs
+  x
 }
 
 #' Retrieve the full taxonomic lineage of a taxon by name
@@ -672,6 +1002,61 @@ get_lineage <- function(taxon, clean = TRUE, verbose = FALSE) {
   lineage
 }
 
+#' Retrieve the ranks of the nodes in a lineage
+#'
+#' Returns each node of the lineage of a taxon together with its rank in The
+#' Taxonomicon classification (for example `"Kingdom"`, `"Clade"`,
+#' `"Superfamily"`, or `"Genus"`). The nodes are exactly those returned by
+#' [get_lineage()] for the same arguments.
+#'
+#' @inheritParams get_lineage
+#'
+#' @return A data frame with columns `node`, `rank`, and `depth`, one row per
+#'   lineage node from root to tip, or `NULL` if the taxon cannot be found.
+#'   `rank` is `NA` for nodes without a stated rank (such as the
+#'   philosophical root nodes above Biota).
+#'
+#' @details
+#' Ranks are read from the label that precedes each name in the
+#' classification, without the `[crown]`, `[plesion]`, and `[stem]`
+#' qualifiers or extinction markers. Rows without a label are species,
+#' subspecies, or subgenera, whose rank is inferred from the form of the
+#' name. Many nodes are unranked clades (`"Clade"`). Ranks are used by the
+#' `"ranked"` distance method; see [taxo_distance()].
+#'
+#' @seealso [get_lineage()], [taxo_distance()]
+#' @export
+#' @examples
+#' \donttest{
+#' lineage_ranks("Passer")
+#' }
+lineage_ranks <- function(taxon, clean = TRUE, verbose = FALSE) {
+  if (length(taxon) != 1L) {
+    cli::cli_abort("{.arg taxon} must be a single taxon name or ID.")
+  }
+  if (is.na(taxon)) return(NULL)
+  taxon <- .normalize_taxon(as.character(taxon))
+  if (!nzchar(taxon)) return(NULL)
+
+  is_id <- grepl("^[0-9]+$", taxon)
+  id <- if (is_id) taxon else get_taxonomicon_id(taxon, verbose = verbose)
+  if (is.null(id)) return(NULL)
+
+  ranks <- .ranks_by_id(id, clean = clean, verbose = verbose)
+  lineage <- get_lineage_by_id(id, clean = clean, verbose = verbose)
+  if (is.null(ranks) || is.null(lineage)) return(NULL)
+  if (!is_id) {
+    ranks <- .finalize_ranks(ranks, lineage, taxon)
+    lineage <- .finalize_lineage(lineage, taxon)
+  }
+  data.frame(
+    node = lineage,
+    rank = ranks,
+    depth = seq_along(lineage),
+    stringsAsFactors = FALSE
+  )
+}
+
 #' Search The Taxonomicon for a taxon name
 #'
 #' Queries The Taxonomicon database and returns a data frame of all available
@@ -706,6 +1091,7 @@ taxo_search <- function(taxon, verbose = FALSE) {
 
   if (verbose) cli::cli_alert_info("Searching Taxonomicon for {.val {taxon}}...")
 
+  .throttle()
   res <- tryCatch(
     httr::RETRY(
       "GET", .search_url(taxon),
@@ -826,7 +1212,8 @@ taxo_resolve <- function(taxa,
       n_candidates = nrow(candidates),
       lineage_depth = NA_integer_,
       lineage = NULL,
-      candidates = candidates
+      candidates = candidates,
+      ranks = NULL
     )
   }
 
@@ -851,7 +1238,8 @@ taxo_resolve <- function(taxa,
           id = taxon,
           name = utils::tail(lineage, 1L),
           stringsAsFactors = FALSE
-        )
+        ),
+        ranks = .cached_ranks(taxon, lineage)
       ))
     }
 
@@ -869,6 +1257,7 @@ taxo_resolve <- function(taxa,
     candidate_lineages <- lapply(candidates$id, function(id) {
       get_lineage_by_id(id, clean = TRUE, verbose = verbose)
     })
+    retrieved <- !vapply(candidate_lineages, is.null, logical(1))
     valid <- vapply(candidate_lineages, function(lineage) {
       !is.null(lineage) && "Biota" %in% lineage
     }, logical(1))
@@ -876,6 +1265,12 @@ taxo_resolve <- function(taxa,
     candidate_lineages <- candidate_lineages[valid]
 
     if (nrow(candidates) == 0L) {
+      # Only a failed lineage retrieval is a retrieval error; candidates that
+      # were retrieved but are not biological (e.g. astronomical objects)
+      # mean the name is simply not a taxon.
+      # As for names outside `within`, an unresolved record carries no
+      # candidates (bundle validation requires this).
+      if (all(retrieved)) return(failed(taxon, "unresolved"))
       return(failed(taxon, "retrieval_error", searched_candidates))
     }
 
@@ -895,21 +1290,25 @@ taxo_resolve <- function(taxa,
     # exact lineage match exists, mirroring get_taxonomicon_id()'s fallback.
     if (nrow(candidates) > 1L) {
       exact <- vapply(candidate_lineages, function(lineage) {
-        any(grepl(
-          paste0("\\b", regexEscape(taxon), "\\b"),
-          lineage,
-          ignore.case = TRUE
-        ))
+        any(.contains_word(lineage, taxon, ignore.case = TRUE))
       }, logical(1))
       if (any(exact)) {
         candidates <- candidates[exact, , drop = FALSE]
         candidate_lineages <- candidate_lineages[exact]
       }
+      preferred <- .candidate_order(candidates$name)
+      candidates <- candidates[preferred, , drop = FALSE]
+      candidate_lineages <- candidate_lineages[preferred]
     }
 
     # Apply the same truncation as get_lineage() so that name-based and
     # resolution-based matrices are identical.
     selected_lineage <- .finalize_lineage(candidate_lineages[[1L]], taxon)
+    selected_ranks <- .finalize_ranks(
+      .cached_ranks(candidates$id[[1L]], candidate_lineages[[1L]]),
+      candidate_lineages[[1L]],
+      taxon
+    )
     n_candidates <- nrow(candidates)
     rownames(candidates) <- NULL
     list(
@@ -920,7 +1319,8 @@ taxo_resolve <- function(taxa,
       n_candidates = n_candidates,
       lineage_depth = length(selected_lineage),
       lineage = selected_lineage,
-      candidates = candidates
+      candidates = candidates,
+      ranks = selected_ranks
     )
   }
 
@@ -954,6 +1354,7 @@ taxo_resolve <- function(taxa,
   )
   result$lineage <- I(lapply(resolved, `[[`, "lineage"))
   result$candidates <- I(lapply(resolved, `[[`, "candidates"))
+  result$ranks <- I(lapply(resolved, `[[`, "ranks"))
   class(result) <- c("taxodist_resolution", "data.frame")
   attr(result, "source") <- "The Taxonomicon"
   attr(result, "source_url") <- "http://taxonomicon.taxonomy.nl"
@@ -998,6 +1399,10 @@ taxo_resolve <- function(taxa,
 #'   order as `lineages`. A named vector is matched by name. If omitted,
 #'   deterministic identifiers of the form `custom:<input label>` are created.
 #' @param source A non-empty character string describing the lineage source.
+#' @param ranks Optional named list of character vectors giving the rank of
+#'   every node, aligned with `lineages` (use `NA` for unranked nodes). Ranks
+#'   are required only by the `"ranked"` distance method. A list without
+#'   names is matched by position.
 #'
 #' @return A `taxodist_resolution` object that can be passed to
 #'   [distance_matrix()] or [taxo_bundle()].
@@ -1011,7 +1416,18 @@ taxo_resolve <- function(taxa,
 #' )
 #' resolved <- taxo_from_lineages(lineages)
 #' distance_matrix(resolved)
-taxo_from_lineages <- function(lineages, ids = NULL, source = "user-supplied") {
+#'
+#' # With ranks, the rank-based distance can be used
+#' ranked <- taxo_from_lineages(
+#'   lineages,
+#'   ranks = list(
+#'     Alpha = c(NA, "Kingdom", "Genus"),
+#'     Beta = c(NA, "Kingdom", "Genus")
+#'   )
+#' )
+#' distance_matrix(ranked, metric = "ranked")
+taxo_from_lineages <- function(lineages, ids = NULL, source = "user-supplied",
+                               ranks = NULL) {
   if (!is.list(lineages)) {
     cli::cli_abort("{.arg lineages} must be a named list of character vectors.")
   }
@@ -1056,6 +1472,31 @@ taxo_from_lineages <- function(lineages, ids = NULL, source = "user-supplied") {
     }
   }
 
+  if (is.null(ranks)) {
+    ranks <- lapply(lineages, function(lineage) rep(NA_character_, length(lineage)))
+  } else {
+    if (!is.list(ranks)) {
+      cli::cli_abort("{.arg ranks} must be a list of character vectors.")
+    }
+    if (!is.null(names(ranks))) {
+      if (!all(labels %in% names(ranks))) {
+        cli::cli_abort("Named {.arg ranks} must contain every lineage name.")
+      }
+      ranks <- ranks[labels]
+    }
+    valid_ranks <- length(ranks) == length(lineages) &&
+      all(vapply(seq_along(ranks), function(i) {
+        r <- ranks[[i]]
+        (is.character(r) || all(is.na(r))) && length(r) == length(lineages[[i]])
+      }, logical(1)))
+    if (!valid_ranks) {
+      cli::cli_abort(
+        "{.arg ranks} must give one rank (or {.val NA}) per node of every lineage."
+      )
+    }
+    ranks <- lapply(ranks, as.character)
+  }
+
   resolved_names <- vapply(lineages, utils::tail, character(1), n = 1L)
   result <- data.frame(
     input = labels,
@@ -1074,6 +1515,7 @@ taxo_from_lineages <- function(lineages, ids = NULL, source = "user-supplied") {
       stringsAsFactors = FALSE
     )
   }))
+  result$ranks <- I(unname(ranks))
   class(result) <- c("taxodist_resolution", "data.frame")
   attr(result, "source") <- source
   attr(result, "source_url") <- NA_character_

@@ -4,7 +4,7 @@
 \alias{distance_matrix}
 \title{Compute pairwise taxonomic distances for a set of taxa}
 \usage{
-distance_matrix(taxa, verbose = FALSE, progress = TRUE)
+distance_matrix(taxa, verbose = FALSE, progress = TRUE, metric = "reciprocal")
 }
 \arguments{
 \item{taxa}{A character vector of taxon names, a \code{taxodist_resolution}
@@ -16,12 +16,16 @@ matrix labels; bundles return their stored matrix.}
 Default \code{FALSE}.}
 
 \item{progress}{Logical. If \code{TRUE}, shows a progress bar. Default \code{TRUE}.}
+
+\item{metric}{Distance metric; see \code{\link[=taxo_distance]{taxo_distance()}}. Ignored for a
+\code{taxodist_bundle}, whose stored matrix is returned.}
 }
 \value{
 A symmetric numeric matrix of class \code{"dist"} containing pairwise
-distances. Row and column names are set to the input taxon names.
-Taxa that could not be found are included with \code{NA} distances.
-An empty input returns an empty \code{"dist"} object.
+distances. Row and column names are set to the input taxon names, and
+the \code{"method"} attribute records the metric. Taxa that could not be
+found are included with \code{NA} distances. An empty input returns an empty
+\code{"dist"} object.
 }
 \description{
 Given a vector of taxon names, computes all pairwise taxonomic hierarchy distances

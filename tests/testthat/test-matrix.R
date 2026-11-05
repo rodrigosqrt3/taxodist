@@ -138,7 +138,8 @@ test_that("focal_distances reports the lineage node as MRCA for identical taxa",
 })
 
 test_that("taxo_heatmap passes graphical arguments only to heatmap", {
-  mockery::stub(taxo_heatmap, "distance_matrix", function(taxa, verbose, progress) {
+  mockery::stub(taxo_heatmap, "distance_matrix", function(taxa, verbose, progress,
+                                                          metric = "reciprocal") {
     expect_false(progress)
     distance_matrix(taxo_from_lineages(list(
       A = c("Biota", "X", "A"),

@@ -338,3 +338,101 @@
   metadata.
 * Tests were extended to cover every new behavior and the package retains
   complete source coverage.
+
+# taxodist 1.0.0
+
+First stable release. The default distance metric, the other metrics, and the
+bundle format (schema 1.1) are now stable: later 1.x releases will keep their
+definitions and continue to read bundles written by this version.
+
+## New features
+
+* **Ranks.** The rank of every lineage node (e.g. `"Kingdom"`, `"Clade"`,
+  `"Superfamily"`, `"Genus"`) is now read from The Taxonomicon and cached
+  with the lineage. The new `lineage_ranks()` returns each node with its rank
+  and depth. `taxo_resolve()` results gain a `ranks` list column, and
+  `taxo_from_lineages()` accepts user-supplied ranks through a new `ranks`
+  argument.
+* **Distance metrics.** `taxo_distance()`, `distance_matrix()`,
+  `cross_distances()`, `closest_relative()`, `focal_distances()`,
+  `taxo_heatmap()`, and `taxo_bundle()` gain a `metric` argument, also
+  accepted by `taxo_cluster()` and `taxo_ordinate()` through `...`:
+  * `"reciprocal"` (default): `1 / depth(MRCA)`, unchanged;
+  * `"path"`: the number of edges between the two nodes in the
+    classification tree;
+  * `"wu_palmer"`: `1 - 2 depth(MRCA) / (depth(A) + depth(B))`, which
+    normalizes for the different resolution of different parts of the
+    classification;
+  * `"ranked"`: half the path length through the standard Linnaean ranks
+    only (kingdom to species, configurable with the `taxodist.rank_levels`
+    option), i.e. the step weights of Clarke and Warwick.
+
+  Distance matrices record the metric in their `"method"` attribute, which
+  `stats::hclust()` reports.
+* **Taxonomic distinctness.** `taxo_distinctness()` computes Warwick and
+  Clarke's taxonomic diversity (Δ), distinctness (Δ*), average taxonomic
+  distinctness (Δ+), and its variation (Λ+) for one or more samples, from
+  presence or abundance data. Results agree with `vegan::taxondive()`.
+  `taxo_distinctness_test()` compares Δ+ and Λ+ of a sample with random
+  samples of the same size from a master list.
+* **Bundle schema 1.1.** Bundles record the metric used (and, for
+  `"ranked"`, its rank levels) and the lineage ranks. Distances are verified
+  with the stored metric. Schema 1.0 bundles are still read.
+
+## Breaking changes: lineage parsing
+
+* Lineages are now read from the structure of The Taxonomicon page instead of
+  its text. Each node's name is taken from the page's own markup for the
+  scientific name, so author strings, rank labels, extinction and type
+  markers, and vernacular names can no longer leak into, or remove, nodes.
+  Previously about 16% of lineages contained malformed nodes such as
+  `"Passeres (C."`, `"Supramyomorpha D'Elía,"`, `"Delphinida de"`,
+  `"Alismatales R.Br. ex"`, or `"Bryophyta A.Braun"`; because these contained
+  spaces, name-based queries silently dropped them, so lineage depths, and
+  therefore distances, differed from the classification and from ID-based
+  queries. Some clades were also lost entirely (for example
+  `Terrestrornithes`, `Dendrornithes`, and `Anomalogonates` in passerine
+  birds), taxa whose page row is labelled `[plesion]` or `Anamorph genus`
+  were recorded under that label, and the `‡` marker was not removed.
+  **Distances computed with this version can differ from earlier versions.**
+* Species are now recorded as nodes of their subspecies, and subgenera as
+  nodes of their species, when they appear in the lineage. Previously
+  `"Subspecies Homo sapiens sapiens"` was parsed as `"Subspecies"` and the
+  species node was dropped.
+* Pages without the structured hierarchy block are still parsed from text,
+  now by extracting the scientific name at the start of each line rather than
+  by deleting author strings, which handles lower-case particles (`de`,
+  `van der`, `d'`), non-ASCII initials (`Özdikmen`), and abbreviations
+  (`R.Br. ex`).
+* The `taxobase` reference dataset was rebuilt with the new parser.
+
+## Bug fixes
+
+* Taxon names containing regular-expression metacharacters, notably
+  parentheses in subgenus names such as `"Microtus (Agricola)"`, are now
+  matched literally. Whole-word matching no longer fails next to
+  punctuation and recognises non-ASCII letters.
+* `taxo_resolve()` reports a name whose candidates were all retrieved but are
+  not biological (for example astronomical objects) as `"unresolved"`
+  instead of `"retrieval_error"`.
+* When a name has several biological entries, entries marked as invalid,
+  rejected, nude, or illegitimate names (`nom. inval.`, `nom. rej.`,
+  `nom. nud.`, `nom. illeg.`) are now considered only after the others.
+  Previously `"Amanita"` resolved to an invalid name instead of the
+  conserved genus.
+* `load_cache()` discards lineages from cache files written by earlier
+  versions, whose parser could produce malformed nodes, and keeps their
+  taxon IDs. `save_cache()` records the parser version in the file.
+
+## Network
+
+* Consecutive requests to The Taxonomicon are spaced by at least
+  `getOption("taxodist.min_interval")` seconds (default 0.25), so large
+  batches do not overload the server. Set it to 0 to disable.
+
+## Internal changes
+
+* xml2 moved from Suggests to Imports (it was already required by rvest).
+* Trimmed copies of real Taxonomicon pages are included as test fixtures,
+  together with their expected lineages. The same fixtures are used by the
+  Python and Julia implementations.

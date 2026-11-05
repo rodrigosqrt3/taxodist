@@ -4,7 +4,7 @@
 \alias{cross_distances}
 \title{Compute taxonomic distances between two sets of taxa}
 \usage{
-cross_distances(x, y, verbose = FALSE, progress = TRUE)
+cross_distances(x, y, verbose = FALSE, progress = TRUE, metric = "reciprocal")
 }
 \arguments{
 \item{x, y}{Character vectors of taxon names, or \code{taxodist_resolution}
@@ -13,6 +13,8 @@ objects returned by \code{\link[=taxo_resolve]{taxo_resolve()}} or \code{\link[=
 \item{verbose}{Logical. If \code{TRUE}, prints retrieval messages.}
 
 \item{progress}{Logical. If \code{TRUE}, shows progress messages.}
+
+\item{metric}{Distance metric; see \code{\link[=taxo_distance]{taxo_distance()}}.}
 }
 \value{
 A numeric matrix with one row per element of \code{x} and one column

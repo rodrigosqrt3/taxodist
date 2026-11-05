@@ -9,6 +9,9 @@
 #'   `taxodist_resolution` object.
 #' @param ambiguity,verbose,progress,within Passed to [taxo_resolve()] when
 #'   `taxa` is a character vector.
+#' @param metric Distance metric used for the stored matrix; see
+#'   [taxo_distance()]. The bundle records it, so the matrix can be verified
+#'   from the stored lineages (and, for `"ranked"`, the stored ranks).
 #'
 #' @return An object of class `taxodist_bundle` containing `schema_version`,
 #'   `created_at`, `source`, `software`, `metric`, `resolution`, and `matrix`.
@@ -25,8 +28,10 @@ taxo_bundle <- function(taxa,
                         ambiguity = c("warn", "first", "error"),
                         verbose = FALSE,
                         progress = TRUE,
-                        within = NULL) {
+                        within = NULL,
+                        metric = "reciprocal") {
   ambiguity <- match.arg(ambiguity)
+  metric <- .match_metric(metric)
   resolution <- if (inherits(taxa, "taxodist_resolution")) {
     taxa
   } else {
@@ -39,7 +44,8 @@ taxo_bundle <- function(taxa,
     )
   }
 
-  matrix <- distance_matrix(resolution, progress = progress)
+  metric_spec <- .metric_spec(metric)
+  matrix <- distance_matrix(resolution, progress = progress, metric = metric)
   created_at <- format(Sys.time(), tz = "UTC", usetz = TRUE)
   package_version <- tryCatch(
     as.character(utils::packageVersion("taxodist")),
@@ -60,7 +66,7 @@ taxo_bundle <- function(taxa,
 
   structure(
     list(
-      schema_version = "1.0",
+      schema_version = .bundle_schema_version,
       created_at = created_at,
       source = list(
         name = source_name,
@@ -72,17 +78,72 @@ taxo_bundle <- function(taxa,
         version = package_version,
         language = "R"
       ),
-      metric = list(
-        name = "inverse_mrca_depth",
-        definition = "0 for identical lineages; otherwise 1 / depth(MRCA)",
-        root_depth = 1L,
-        common_ancestor = "continuous common lineage prefix"
-      ),
+      metric = metric_spec,
       resolution = resolution,
       matrix = matrix
     ),
     class = "taxodist_bundle"
   )
+}
+
+.bundle_schema_version <- "1.1"
+.supported_schema_versions <- c("1.0", "1.1")
+
+# Portable description of each metric, as stored in bundles.
+.metric_spec <- function(metric, levels = .rank_levels()) {
+  spec <- switch(metric,
+    reciprocal = list(
+      name = "inverse_mrca_depth",
+      definition = "0 for identical lineages; otherwise 1 / depth(MRCA)"
+    ),
+    path = list(
+      name = "path_length",
+      definition = paste(
+        "0 for identical lineages; otherwise depth(A) + depth(B) -",
+        "2 depth(MRCA)"
+      )
+    ),
+    wu_palmer = list(
+      name = "wu_palmer",
+      definition = "1 - 2 depth(MRCA) / (depth(A) + depth(B))"
+    ),
+    ranked = list(
+      name = "ranked_path_length",
+      definition = paste(
+        "Half the path length between the lineages reduced to the root,",
+        "the nodes whose rank is one of rank_levels, and the terminal node"
+      )
+    )
+  )
+  spec$root_depth <- 1L
+  spec$common_ancestor <- "continuous common lineage prefix"
+  if (identical(metric, "ranked")) spec$rank_levels <- levels
+  spec
+}
+
+# Metric name and rank levels from a stored metric description.
+.metric_from_spec <- function(spec) {
+  names_map <- c(
+    inverse_mrca_depth = "reciprocal",
+    path_length = "path",
+    wu_palmer = "wu_palmer",
+    ranked_path_length = "ranked"
+  )
+  name <- if (is.list(spec)) spec$name else NULL
+  if (!is.character(name) || length(name) != 1L || !name %in% names(names_map)) {
+    cli::cli_abort("Invalid bundle: unknown distance metric.")
+  }
+  metric <- unname(names_map[[name]])
+  levels <- if (identical(metric, "ranked")) {
+    lv <- unlist(spec$rank_levels)
+    if (!is.character(lv) || length(lv) == 0L || anyNA(lv)) {
+      cli::cli_abort("Invalid bundle: the ranked metric requires {.field rank_levels}.")
+    }
+    tolower(lv)
+  } else {
+    .default_rank_levels
+  }
+  list(metric = metric, levels = levels)
 }
 
 # Structural validation is cheap and runs whenever a bundle is used. The
@@ -99,10 +160,16 @@ taxo_bundle <- function(taxa,
   if (!all(required %in% names(bundle))) {
     cli::cli_abort("Invalid {.cls taxodist_bundle}: required fields are missing.")
   }
-  if (!identical(bundle$schema_version, "1.0")) {
+  if (!is.character(bundle$schema_version) || length(bundle$schema_version) != 1L ||
+      !bundle$schema_version %in% .supported_schema_versions) {
     cli::cli_abort(
       "Unsupported taxodist bundle schema: {.val {bundle$schema_version}}."
     )
+  }
+  metric_info <- .metric_from_spec(bundle$metric)
+  if (identical(bundle$schema_version, "1.0") &&
+      !identical(metric_info$metric, "reciprocal")) {
+    cli::cli_abort("Invalid bundle: schema 1.0 supports only the reciprocal metric.")
   }
   if (!inherits(bundle$resolution, "taxodist_resolution")) {
     cli::cli_abort("Invalid bundle: {.field resolution} has the wrong class.")
@@ -165,6 +232,16 @@ taxo_bundle <- function(taxa,
         cli::cli_abort("Invalid bundle: unresolved record has candidates at row {i}.")
       }
     }
+    # Ranks of a missing lineage are ignored (and written as null).
+    if ("ranks" %in% names(bundle$resolution) && !is.null(lineage)) {
+      ranks <- bundle$resolution$ranks[[i]]
+      valid_ranks <- !is.null(ranks) &&
+        (is.character(ranks) || all(is.na(ranks))) &&
+        length(ranks) == length(lineage)
+      if (!valid_ranks) {
+        cli::cli_abort("Invalid bundle: lineage ranks do not match the lineage at row {i}.")
+      }
+    }
   }
   if (!inherits(bundle$matrix, "dist")) {
     cli::cli_abort("Invalid bundle: {.field matrix} must be a {.cls dist} object.")
@@ -178,7 +255,11 @@ taxo_bundle <- function(taxa,
   if (!check_distances) {
     return(invisible(bundle))
   }
-  expected_matrix <- distance_matrix(bundle$resolution, progress = FALSE)
+  expected_matrix <- .distance_matrix_impl(
+    bundle$resolution, get_lineage,
+    verbose = FALSE, progress = FALSE,
+    metric = metric_info$metric, levels = metric_info$levels
+  )
   if (!isTRUE(all.equal(
     as.matrix(bundle$matrix),
     as.matrix(expected_matrix),
@@ -193,6 +274,7 @@ taxo_bundle <- function(taxa,
 }
 
 .bundle_taxon_records <- function(resolution) {
+  has_ranks <- "ranks" %in% names(resolution)
   lapply(seq_len(nrow(resolution)), function(i) {
     candidate_table <- resolution$candidates[[i]]
     candidates <- if (is.null(candidate_table) || nrow(candidate_table) == 0L) {
@@ -205,7 +287,7 @@ taxo_bundle <- function(taxa,
         )
       })
     }
-    list(
+    record <- list(
       input = resolution$input[[i]],
       resolved_name = resolution$resolved_name[[i]],
       id = resolution$id[[i]],
@@ -219,6 +301,15 @@ taxo_bundle <- function(taxa,
       },
       candidates = candidates
     )
+    if (has_ranks) {
+      ranks <- resolution$ranks[[i]]
+      if (is.null(resolution$lineage[[i]])) ranks <- NULL
+      # A list keeps NA ranks as JSON null inside the array.
+      record["lineage_ranks"] <- list(
+        if (is.null(ranks)) NULL else as.list(as.character(ranks))
+      )
+    }
+    record
   })
 }
 
@@ -331,6 +422,12 @@ write_taxodist_bundle <- function(bundle, file, pretty = TRUE) {
         stringsAsFactors = FALSE
       )
     }))
+    if (any(vapply(records, function(x) "lineage_ranks" %in% names(x), logical(1)))) {
+      result$ranks <- I(lapply(records, function(x) {
+        if (is.null(x$lineage_ranks)) return(NULL)
+        vapply(x$lineage_ranks, .json_character, character(1))
+      }))
+    }
   }
   class(result) <- c("taxodist_resolution", "data.frame")
   attr(result, "source") <- source
@@ -400,7 +497,8 @@ read_taxodist_bundle <- function(file) {
   if (!identical(raw$format, "taxodist_bundle")) {
     cli::cli_abort("Invalid bundle JSON: unrecognized format.")
   }
-  if (!identical(raw$schema_version, "1.0")) {
+  if (!is.character(raw$schema_version) || length(raw$schema_version) != 1L ||
+      !raw$schema_version %in% .supported_schema_versions) {
     cli::cli_abort(
       "Unsupported taxodist bundle schema: {.val {raw$schema_version}}."
     )

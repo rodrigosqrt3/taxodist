@@ -2,7 +2,7 @@
 #'
 #' Given two taxon names, retrieves their lineages from The Taxonomicon and
 #' computes a taxonomic distance based on the depth of their most recent
-#' common ancestor (MRCA):
+#' common ancestor (MRCA). With the default metric,
 #'
 #' \deqn{d(A,A) = 0}{d(A,A) = 0}
 #' \deqn{d(A,B) = 1 / h(A,B)}{d(A,B) = 1 / h(A,B)}
@@ -15,9 +15,37 @@
 #' whether one taxon belongs to a clade rather than how far apart the two
 #' hierarchy nodes are.
 #'
+#' @section Metrics:
+#' Let \eqn{h} be the MRCA depth and \eqn{d_A}, \eqn{d_B} the lineage depths
+#' (numbers of nodes, root included). Every metric is zero for identical
+#' lineages.
+#' \describe{
+#'   \item{`"reciprocal"` (default)}{\eqn{1/h}. An ultrametric that weights
+#'     shallow divergences heavily and compresses deep ones.}
+#'   \item{`"path"`}{\eqn{d_A + d_B - 2h}, the number of edges between the
+#'     two nodes in the classification tree. A tree metric, not an
+#'     ultrametric when depths differ.}
+#'   \item{`"wu_palmer"`}{\eqn{1 - 2h/(d_A + d_B)}, the complement of the
+#'     Wu-Palmer similarity. It lies in \eqn{[0, 1)} and normalizes for the
+#'     different resolution of different parts of the classification. It is
+#'     not guaranteed to satisfy the triangle inequality.}
+#'   \item{`"ranked"`}{Half the path length after reducing both lineages to
+#'     the nodes of the standard Linnaean ranks (kingdom, phylum, class,
+#'     order, family, genus, species; see the `taxodist.rank_levels` option),
+#'     the root, and the terminal node. For taxa of the same rank this is the number of
+#'     rank levels up to their shared rank, i.e. the step weights of Clarke
+#'     and Warwick's taxonomic distinctness: 1 for congeneric species, 2 for
+#'     confamilial species, and so on. Requires lineage ranks (see
+#'     [lineage_ranks()]).}
+#' }
+#' Lineages without a shared root have infinite distance, except under
+#' `"wu_palmer"`, where their distance is 1.
+#'
 #' @param taxon_a A character string giving the first taxon name.
 #' @param taxon_b A character string giving the second taxon name.
 #' @param verbose Logical. If `TRUE`, prints progress messages. Default `FALSE`.
+#' @param metric Distance metric: one of `"reciprocal"` (default), `"path"`,
+#'   `"wu_palmer"`, or `"ranked"`. See the Metrics section.
 #'
 #' @return A named list of class `"taxodist_result"` with the following elements:
 #' \describe{
@@ -29,16 +57,24 @@
 #'   \item{`depth_b`}{Integer. The lineage depth of taxon B.}
 #'   \item{`taxon_a`}{Character. Name of the first taxon.}
 #'   \item{`taxon_b`}{Character. Name of the second taxon.}
+#'   \item{`metric`}{Character. The metric used.}
 #' }
 #' Returns `NULL` if either taxon cannot be found.
 #'
 #' @seealso [mrca()], [distance_matrix()], [get_lineage()], [is_member()],
-#'   [taxo_path()]
+#'   [taxo_path()], [taxo_distinctness()]
 #'
 #' @references
 #' Brands, S.J. (1989 onwards). Systema Naturae 2000. Amsterdam, The
 #' Netherlands. Retrieved from The Taxonomicon,
 #' \url{http://taxonomicon.taxonomy.nl}.
+#'
+#' Clarke, K.R. & Warwick, R.M. (1998). A taxonomic distinctness index and its
+#' statistical properties. *Journal of Applied Ecology* 35, 523--531.
+#'
+#' Wu, Z. & Palmer, M. (1994). Verb semantics and lexical selection.
+#' *Proceedings of the 32nd Annual Meeting of the Association for
+#' Computational Linguistics*, 133--138.
 #'
 #' @export
 #' @examples
@@ -49,12 +85,15 @@
 #' # Distance between very distantly related taxa
 #' taxo_distance("Tyrannosaurus", "Quercus")
 #'
-#' # Distance between two oviraptorid genera
-#' taxo_distance("Nomingia", "Huanansaurus")
+#' # The same pair under other metrics
+#' taxo_distance("Tyrannosaurus", "Velociraptor", metric = "path")
+#' taxo_distance("Tyrannosaurus", "Velociraptor", metric = "ranked")
 #' }
-taxo_distance <- function(taxon_a, taxon_b, verbose = FALSE) {
-  lin_a <- get_lineage(taxon_a, verbose = verbose)
-  lin_b <- get_lineage(taxon_b, verbose = verbose)
+taxo_distance <- function(taxon_a, taxon_b, verbose = FALSE,
+                          metric = "reciprocal") {
+  metric <- .match_metric(metric)
+  lin_a <- .lineage_for_metric(taxon_a, metric, get_lineage, verbose = verbose)
+  lin_b <- .lineage_for_metric(taxon_b, metric, get_lineage, verbose = verbose)
 
   if (is.null(lin_a)) {
     cli::cli_alert_danger("Could not retrieve lineage for {taxon_a}")
@@ -65,7 +104,7 @@ taxo_distance <- function(taxon_a, taxon_b, verbose = FALSE) {
     return(NULL)
   }
 
-  .compute_distance(lin_a, lin_b, taxon_a, taxon_b)
+  .compute_distance(lin_a, lin_b, taxon_a, taxon_b, metric = metric)
 }
 
 #' Compute the most recent common ancestor of two taxa
@@ -106,11 +145,14 @@ mrca <- function(taxon_a, taxon_b, verbose = FALSE) {
 #' @param verbose Logical. If `TRUE`, prints progress for each pair.
 #'   Default `FALSE`.
 #' @param progress Logical. If `TRUE`, shows a progress bar. Default `TRUE`.
+#' @param metric Distance metric; see [taxo_distance()]. Ignored for a
+#'   `taxodist_bundle`, whose stored matrix is returned.
 #'
 #' @return A symmetric numeric matrix of class `"dist"` containing pairwise
-#'   distances. Row and column names are set to the input taxon names.
-#'   Taxa that could not be found are included with `NA` distances.
-#'   An empty input returns an empty `"dist"` object.
+#'   distances. Row and column names are set to the input taxon names, and
+#'   the `"method"` attribute records the metric. Taxa that could not be
+#'   found are included with `NA` distances. An empty input returns an empty
+#'   `"dist"` object.
 #'
 #' @details
 #' Distances are computed in vectorized form: every lineage node is first
@@ -130,18 +172,31 @@ mrca <- function(taxon_a, taxon_b, verbose = FALSE) {
 #' mat <- distance_matrix(theropods)
 #' print(mat)
 #' }
-distance_matrix <- function(taxa, verbose = FALSE, progress = TRUE) {
+distance_matrix <- function(taxa, verbose = FALSE, progress = TRUE,
+                            metric = "reciprocal") {
   if (inherits(taxa, "taxodist_bundle")) {
     .validate_taxodist_bundle(taxa, check_distances = FALSE)
     return(taxa$matrix)
   }
+  metric <- .match_metric(metric)
+  .distance_matrix_impl(
+    taxa, get_lineage,
+    verbose = verbose, progress = progress, metric = metric,
+    levels = .rank_levels()
+  )
+}
 
-  input <- .matrix_input(taxa, get_lineage, verbose = verbose, progress = progress)
+.distance_matrix_impl <- function(taxa, fetch, verbose, progress, metric, levels) {
+  input <- .matrix_input(
+    taxa, fetch, verbose = verbose, progress = progress,
+    ranks = identical(metric, "ranked")
+  )
   labels <- input$labels
   n <- length(labels)
+  lineages <- .metric_lineages(input$lineages, labels, metric, levels)
 
   values <- if (n > 1L) {
-    .pairwise_distances(input$lineages, progress = progress)
+    .pairwise_distances(lineages, progress = progress, metric = metric)
   } else {
     numeric(0)
   }
@@ -152,6 +207,7 @@ distance_matrix <- function(taxa, verbose = FALSE, progress = TRUE) {
     Labels = labels,
     Diag = FALSE,
     Upper = FALSE,
+    method = metric,
     class = "dist"
   )
 }
@@ -167,6 +223,7 @@ distance_matrix <- function(taxa, verbose = FALSE, progress = TRUE) {
 #'   objects returned by [taxo_resolve()] or [taxo_from_lineages()].
 #' @param verbose Logical. If `TRUE`, prints retrieval messages.
 #' @param progress Logical. If `TRUE`, shows progress messages.
+#' @param metric Distance metric; see [taxo_distance()].
 #'
 #' @return A numeric matrix with one row per element of `x` and one column
 #'   per element of `y`, labeled with the inputs. Taxa that could not be
@@ -184,13 +241,20 @@ distance_matrix <- function(taxa, verbose = FALSE, progress = TRUE) {
 #'   Delta = c("Biota", "Plantae", "Delta")
 #' ))
 #' cross_distances(community, reference)
-cross_distances <- function(x, y, verbose = FALSE, progress = TRUE) {
+cross_distances <- function(x, y, verbose = FALSE, progress = TRUE,
+                            metric = "reciprocal") {
+  metric <- .match_metric(metric)
+  need_ranks <- identical(metric, "ranked")
   input_x <- .matrix_input(
-    x, get_lineage, verbose = verbose, progress = progress, arg = "x"
+    x, get_lineage, verbose = verbose, progress = progress, arg = "x",
+    ranks = need_ranks
   )
   input_y <- .matrix_input(
-    y, get_lineage, verbose = verbose, progress = progress, arg = "y"
+    y, get_lineage, verbose = verbose, progress = progress, arg = "y",
+    ranks = need_ranks
   )
+  input_x$lineages <- .metric_lineages(input_x$lineages, input_x$labels, metric)
+  input_y$lineages <- .metric_lineages(input_y$lineages, input_y$labels, metric)
   nx <- length(input_x$labels)
   ny <- length(input_y$labels)
 
@@ -209,7 +273,7 @@ cross_distances <- function(x, y, verbose = FALSE, progress = TRUE) {
   for (j in seq_len(ny)) {
     col <- nx + j
     if (missing[[col]]) next
-    out[, j] <- .distances_to(ids, lens, x_idx, col)
+    out[, j] <- .distances_to(ids, lens, x_idx, col, metric)
   }
   out[missing[x_idx], ] <- NA_real_
   out
@@ -224,9 +288,10 @@ cross_distances <- function(x, y, verbose = FALSE, progress = TRUE) {
 #' @param candidates A character vector of candidate taxon names to compare
 #'   against.
 #' @param verbose Logical. If `TRUE`, prints progress messages. Default `FALSE`.
+#' @param metric Distance metric; see [taxo_distance()].
 #'
-#' @return A data frame with columns `taxon` (candidate name) and `distance`
-#'   (ultrametric distance), sorted by distance ascending. Returns `NULL` if
+#' @return A data frame with columns `taxon` (candidate name) and `distance`,
+#'   sorted by distance ascending. Returns `NULL` if
 #'   the query taxon cannot be found. An empty candidate vector returns an
 #'   empty data frame with the same columns.
 #'
@@ -236,17 +301,19 @@ cross_distances <- function(x, y, verbose = FALSE, progress = TRUE) {
 #' closest_relative("Tyrannosaurus",
 #'   c("Velociraptor", "Triceratops", "Brachiosaurus", "Allosaurus"))
 #' }
-closest_relative <- function(taxon, candidates, verbose = FALSE) {
-  query_lin <- get_lineage(taxon, verbose = verbose)
+closest_relative <- function(taxon, candidates, verbose = FALSE,
+                             metric = "reciprocal") {
+  metric <- .match_metric(metric)
+  query_lin <- .lineage_for_metric(taxon, metric, get_lineage, verbose = verbose)
   if (is.null(query_lin)) {
     cli::cli_alert_danger("Could not retrieve lineage for {taxon}")
     return(NULL)
   }
 
   distances <- vapply(candidates, function(cand) {
-    cand_lin <- get_lineage(cand, verbose = verbose)
+    cand_lin <- .lineage_for_metric(cand, metric, get_lineage, verbose = verbose)
     if (is.null(cand_lin)) return(NA_real_)
-    .compute_distance(query_lin, cand_lin, taxon, cand)$distance
+    .compute_distance(query_lin, cand_lin, taxon, cand, metric = metric)$distance
   }, numeric(1), USE.NAMES = FALSE)
 
   results <- data.frame(
@@ -273,6 +340,7 @@ closest_relative <- function(taxon, candidates, verbose = FALSE) {
 #'   of `0`.
 #' @param verbose Logical. If `TRUE`, prints progress messages. Default `FALSE`.
 #' @param progress Logical. If `TRUE`, shows a progress bar. Default `TRUE`.
+#' @param metric Distance metric; see [taxo_distance()].
 #'
 #' @return A data frame of class `"taxodist_focal"` with columns:
 #' \describe{
@@ -294,8 +362,10 @@ closest_relative <- function(taxon, candidates, verbose = FALSE) {
 #'                "Allosaurus", "Homo", "Quercus")
 #' focal_distances("Tyrannosaurus", community)
 #' }
-focal_distances <- function(focal, community, verbose = FALSE, progress = TRUE) {
-  focal_lin <- get_lineage(focal, verbose = verbose)
+focal_distances <- function(focal, community, verbose = FALSE, progress = TRUE,
+                            metric = "reciprocal") {
+  metric <- .match_metric(metric)
+  focal_lin <- .lineage_for_metric(focal, metric, get_lineage, verbose = verbose)
   if (is.null(focal_lin)) {
     cli::cli_alert_danger("Could not retrieve lineage for {focal}")
     return(NULL)
@@ -321,7 +391,7 @@ focal_distances <- function(focal, community, verbose = FALSE, progress = TRUE) 
   results <- vector("list", length(community))
   for (i in seq_along(community)) {
     taxon <- community[[i]]
-    cand_lin <- get_lineage(taxon, verbose = verbose)
+    cand_lin <- .lineage_for_metric(taxon, metric, get_lineage, verbose = verbose)
     if (is.null(cand_lin)) {
       results[[i]] <- data.frame(
         taxon      = taxon,
@@ -331,7 +401,7 @@ focal_distances <- function(focal, community, verbose = FALSE, progress = TRUE) 
         stringsAsFactors = FALSE
       )
     } else {
-      res <- .compute_distance(focal_lin, cand_lin, focal, taxon)
+      res <- .compute_distance(focal_lin, cand_lin, focal, taxon, metric = metric)
       results[[i]] <- data.frame(
         taxon      = taxon,
         distance   = res$distance,
@@ -417,7 +487,7 @@ check_coverage <- function(taxa, verbose = FALSE) {
 #' @param method Clustering method passed to [stats::hclust()]. Default
 #'   `"average"` (UPGMA), which works well with taxonomic distances.
 #' @param ... Additional arguments passed to [distance_matrix()] (e.g.
-#'   `verbose`, `progress`).
+#'   `verbose`, `progress`, or `metric`).
 #'
 #' @return An object of class `"taxodist_cluster"` — a list with:
 #' \describe{
@@ -464,7 +534,8 @@ taxo_cluster <- function(taxa, method = "average", ...) {
 #' @param taxa A character vector of taxon names, or a `dist` object from
 #'   [distance_matrix()].
 #' @param k Number of dimensions. Default `2`.
-#' @param ... Additional arguments passed to [distance_matrix()].
+#' @param ... Additional arguments passed to [distance_matrix()] (e.g.
+#'   `metric`).
 #'
 #' @return An object of class `"taxodist_ord"` — a list with:
 #' \describe{
@@ -531,7 +602,7 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
 # resolved in their own environment.
 #' @keywords internal
 .matrix_input <- function(taxa, fetch, verbose = FALSE, progress = TRUE,
-                          arg = "taxa") {
+                          arg = "taxa", ranks = FALSE) {
   if (inherits(taxa, "taxodist_bundle")) {
     taxa <- taxa$resolution
   }
@@ -540,7 +611,20 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
     if (!all(required %in% names(taxa))) {
       cli::cli_abort("Invalid {.cls taxodist_resolution} object.")
     }
-    return(list(labels = taxa$input, lineages = unclass(taxa$lineage)))
+    lineages <- unclass(taxa$lineage)
+    attributes(lineages) <- NULL
+    if ("ranks" %in% names(taxa)) {
+      rank_list <- unclass(taxa$ranks)
+      lineages <- lapply(seq_along(lineages), function(i) {
+        lineage <- lineages[[i]]
+        r <- rank_list[[i]]
+        if (!is.null(lineage) && !is.null(r) && length(r) == length(lineage)) {
+          attr(lineage, "ranks") <- as.character(r)
+        }
+        lineage
+      })
+    }
+    return(list(labels = taxa$input, lineages = lineages))
   }
   if (is.list(taxa)) {
     cli::cli_abort(
@@ -556,6 +640,7 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
   if (progress) cli::cli_alert_info("Fetching {length(taxa)} lineages...")
   lineages <- lapply(taxa, function(taxon) {
     if (is.na(taxon)) return(NULL)
+    if (ranks) return(.ranked_lineage(taxon, verbose = verbose))
     cache_key <- paste0("matrix_lineage_", .normalize_taxon(taxon))
     if (exists(cache_key, envir = .taxodist_cache, inherits = FALSE)) {
       return(get(cache_key, envir = .taxodist_cache, inherits = FALSE))
@@ -569,6 +654,23 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
   })
   if (progress) cli::cli_alert_success("Lineages fetched.")
   list(labels = taxa, lineages = lineages)
+}
+
+# Lineage of a taxon carrying its node ranks in the "ranks" attribute.
+.ranked_lineage <- function(taxon, verbose = FALSE) {
+  ranked <- lineage_ranks(taxon, verbose = verbose)
+  if (is.null(ranked)) return(NULL)
+  structure(ranked$node, ranks = ranked$rank)
+}
+
+# Lineage retrieval used by the pairwise functions: plain lineages from
+# `fetch` (get_lineage) for depth-based metrics, ranked lineages otherwise.
+.lineage_for_metric <- function(taxon, metric, fetch, verbose = FALSE) {
+  if (identical(metric, "ranked")) {
+    .ranked_lineage(taxon, verbose = verbose)
+  } else {
+    fetch(taxon, verbose = verbose)
+  }
 }
 
 # Replace each lineage node by an integer that identifies its complete path
@@ -601,20 +703,17 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
 
 # Distances from the lineage in row `j` of `ids` to the lineages in rows `i`.
 #' @keywords internal
-.distances_to <- function(ids, lens, i, j) {
+.distances_to <- function(ids, lens, i, j, metric = "reciprocal") {
   shared <- ids[i, , drop = FALSE] == rep(ids[j, ], each = length(i))
   mrca_depth <- rowSums(shared, na.rm = TRUE)
-  values <- 1 / mrca_depth
-  identical_lineage <- mrca_depth > 0 &
-    mrca_depth == lens[[j]] & lens[i] == lens[[j]]
-  values[identical_lineage] <- 0
-  values
+  .metric_values(mrca_depth, lens[i], lens[[j]], metric)
 }
 
 # Lower-triangle distances in base `dist` storage order (column by column).
-# NULL lineages (taxa that could not be resolved) yield NA.
+# NULL lineages (taxa that could not be resolved) yield NA. For the "ranked"
+# metric, `lineages` must already be reduced with .metric_lineages().
 #' @keywords internal
-.pairwise_distances <- function(lineages, progress = FALSE) {
+.pairwise_distances <- function(lineages, progress = FALSE, metric = "reciprocal") {
   n <- length(lineages)
   ids <- .prefix_node_ids(lineages)
   lens <- lengths(lineages)
@@ -627,13 +726,102 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
   }
   for (column in seq_len(n - 1L)) {
     rows <- (column + 1L):n
-    block <- .distances_to(ids, lens, rows, column)
+    block <- .distances_to(ids, lens, rows, column, metric)
     block[missing[rows] | missing[[column]]] <- NA_real_
     values[position + seq_along(rows)] <- block
     position <- position + length(rows)
     if (progress) cli::cli_progress_update()
   }
   if (progress) cli::cli_progress_done()
+  values
+}
+
+# -- Distance metrics --------------------------------------------------------
+
+.distance_metrics <- c("reciprocal", "path", "wu_palmer", "ranked")
+
+.default_rank_levels <- c(
+  "kingdom", "phylum", "class", "order", "family", "genus", "species"
+)
+
+.match_metric <- function(metric) {
+  if (!is.character(metric) || length(metric) < 1L || anyNA(metric)) {
+    cli::cli_abort(
+      "{.arg metric} must be one of {.or {.val {(.distance_metrics)}}}."
+    )
+  }
+  if (length(metric) > 1L) metric <- metric[[1L]]
+  if (!metric %in% .distance_metrics) {
+    cli::cli_abort(c(
+      "x" = "Unknown distance metric {.val {metric}}.",
+      "i" = "Use one of {.or {.val {(.distance_metrics)}}}."
+    ))
+  }
+  metric
+}
+
+# Rank levels used by the "ranked" metric, from the `taxodist.rank_levels`
+# option (lower case, matched against the last word of each node's rank).
+.rank_levels <- function() {
+  levels <- getOption("taxodist.rank_levels", .default_rank_levels)
+  if (!is.character(levels) || length(levels) == 0L || anyNA(levels)) {
+    cli::cli_abort(
+      "Option {.code taxodist.rank_levels} must be a non-empty character vector."
+    )
+  }
+  tolower(trimws(levels))
+}
+
+# Reduce a lineage to its nodes whose rank is one of `levels` (compared on
+# the last word of the rank, so "Anamorph genus" counts as a genus), always
+# keeping the root node, so that taxa of different kingdoms remain connected,
+# and the terminal node. The result carries no ranks.
+.project_lineage <- function(lineage, ranks, levels) {
+  n <- length(lineage)
+  if (n == 0L) return(lineage)
+  last_word <- tolower(sub("^.*\\s", "", ranks))
+  keep <- !is.na(ranks) & last_word %in% levels
+  keep[[1L]] <- TRUE
+  keep[[n]] <- TRUE
+  as.character(lineage[keep])
+}
+
+.has_ranks <- function(lineage) {
+  ranks <- attr(lineage, "ranks", exact = TRUE)
+  !is.null(ranks) && length(ranks) == length(lineage) && !all(is.na(ranks))
+}
+
+# Lineages on which the metric is computed: unchanged for depth-based
+# metrics; reduced to the standard rank levels for "ranked". Lineages
+# without rank information cause an error for "ranked".
+.metric_lineages <- function(lineages, labels, metric, levels = .rank_levels()) {
+  if (!identical(metric, "ranked")) return(lineages)
+  present <- !vapply(lineages, is.null, logical(1))
+  unranked <- present & !vapply(lineages, .has_ranks, logical(1))
+  if (any(unranked)) {
+    cli::cli_abort(c(
+      "x" = "The {.val ranked} metric requires the rank of every lineage node.",
+      "i" = "No ranks are available for {.val {labels[unranked]}}.",
+      "i" = "Supply {.arg ranks} to {.fn taxo_from_lineages} or use another metric."
+    ))
+  }
+  lapply(lineages, function(lineage) {
+    if (is.null(lineage)) return(NULL)
+    .project_lineage(lineage, attr(lineage, "ranks", exact = TRUE), levels)
+  })
+}
+
+# Distance from MRCA depth `h` and lineage depths `da`, `db` (vectorized).
+# For "ranked", depths refer to lineages already reduced to rank levels.
+.metric_values <- function(h, da, db, metric) {
+  identical_lineage <- h > 0 & h == da & h == db
+  values <- switch(metric,
+    reciprocal = 1 / h,
+    path = ifelse(h == 0, Inf, da + db - 2 * h),
+    wu_palmer = 1 - 2 * h / (da + db),
+    ranked = ifelse(h == 0, Inf, (da + db - 2 * h) / 2)
+  )
+  values[identical_lineage] <- 0
   values
 }
 
@@ -654,7 +842,8 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
 }
 
 #' @keywords internal
-.compute_distance <- function(lin_a, lin_b, name_a = "A", name_b = "B") {
+.compute_distance <- function(lin_a, lin_b, name_a = "A", name_b = "B",
+                              metric = "reciprocal") {
   depth_a <- length(lin_a)
   depth_b <- length(lin_b)
 
@@ -662,29 +851,24 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
   # name repeated after the lineages diverge is a homonym, not a shared node.
   mrca_depth <- .common_prefix_depth(lin_a, lin_b)
 
-  if (mrca_depth == 0L) {
-    return(structure(list(
-      distance   = Inf,
-      mrca       = NA_character_,
-      mrca_depth = 0L,
-      depth_a    = depth_a,
-      depth_b    = depth_b,
-      taxon_a    = name_a,
-      taxon_b    = name_b
-    ), class = "taxodist_result"))
+  distance <- if (identical(metric, "ranked")) {
+    reduced <- .metric_lineages(list(lin_a, lin_b), c(name_a, name_b), metric)
+    .metric_values(
+      .common_prefix_depth(reduced[[1L]], reduced[[2L]]),
+      length(reduced[[1L]]), length(reduced[[2L]]), metric
+    )
+  } else {
+    .metric_values(mrca_depth, depth_a, depth_b, metric)
   }
-
-  mrca_name    <- lin_a[mrca_depth]
-  same_lineage <- depth_a == depth_b && mrca_depth == depth_a
-  distance     <- if (same_lineage) 0 else 1 / mrca_depth
 
   structure(list(
     distance   = distance,
-    mrca       = mrca_name,
+    mrca       = if (mrca_depth == 0L) NA_character_ else lin_a[[mrca_depth]],
     mrca_depth = mrca_depth,
     depth_a    = depth_a,
     depth_b    = depth_b,
     taxon_a    = name_a,
-    taxon_b    = name_b
+    taxon_b    = name_b,
+    metric     = metric
   ), class = "taxodist_result")
 }

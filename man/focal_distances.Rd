@@ -4,7 +4,13 @@
 \alias{focal_distances}
 \title{Compute distances from a focal taxon to a community of taxa}
 \usage{
-focal_distances(focal, community, verbose = FALSE, progress = TRUE)
+focal_distances(
+  focal,
+  community,
+  verbose = FALSE,
+  progress = TRUE,
+  metric = "reciprocal"
+)
 }
 \arguments{
 \item{focal}{A character string giving the focal taxon name.}
@@ -16,6 +22,8 @@ of \code{0}.}
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages. Default \code{FALSE}.}
 
 \item{progress}{Logical. If \code{TRUE}, shows a progress bar. Default \code{TRUE}.}
+
+\item{metric}{Distance metric; see \code{\link[=taxo_distance]{taxo_distance()}}.}
 }
 \value{
 A data frame of class \code{"taxodist_focal"} with columns:

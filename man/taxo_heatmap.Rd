@@ -4,7 +4,13 @@
 \alias{taxo_heatmap}
 \title{Plot a taxonomic heatmap}
 \usage{
-taxo_heatmap(taxa, ..., verbose = FALSE, progress = TRUE)
+taxo_heatmap(
+  taxa,
+  ...,
+  verbose = FALSE,
+  progress = TRUE,
+  metric = "reciprocal"
+)
 }
 \arguments{
 \item{taxa}{A character vector of taxon names, a \code{taxodist_resolution}, a
@@ -13,8 +19,8 @@ taxo_heatmap(taxa, ..., verbose = FALSE, progress = TRUE)
 \item{...}{Additional graphical arguments passed to \code{\link[stats:heatmap]{stats::heatmap()}}
 (for example \code{col} or \code{main}).}
 
-\item{verbose, progress}{Passed to \code{\link[=distance_matrix]{distance_matrix()}} when \code{taxa} is not
-already a \code{dist} object.}
+\item{verbose, progress, metric}{Passed to \code{\link[=distance_matrix]{distance_matrix()}} when \code{taxa} is
+not already a \code{dist} object.}
 }
 \value{
 Invisibly returns the underlying \code{dist} object.

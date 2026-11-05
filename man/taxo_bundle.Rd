@@ -9,7 +9,8 @@ taxo_bundle(
   ambiguity = c("warn", "first", "error"),
   verbose = FALSE,
   progress = TRUE,
-  within = NULL
+  within = NULL,
+  metric = "reciprocal"
 )
 }
 \arguments{
@@ -18,6 +19,10 @@ taxo_bundle(
 
 \item{ambiguity, verbose, progress, within}{Passed to \code{\link[=taxo_resolve]{taxo_resolve()}} when
 \code{taxa} is a character vector.}
+
+\item{metric}{Distance metric used for the stored matrix; see
+\code{\link[=taxo_distance]{taxo_distance()}}. The bundle records it, so the matrix can be verified
+from the stored lineages (and, for \code{"ranked"}, the stored ranks).}
 }
 \value{
 An object of class \code{taxodist_bundle} containing \code{schema_version},

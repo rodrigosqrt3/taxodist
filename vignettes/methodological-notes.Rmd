@@ -85,6 +85,91 @@ ultrametric_ok <- function(index) {
 all(combn(seq_len(nrow(m)), 3, FUN = ultrametric_ok))
 ```
 
+## Alternative metrics
+
+The reciprocal distance weights shallow divergences heavily: two taxa whose
+MRCA is at depth 2 are at distance 0.5, while MRCAs at depths 40 and 41 give
+0.025 and 0.024. It is also sensitive to the uneven resolution of the
+classification: in The Taxonomicon, vertebrate lineages are typically several
+times deeper than bacterial ones, so equal values do not correspond to
+equivalent taxonomic levels in different groups.
+
+The `metric` argument offers three alternatives. With \(d_A\) and \(d_B\) the
+depths of the two lineages:
+
+| Metric | Definition | Properties |
+|---|---|---|
+| `"reciprocal"` | \(1/h\) | ultrametric |
+| `"path"` | \(d_A + d_B - 2h\) | tree metric (number of edges) |
+| `"wu_palmer"` | \(1 - 2h/(d_A + d_B)\) | in \([0, 1)\); normalized by depth |
+| `"ranked"` | half the path through standard ranks only | Clarke and Warwick step weights |
+
+The `"ranked"` metric reduces each lineage to its root, the nodes of the
+Linnaean ranks kingdom, phylum, class, order, family, genus, and species, and
+the queried taxon. Unranked clades, which make up most of the nodes of
+richly resolved groups, are ignored. For two species, the distance is the
+number of rank levels up to their shared rank: 1 in the same genus, 2 in the
+same family, and so on. Rank levels can be changed with the
+`taxodist.rank_levels` option. Note that The Taxonomicon follows current
+phylogenetic classifications, so that, for example, birds are the subclass
+Aves of the class Reptilia.
+
+```{r metrics}
+lineages <- list(
+  Panthera = c("Biota", "Animalia", "Chordata", "Mammalia", "Carnivora",
+               "Felidae", "Panthera"),
+  Felis    = c("Biota", "Animalia", "Chordata", "Mammalia", "Carnivora",
+               "Felidae", "Felis"),
+  Canis    = c("Biota", "Animalia", "Chordata", "Mammalia", "Carnivora",
+               "Canidae", "Canis"),
+  Homo     = c("Biota", "Animalia", "Chordata", "Mammalia", "Primates",
+               "Hominidae", "Homo"),
+  Musca    = c("Biota", "Animalia", "Arthropoda", "Insecta", "Diptera",
+               "Muscidae", "Musca")
+)
+standard <- c(NA, "Kingdom", "Phylum", "Class", "Order", "Family", "Genus")
+example <- taxo_from_lineages(
+  lineages,
+  ranks = rep(list(standard), length(lineages)) |> setNames(names(lineages))
+)
+
+for (metric in c("reciprocal", "path", "wu_palmer", "ranked")) {
+  cat("\n", metric, "\n")
+  print(round(distance_matrix(example, metric = metric, progress = FALSE), 3))
+}
+```
+
+Rankings of pairs are the same under all four metrics within a single,
+evenly resolved lineage set such as this one; they differ when lineages of
+very different depths are compared.
+
+## Taxonomic distinctness
+
+`taxo_distinctness()` computes the indices of Warwick and Clarke: taxonomic
+diversity \(\Delta\), taxonomic distinctness \(\Delta^*\), average taxonomic
+distinctness \(\Delta^+\), and its variation \(\Lambda^+\). With the
+`"ranked"` metric they reproduce the classical definitions based on Linnaean
+ranks, and they agree with `vegan::taxondive()`; with the other metrics they
+use the full resolution of the classification.
+
+```{r distinctness}
+d <- distance_matrix(example, metric = "ranked", progress = FALSE)
+communities <- rbind(
+  site_1 = c(Panthera = 4, Felis = 2, Canis = 1, Homo = 0, Musca = 0),
+  site_2 = c(Panthera = 1, Felis = 0, Canis = 1, Homo = 2, Musca = 5)
+)
+taxo_distinctness(communities, d)
+```
+
+\(\Delta^+\) does not depend on sample size in expectation, so a sample can
+be compared with random samples of the same number of taxa drawn from a
+master list:
+
+```{r distinctness-test}
+set.seed(1)
+taxo_distinctness_test(c("Panthera", "Felis", "Canis"), d, n_iter = 499)
+```
+
 ## Dependence on the source classification
 
 The numerical value depends on the number and arrangement of nodes returned by

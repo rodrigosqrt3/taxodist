@@ -5,10 +5,11 @@
 #' @return Invisibly returns \code{x}. Called for side effects (printing).
 #' @export
 print.taxodist_result <- function(x, ...) {
+  metric <- if (is.null(x$metric)) "reciprocal" else x$metric
   cli::cli_h2("Taxonomic Distance")
   cli::cli_bullets(c(
     "*" = "{x$taxon_a} vs {x$taxon_b}",
-    " " = "Distance : {x$distance}",
+    " " = "Distance : {x$distance} ({metric})",
     " " = "MRCA     : {x$mrca} (depth {x$mrca_depth})",
     " " = "Depth A  : {x$depth_a}",
     " " = "Depth B  : {x$depth_b}"
@@ -309,8 +310,8 @@ summary.taxodist_ord <- function(object, ...) {
 #'   `taxodist_bundle`, or a `dist` object from [distance_matrix()].
 #' @param ... Additional graphical arguments passed to [stats::heatmap()]
 #'   (for example `col` or `main`).
-#' @param verbose,progress Passed to [distance_matrix()] when `taxa` is not
-#'   already a `dist` object.
+#' @param verbose,progress,metric Passed to [distance_matrix()] when `taxa` is
+#'   not already a `dist` object.
 #'
 #' @return Invisibly returns the underlying \code{dist} object.
 #'   Called primarily for its side effect (plotting).
@@ -321,11 +322,12 @@ summary.taxodist_ord <- function(object, ...) {
 #' taxa <- c("Tyrannosaurus", "Velociraptor", "Homo", "Panthera", "Quercus")
 #' taxo_heatmap(taxa, col = hcl.colors(12, "YlOrRd"), progress = FALSE)
 #' }
-taxo_heatmap <- function(taxa, ..., verbose = FALSE, progress = TRUE) {
+taxo_heatmap <- function(taxa, ..., verbose = FALSE, progress = TRUE,
+                         metric = "reciprocal") {
   d <- if (inherits(taxa, "dist")) {
     taxa
   } else {
-    distance_matrix(taxa, verbose = verbose, progress = progress)
+    distance_matrix(taxa, verbose = verbose, progress = progress, metric = metric)
   }
   if (any(is.na(d))) {
     cli::cli_warn("Distance matrix contains NA values. Heatmap skipped.")

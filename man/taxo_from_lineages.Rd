@@ -4,7 +4,12 @@
 \alias{taxo_from_lineages}
 \title{Create an auditable resolution from user-supplied lineages}
 \usage{
-taxo_from_lineages(lineages, ids = NULL, source = "user-supplied")
+taxo_from_lineages(
+  lineages,
+  ids = NULL,
+  source = "user-supplied",
+  ranks = NULL
+)
 }
 \arguments{
 \item{lineages}{A named list of character vectors ordered from root to the
@@ -15,6 +20,11 @@ order as \code{lineages}. A named vector is matched by name. If omitted,
 deterministic identifiers of the form \verb{custom:<input label>} are created.}
 
 \item{source}{A non-empty character string describing the lineage source.}
+
+\item{ranks}{Optional named list of character vectors giving the rank of
+every node, aligned with \code{lineages} (use \code{NA} for unranked nodes). Ranks
+are required only by the \code{"ranked"} distance method. A list without
+names is matched by position.}
 }
 \value{
 A \code{taxodist_resolution} object that can be passed to
@@ -32,6 +42,16 @@ lineages <- list(
 )
 resolved <- taxo_from_lineages(lineages)
 distance_matrix(resolved)
+
+# With ranks, the rank-based distance can be used
+ranked <- taxo_from_lineages(
+  lineages,
+  ranks = list(
+    Alpha = c(NA, "Kingdom", "Genus"),
+    Beta = c(NA, "Kingdom", "Genus")
+  )
+)
+distance_matrix(ranked, metric = "ranked")
 }
 \seealso{
 \code{\link[=taxo_resolve]{taxo_resolve()}}, \code{\link[=distance_matrix]{distance_matrix()}}, \code{\link[=taxo_bundle]{taxo_bundle()}}

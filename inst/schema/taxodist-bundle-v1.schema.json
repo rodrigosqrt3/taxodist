@@ -3,6 +3,20 @@
   "$id": "https://rodrigosqrt3.github.io/taxodist-web/schema/taxodist-bundle-v1.schema.json",
   "title": "taxodist portable analysis bundle",
   "type": "object",
+  "allOf": [
+    {
+      "if": {
+        "properties": { "schema_version": { "const": "1.0" } }
+      },
+      "then": {
+        "properties": {
+          "metric": {
+            "properties": { "name": { "const": "inverse_mrca_depth" } }
+          }
+        }
+      }
+    }
+  ],
   "required": [
     "format",
     "schema_version",
@@ -15,7 +29,7 @@
   ],
   "properties": {
     "format": { "const": "taxodist_bundle" },
-    "schema_version": { "const": "1.0" },
+    "schema_version": { "enum": ["1.0", "1.1"] },
     "created_at": { "type": ["string", "null"] },
     "source": {
       "type": "object",
@@ -41,11 +55,27 @@
       "type": "object",
       "required": ["name", "definition", "root_depth", "common_ancestor"],
       "properties": {
-        "name": { "const": "inverse_mrca_depth" },
+        "name": {
+          "enum": [
+            "inverse_mrca_depth",
+            "path_length",
+            "wu_palmer",
+            "ranked_path_length"
+          ]
+        },
         "definition": { "type": "string" },
         "root_depth": { "const": 1 },
-        "common_ancestor": { "const": "continuous common lineage prefix" }
+        "common_ancestor": { "const": "continuous common lineage prefix" },
+        "rank_levels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
       },
+      "if": {
+        "properties": { "name": { "const": "ranked_path_length" } }
+      },
+      "then": { "required": ["rank_levels"] },
       "additionalProperties": false
     },
     "taxa": {
@@ -88,6 +118,15 @@
               },
               "additionalProperties": false
             }
+          },
+          "lineage_ranks": {
+            "oneOf": [
+              { "type": "null" },
+              {
+                "type": "array",
+                "items": { "type": ["string", "null"] }
+              }
+            ]
           }
         },
         "allOf": [

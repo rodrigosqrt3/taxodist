@@ -287,7 +287,7 @@ test_that("taxo_bundle combines resolution, matrix, metric, and provenance", {
 
   bundle <- taxo_bundle(resolution, progress = FALSE)
   expect_s3_class(bundle, "taxodist_bundle")
-  expect_equal(bundle$schema_version, "1.0")
+  expect_equal(bundle$schema_version, "1.1")
   expect_equal(bundle$source$name, "The Taxonomicon")
   expect_equal(bundle$metric$name, "inverse_mrca_depth")
   expect_identical(bundle$resolution, resolution)

@@ -4,7 +4,7 @@
 \alias{taxo_distance}
 \title{Compute the taxonomic hierarchy distance between two taxa}
 \usage{
-taxo_distance(taxon_a, taxon_b, verbose = FALSE)
+taxo_distance(taxon_a, taxon_b, verbose = FALSE, metric = "reciprocal")
 }
 \arguments{
 \item{taxon_a}{A character string giving the first taxon name.}
@@ -12,6 +12,9 @@ taxo_distance(taxon_a, taxon_b, verbose = FALSE)
 \item{taxon_b}{A character string giving the second taxon name.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages. Default \code{FALSE}.}
+
+\item{metric}{Distance metric: one of \code{"reciprocal"} (default), \code{"path"},
+\code{"wu_palmer"}, or \code{"ranked"}. See the Metrics section.}
 }
 \value{
 A named list of class \code{"taxodist_result"} with the following elements:
@@ -24,13 +27,14 @@ only when their complete lineages are identical.}
 \item{\code{depth_b}}{Integer. The lineage depth of taxon B.}
 \item{\code{taxon_a}}{Character. Name of the first taxon.}
 \item{\code{taxon_b}}{Character. Name of the second taxon.}
+\item{\code{metric}}{Character. The metric used.}
 }
 Returns \code{NULL} if either taxon cannot be found.
 }
 \description{
 Given two taxon names, retrieves their lineages from The Taxonomicon and
 computes a taxonomic distance based on the depth of their most recent
-common ancestor (MRCA):
+common ancestor (MRCA). With the default metric,
 }
 \details{
 \deqn{d(A,A) = 0}{d(A,A) = 0}
@@ -44,6 +48,34 @@ connected taxonomic hierarchy. Use \code{\link[=is_member]{is_member()}} when th
 whether one taxon belongs to a clade rather than how far apart the two
 hierarchy nodes are.
 }
+\section{Metrics}{
+
+Let \eqn{h} be the MRCA depth and \eqn{d_A}, \eqn{d_B} the lineage depths
+(numbers of nodes, root included). Every metric is zero for identical
+lineages.
+\describe{
+\item{\code{"reciprocal"} (default)}{\eqn{1/h}. An ultrametric that weights
+shallow divergences heavily and compresses deep ones.}
+\item{\code{"path"}}{\eqn{d_A + d_B - 2h}, the number of edges between the
+two nodes in the classification tree. A tree metric, not an
+ultrametric when depths differ.}
+\item{\code{"wu_palmer"}}{\eqn{1 - 2h/(d_A + d_B)}, the complement of the
+Wu-Palmer similarity. It lies in \eqn{[0, 1)} and normalizes for the
+different resolution of different parts of the classification. It is
+not guaranteed to satisfy the triangle inequality.}
+\item{\code{"ranked"}}{Half the path length after reducing both lineages to
+the nodes of the standard Linnaean ranks (kingdom, phylum, class,
+order, family, genus, species; see the \code{taxodist.rank_levels} option),
+the root, and the terminal node. For taxa of the same rank this is the number of
+rank levels up to their shared rank, i.e. the step weights of Clarke
+and Warwick's taxonomic distinctness: 1 for congeneric species, 2 for
+confamilial species, and so on. Requires lineage ranks (see
+\code{\link[=lineage_ranks]{lineage_ranks()}}).}
+}
+Lineages without a shared root have infinite distance, except under
+\code{"wu_palmer"}, where their distance is 1.
+}
+
 \examples{
 \donttest{
 # Distance between two theropods
@@ -52,16 +84,24 @@ taxo_distance("Tyrannosaurus", "Velociraptor")
 # Distance between very distantly related taxa
 taxo_distance("Tyrannosaurus", "Quercus")
 
-# Distance between two oviraptorid genera
-taxo_distance("Nomingia", "Huanansaurus")
+# The same pair under other metrics
+taxo_distance("Tyrannosaurus", "Velociraptor", metric = "path")
+taxo_distance("Tyrannosaurus", "Velociraptor", metric = "ranked")
 }
 }
 \references{
 Brands, S.J. (1989 onwards). Systema Naturae 2000. Amsterdam, The
 Netherlands. Retrieved from The Taxonomicon,
 \url{http://taxonomicon.taxonomy.nl}.
+
+Clarke, K.R. & Warwick, R.M. (1998). A taxonomic distinctness index and its
+statistical properties. \emph{Journal of Applied Ecology} 35, 523--531.
+
+Wu, Z. & Palmer, M. (1994). Verb semantics and lexical selection.
+\emph{Proceedings of the 32nd Annual Meeting of the Association for
+Computational Linguistics}, 133--138.
 }
 \seealso{
 \code{\link[=mrca]{mrca()}}, \code{\link[=distance_matrix]{distance_matrix()}}, \code{\link[=get_lineage]{get_lineage()}}, \code{\link[=is_member]{is_member()}},
-\code{\link[=taxo_path]{taxo_path()}}
+\code{\link[=taxo_path]{taxo_path()}}, \code{\link[=taxo_distinctness]{taxo_distinctness()}}
 }
