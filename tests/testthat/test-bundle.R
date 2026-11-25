@@ -600,3 +600,49 @@ test_that("print.taxodist_bundle returns invisibly", {
   expect_invisible(print(bundle))
 })
 
+
+test_that("bundle files round-trip distances bit for bit", {
+  res <- taxo_from_lineages(list(
+    A = c("Biota", "B", "C", "D", "E", "A"),
+    B = c("Biota", "B", "C", "Bx"),
+    C = c("Biota", "Q", "R", "S", "T", "U", "C")
+  ))
+  for (metric in c("reciprocal", "wu_palmer")) {
+    bundle <- taxo_bundle(res, progress = FALSE, metric = metric)
+    file <- tempfile(fileext = ".json")
+    on.exit(unlink(file), add = TRUE)
+    write_taxodist_bundle(bundle, file)
+    back <- read_taxodist_bundle(file)
+    expect_identical(as.vector(back$matrix), as.vector(bundle$matrix), info = metric)
+  }
+})
+
+test_that("compare_bundles reports a change of metric", {
+  res <- taxo_from_lineages(list(
+    A = c("Biota", "B", "A"),
+    B = c("Biota", "B", "Bx"),
+    C = c("Biota", "C")
+  ))
+  reciprocal <- taxo_bundle(res, progress = FALSE)
+  path <- taxo_bundle(res, progress = FALSE, metric = "path")
+  same <- compare_bundles(reciprocal, reciprocal)
+  expect_false(same$metric_changed)
+  expect_identical(same$metric_old, "reciprocal")
+
+  changed <- compare_bundles(reciprocal, path)
+  expect_true(changed$metric_changed)
+  expect_identical(c(changed$metric_old, changed$metric_new), c("reciprocal", "path"))
+  expect_message(print(changed), "different metrics")
+
+  ranked_res <- taxo_from_lineages(
+    list(A = c("Biota", "Animalia", "A"), B = c("Biota", "Animalia", "B")),
+    ranks = list(c(NA, "Kingdom", "Genus"), c(NA, "Kingdom", "Genus"))
+  )
+  r1 <- taxo_bundle(ranked_res, progress = FALSE, metric = "ranked")
+  old <- options(taxodist.rank_levels = c("kingdom", "genus"))
+  on.exit(options(old), add = TRUE)
+  r2 <- taxo_bundle(ranked_res, progress = FALSE, metric = "ranked")
+  levels_changed <- compare_bundles(r1, r2)
+  expect_true(levels_changed$metric_changed)
+  expect_message(print(levels_changed), "different rank levels")
+})

@@ -256,7 +256,21 @@ test_that("user agent has a development fallback", {
   mockery::stub(user_agent, "utils::packageVersion", function(...) {
     stop("version unavailable")
   })
-  expect_equal(user_agent(), "taxodist R package development")
+  expect_equal(user_agent(), "taxodist/development (R; +https://taxodist.github.io)")
+})
+
+test_that("user agent follows the cross-language format", {
+  expect_match(
+    taxodist:::.taxodist_user_agent(),
+    "^taxodist/[0-9.]+ \\(R; \\+https://taxodist\\.github\\.io\\)$"
+  )
+})
+
+test_that("taxon names treat Unicode spaces as whitespace", {
+  normalize <- taxodist:::.normalize_taxon
+  expect_identical(normalize("\u00a0Homo\u00a0\u00a0sapiens\u00a0"), "Homo sapiens")
+  expect_identical(normalize("\tHomo \u2009sapiens\n"), "Homo sapiens")
+  expect_identical(normalize("Homo sapiens"), "Homo sapiens")
 })
 
 test_that("taxo_search keeps diagnostics out of the public API", {

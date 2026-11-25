@@ -248,3 +248,17 @@ test_that("get_lineage_by_id verbose success message fires on real taxon", {
   expect_no_error(get_lineage_by_id(id, verbose = TRUE))
 })
 
+
+test_that("Open Tree and NCBI sources resolve live", {
+  skip_if_offline()
+  skip_on_cran()
+  skip_on_ci()
+  clear_cache()
+  on.exit(clear_cache(), add = TRUE)
+  ott <- taxo_resolve(c("Homo", "Pan"), source = "ott", progress = FALSE)
+  expect_identical(ott$id, c("ott:770309", "ott:417957"))
+  expect_match(attr(ott, "source"), "^Open Tree Taxonomy")
+  ncbi <- taxo_resolve(c("Homo", "Pan"), source = "ncbi", progress = FALSE)
+  expect_identical(ncbi$id, c("ncbi:9605", "ncbi:9596"))
+  expect_identical(ncbi$lineage[[1]][[1]], "cellular organisms")
+})

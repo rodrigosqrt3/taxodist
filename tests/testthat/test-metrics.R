@@ -553,9 +553,12 @@ test_that("ranked lineages are fetched with their ranks", {
 })
 
 test_that("metric and rank-level arguments are validated", {
-  expect_error(taxodist:::.match_metric(1), "must be one of")
-  expect_error(taxodist:::.match_metric(NA_character_), "must be one of")
-  expect_identical(taxodist:::.match_metric(c("path", "ranked")), "path")
+  expect_error(taxodist:::.match_metric(1), "must be a single string")
+  expect_error(taxodist:::.match_metric(NA_character_), "must be a single string")
+  expect_error(taxodist:::.match_metric(character(0)), "must be a single string")
+  # A vector is an error, as in the Python and Julia implementations.
+  expect_error(taxodist:::.match_metric(c("path", "ranked")), "must be a single string")
+  expect_identical(taxodist:::.match_metric("path"), "path")
 
   old <- options(taxodist.rank_levels = character(0))
   on.exit(options(old), add = TRUE)

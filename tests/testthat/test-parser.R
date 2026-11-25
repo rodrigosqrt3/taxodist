@@ -216,3 +216,24 @@ test_that("requests are throttled by taxodist.min_interval", {
   throttle()
   expect_lt(as.numeric(difftime(Sys.time(), start, units = "secs")), 0.1)
 })
+
+test_that("text fallback strips no-break-space indentation (shared fixture)", {
+  # expected_text_fallback.json is shared with the Python and Julia
+  # implementations: every fixture is parsed with its structured hierarchy
+  # block removed, so the plain-text fallback parser is used.
+  expected <- jsonlite::read_json(fixture("expected_text_fallback.json"))
+  for (id in names(expected)) {
+    html <- paste(
+      readLines(fixture(paste0("tree_", id, ".html")), encoding = "UTF-8", warn = FALSE),
+      collapse = "\n"
+    )
+    html <- gsub("ctl00_cphTabContent_divHierarchy", "xxHier", html, fixed = TRUE)
+    parsed <- taxodist:::.lineage_from_page(xml2::read_html(html, encoding = "UTF-8"), id)
+    ranks <- vapply(expected[[id]]$ranks, function(x) if (is.null(x)) NA_character_ else x, "")
+    expect_identical(as.character(parsed), unlist(expected[[id]]$lineage), info = id)
+    expect_identical(attr(parsed, "ranks"), ranks, info = id)
+    # Rank labels must never be read as nodes.
+    expect_false(any(grepl("^(Clade|Domain|Kingdom|Phylum|Class|Order|Family)( |$)", parsed)),
+                 info = id)
+  }
+})
