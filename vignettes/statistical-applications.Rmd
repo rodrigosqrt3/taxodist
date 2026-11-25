@@ -376,8 +376,8 @@ taxa <- c(
   "Allosaurus"
 )
 
-coverage <- check_coverage(taxa)
-stopifnot(all(coverage))
+coverage <- check_coverage(taxa)  # NA when the server could not be reached
+stopifnot(isTRUE(all(coverage)))
 
 mat <- distance_matrix(taxa)
 
@@ -388,13 +388,22 @@ plot(clustering)
 plot(ordination)
 ```
 
+## Further analyses
+
+Taxonomic dissimilarity between samples (\(\Gamma^+\), \(\Theta^+\)), which
+compares samples even when they share no taxon, and standardized effect sizes
+of community structure (NRI and NTI under null models) are described in
+`vignette("sources-and-communities")`. Their `dist` output can replace a
+Bray-Curtis matrix in the Mantel test, PERMANOVA, and dispersion analyses
+above.
+
 ## Reporting recommendations
 
 Analyses based on `taxodist` should report:
 
 - the package version;
 - the lineage retrieval or dataset-generation date;
-- The Taxonomicon as the classification source;
+- the classification source (and its version, where published);
 - the distance definition;
 - decisions involving ambiguous or missing taxa;
 - the clustering linkage or ordination method;

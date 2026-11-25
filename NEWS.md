@@ -440,3 +440,95 @@ definitions and continue to read bundles written by this version.
 * Trimmed copies of real Taxonomicon pages are included as test fixtures,
   together with their expected lineages. The same fixtures are used by the
   Python and Julia implementations.
+
+# taxodist 1.1.0
+
+Lineages can now come from three classifications, the dependence of an
+analysis on the classification can be measured, and community analyses gain
+taxonomic dissimilarity between samples and standardized effect sizes. The
+distance metrics and the bundle format are unchanged: distances computed from
+The Taxonomicon are identical to version 1.0.0 (except for the rare pages
+without a structured hierarchy; see Bug fixes), and bundles written by either
+version are read by both.
+
+## New taxonomic sources
+
+* `taxo_resolve()` and `taxo_bundle()` gain a `source` argument. Besides
+  The Taxonomicon (`"taxonomicon"`, the default), lineages can be retrieved
+  from the Open Tree of Life reference taxonomy (`"ott"`) and the NCBI
+  Taxonomy (`"ncbi"`), through their public APIs. The resulting resolutions
+  work with every function that accepts one: `distance_matrix()`,
+  `cross_distances()`, `taxo_tree()`, `taxo_bundle()`, and, through the
+  matrix, `taxo_distinctness()`. Identifiers carry a source prefix
+  (`"ott:770309"`, `"ncbi:9606"`), ranks are recorded in the same form as for
+  The Taxonomicon, and the resolution and its bundles record the source and,
+  for the Open Tree Taxonomy, its version. Requests to each source are spaced
+  independently; NCBI requests are spaced by at least 0.4 s, below its limit
+  of three per second (0.12 s with an API key, set in `NCBI_API_KEY` or
+  `options(taxodist.ncbi_api_key)`), and refused requests (HTTP 429) are
+  retried after a pause.
+* `taxo_sources()` lists the supported sources with their licence and
+  citation.
+* `compare_sources()` resolves the same taxa in several sources and reports
+  the lineage depth of every taxon in each, and the agreement between their
+  distance matrices (Spearman correlation and Mantel permutation test), i.e.
+  how much an analysis depends on the classification it is based on.
+
+## Community analyses
+
+* `taxo_dissimilarity()` computes the taxonomic dissimilarities
+  Γ+ and Θ+ of Clarke, Somerfield and Chapman (2006)
+  between samples, returned as a `dist` object for ordination, clustering,
+  or PERMANOVA. They credit closely related taxa as near matches, so samples
+  without any taxon in common can still be compared; on a flat classification
+  they reduce to the presence/absence Bray-Curtis (Sorensen) and Kulczynski
+  dissimilarities, which the tests verify against `vegan::vegdist()`.
+* `taxo_ses()` computes the standardized effect sizes of the mean pairwise
+  distance (NRI) and the mean nearest-taxon distance (NTI) of Webb et al.
+  (2002) on taxonomic distances, under a species-pool null model or the
+  independent swap, optionally weighted by abundance as in the picante
+  package.
+
+## Name resolution
+
+* A candidate nested in another candidate of the same name, such as the
+  nominotypical subgenus *Mus (Mus)* inside the genus *Mus*, is no longer
+  counted as a homonym, in `taxo_resolve()` and in name-based functions.
+  Names such as `"Mus"`, `"Oncorhynchus"`, or `"Leishmania"` are therefore
+  resolved instead of ambiguous, and no homonym warning is emitted for them.
+  The lineage is unchanged, since it was already truncated at the queried
+  name.
+
+## Performance
+
+* `distance_matrix()` and `cross_distances()`, and therefore `taxo_cluster()`,
+  `taxo_ordinate()`, `taxo_heatmap()`, `taxo_bundle()`, and
+  `taxo_distinctness()`, compute common-ancestor depths with a sorted index of the
+  lineages: in lexicographic order, the common prefix of two lineages is the
+  minimum of the common prefixes of the neighbouring lineages between them.
+  The depths from one taxon to all others then take two cumulative minima
+  instead of a node-by-node comparison of every pair. Results are identical;
+  a matrix of 2000 taxa is about 10 times faster (5000 taxa: 27 s to 2 s).
+
+## Bug fixes
+
+* The plain-text fallback parser, used for pages without the structured
+  hierarchy block, kept the no-break spaces that indent The Taxonomicon tree,
+  so rank labels were not removed and nodes such as `"Clade"` or `"Domain"`
+  could enter the lineage. Its output now matches the Python implementation,
+  and a shared fixture (`expected_text_fallback.json`) checks all three.
+* Taxon names are normalized with Unicode whitespace, such as the no-break
+  space, as well as ASCII whitespace.
+* `write_taxodist_bundle()` writes distances with 17 significant digits, so
+  they are read back exactly, as in the Python and Julia writers. Previously
+  15 digits were used.
+
+## Behavior changes
+
+* `metric` must be a single string. A vector of several metrics was silently
+  reduced to its first element; it is now an error, as in Python and Julia.
+* `compare_bundles()` reports the metric of each bundle (`metric_old`,
+  `metric_new`) and whether it changed (`metric_changed`), and its print
+  method warns when the distances are not comparable.
+* The HTTP user agent follows a format shared by the three implementations:
+  `taxodist/<version> (R; +https://taxodist.github.io)`.

@@ -4,7 +4,7 @@
 
 **Taxonomic hierarchy distances derived from lineage classifications.**
 
-`taxodist` retrieves taxonomic lineages from [The Taxonomicon](http://taxonomicon.taxonomy.nl) and computes distances from the depth of the most recent common ancestor. It supports comparisons among named taxa at any level represented in the source hierarchy, offers alternative distance metrics, and computes Clarke and Warwick's taxonomic distinctness indices.
+`taxodist` retrieves taxonomic lineages and computes distances from the depth of the most recent common ancestor. Lineages come from [The Taxonomicon](http://taxonomicon.taxonomy.nl) by default, a classification with very deep lineages and extensive fossil coverage, or from the [Open Tree of Life](https://tree.opentreeoflife.org/about/taxonomy-version) reference taxonomy or the [NCBI Taxonomy](https://www.ncbi.nlm.nih.gov/taxonomy). It supports comparisons among named taxa at any level represented in the source hierarchy, offers alternative distance metrics, measures how much results depend on the classification, and provides community analyses: Clarke and Warwick's taxonomic distinctness, taxonomic dissimilarity between samples, and standardized effect sizes (NRI, NTI).
 
 The same package is available for [Python](https://github.com/rodrigosqrt3/taxodist-py) and [Julia](https://github.com/rodrigosqrt3/Taxodist.jl); the three implementations give identical results and exchange analyses through a common JSON bundle format.
 
@@ -91,6 +91,38 @@ restored <- read_taxodist_bundle("analysis.json")
 compare_bundles("analysis.json", taxo_bundle(restored$resolution$input))
 ```
 
+## Taxonomic sources
+
+```r
+taxo_sources()   # sources, identifiers, licences, and citations
+
+# The same taxa in the Open Tree Taxonomy or the NCBI Taxonomy
+apes <- c("Homo", "Pan", "Gorilla", "Pongo")
+ott <- taxo_resolve(apes, source = "ott")     # identifiers such as "ott:770309"
+ncbi <- taxo_resolve(apes, source = "ncbi")   # identifiers such as "ncbi:9605"
+distance_matrix(ott)                          # every matrix, tree, and bundle function works
+
+# How much do the distances depend on the classification?
+compare_sources(c("Homo", "Pan", "Mus", "Gallus", "Danio", "Quercus"),
+                sources = c("taxonomicon", "ott", "ncbi"))
+```
+
+Distances are only comparable within one source: The Taxonomicon resolves many more unranked clades, so its lineages are typically two to three times deeper. Resolutions and bundles record the source and, for the Open Tree Taxonomy, its version. Clade names for `within` follow each source (animals are `"Animalia"` in The Taxonomicon and `"Metazoa"` in the others).
+
+## Community analyses
+
+```r
+# comm: samples in rows, taxa in columns (presence or abundance)
+d <- distance_matrix(colnames(comm), metric = "ranked")
+
+taxo_distinctness(comm, d)                    # Delta, Delta*, Delta+, Lambda+
+taxo_dissimilarity(comm, d)                   # Gamma+ between samples, a dist object
+taxo_ses(comm, d, index = "mpd")              # NRI against a species-pool null model
+taxo_ses(comm, d, index = "mntd", null_model = "independent_swap")   # NTI
+```
+
+`taxo_dissimilarity()` compares samples even when they share no taxon (Clarke, Somerfield & Chapman 2006) and reduces to the Sørensen and Kulczynski dissimilarities on a flat classification. `taxo_ses()` follows Webb et al. (2002) and the definitions of the picante package. See `vignette("sources-and-communities")`.
+
 ## Distance metrics
 
 By default, `taxodist` measures relatedness by asking a single question: how deep is the most recent common ancestor (MRCA)?
@@ -107,7 +139,7 @@ The deeper the shared ancestor, the smaller the distance and the more related th
 
 Distance and membership answer different questions. For example, *Tyrannosaurus* has a positive distance from *Dinosauria* because they are distinct nodes, while `is_member("Tyrannosaurus", "Dinosauria")` returns `TRUE`. Use `is_member()` or `taxo_path()` when the relationship of interest is containment or ancestry.
 
-The numerical values depend on the resolution of the classification returned by The Taxonomicon. They represent separation within that hierarchy and should not be interpreted as evolutionary time or phylogenetic branch length.
+The numerical values depend on the resolution of the source classification. They represent separation within that hierarchy and should not be interpreted as evolutionary time or phylogenetic branch length.
 
 Every distance function accepts a `metric` argument. With *h* the depth of the MRCA and *d<sub>A</sub>*, *d<sub>B</sub>* the depths of the two taxa:
 
@@ -127,15 +159,20 @@ cache across sessions and avoid redundant network requests, use `save_cache()`
 and `load_cache()`, which default to a per-user cache directory, or pass an
 explicit file path. Requests are retried automatically after transient network
 errors (`options(taxodist.max_tries = ...)`, default 3), and consecutive
-requests are spaced by at least 0.25 s (`options(taxodist.min_interval = ...)`)
-so that large batches do not overload the server. `taxonomicon_available()`
-checks quickly whether the server can be reached.
+requests to each source are spaced by at least 0.25 s (`options(taxodist.min_interval = ...)`)
+so that large batches do not overload the servers. NCBI requests are spaced by
+at least 0.4 s, below NCBI's limit of three per second; with an
+[NCBI API key](https://www.ncbi.nlm.nih.gov/books/NBK25497/) in the
+`NCBI_API_KEY` environment variable the limit rises to ten per second.
+`taxonomicon_available()` checks quickly whether The Taxonomicon can be reached.
 
-## Data source
+## Data sources
 
-All lineage data is sourced from **The Taxonomicon** (taxonomy.nl), based on *Systema Naturae 2000* by Sheila J. Brands (1989 onwards). Please cite this resource in any published work using `taxodist`:
+Please cite the source of the lineages in any published work using `taxodist` (`citation("taxodist")` gives all entries):
 
-> Brands, S.J. (1989 onwards). *Systema Naturae 2000*. Amsterdam, The Netherlands. Retrieved from The Taxonomicon, http://taxonomicon.taxonomy.nl.
+- **The Taxonomicon** (default): Brands, S.J. (1989 onwards). *Systema Naturae 2000*. Universal Taxonomic Services, Zwaag, The Netherlands. http://taxonomicon.taxonomy.nl.
+- **Open Tree Taxonomy** (`source = "ott"`): Rees, J.A. & Cranston, K. (2017). Automated assembly of a reference taxonomy for phylogenetic data synthesis. *Biodiversity Data Journal* 5: e12581. doi:10.3897/BDJ.5.e12581.
+- **NCBI Taxonomy** (`source = "ncbi"`): Schoch, C.L. et al. (2020). NCBI Taxonomy: a comprehensive update on curation, resources and tools. *Database* 2020: baaa062. doi:10.1093/database/baaa062.
 
 ## Contributing
 

@@ -1,4 +1,8 @@
-citHeader("To cite taxodist and its taxonomic data source in publications, use:")
+citHeader(paste(
+  "To cite taxodist in publications use the first entry, together with the",
+  "taxonomic source of the lineages (The Taxonomicon by default; the Open",
+  "Tree Taxonomy or the NCBI Taxonomy when source = \"ott\" or \"ncbi\"):"
+))
 
 bibentry(
   bibtype = "Manual",
@@ -16,4 +20,27 @@ bibentry(
   year = "1989",
   note = "Continuously updated taxonomic database",
   url = "http://taxonomicon.taxonomy.nl"
+)
+
+bibentry(
+  bibtype = "Article",
+  title = "Automated assembly of a reference taxonomy for phylogenetic data synthesis",
+  author = c(person(given = "Jonathan A.", family = "Rees"),
+             person(given = "Karen", family = "Cranston")),
+  journal = "Biodiversity Data Journal",
+  year = "2017",
+  volume = "5",
+  pages = "e12581",
+  doi = "10.3897/BDJ.5.e12581"
+)
+
+bibentry(
+  bibtype = "Article",
+  title = "NCBI Taxonomy: a comprehensive update on curation, resources and tools",
+  author = c(person(given = "Conrad L.", family = "Schoch"), person("others")),
+  journal = "Database",
+  year = "2020",
+  volume = "2020",
+  pages = "baaa062",
+  doi = "10.1093/database/baaa062"
 )

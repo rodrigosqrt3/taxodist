@@ -1,0 +1,161 @@
+---
+title: "Taxonomic Sources and Community Analyses"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Taxonomic Sources and Community Analyses}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(taxodist)
+```
+
+This vignette covers two parts of `taxodist`: retrieving lineages from
+classifications other than The Taxonomicon and comparing them, and community
+analyses built on taxonomic distances. Chunks that need the internet are shown
+but not run; the community examples use a small offline classification.
+
+## Taxonomic sources
+
+A taxonomic distance is a property of the classification it is computed from.
+`taxodist` can retrieve lineages from three classifications:
+
+```{r sources}
+taxo_sources()[, c("id", "name", "id_prefix")]
+```
+
+The Taxonomicon is the default. It is a single curated classification with
+very deep lineages, many unranked clades, and extensive fossil coverage. The
+Open Tree of Life reference taxonomy synthesizes NCBI, GBIF, WoRMS, IRMNG,
+and other taxonomies; the NCBI Taxonomy covers organisms with sequence data.
+Choose the source with the `source` argument of `taxo_resolve()`:
+
+```{r resolve, eval=FALSE}
+apes <- c("Homo", "Pan", "Gorilla", "Pongo", "Hylobates")
+ott <- taxo_resolve(apes, source = "ott")
+ncbi <- taxo_resolve(apes, source = "ncbi")
+ott$id  # e.g. "ott:770309" for Homo
+```
+
+Identifiers carry a source prefix, and the resolution records the source and,
+for the Open Tree Taxonomy, its version. Every function that accepts a
+resolution works with any source:
+
+```{r use, eval=FALSE}
+distance_matrix(ott)
+taxo_tree(ncbi)
+bundle <- taxo_bundle(ott)  # the bundle records the Open Tree version
+```
+
+Clade names differ between classifications, which matters for `within`:
+animals are `"Animalia"` in The Taxonomicon and `"Metazoa"` in the other two.
+
+### How much does the classification matter?
+
+`compare_sources()` resolves the same taxa in several sources and reports how
+deep each lineage is in each one, and how well their distance matrices agree
+(Spearman correlation and a Mantel permutation test):
+
+```{r compare, eval=FALSE}
+cmp <- compare_sources(
+  c("Homo", "Pan", "Mus", "Gallus", "Danio", "Drosophila", "Quercus"),
+  sources = c("taxonomicon", "ott", "ncbi")
+)
+cmp
+cmp$taxa      # status, identifier, and lineage depth in each source
+cmp$agreement # one row per pair of sources
+```
+
+High agreement means that conclusions are robust to the choice of
+classification. Low agreement points to parts of the tree of life that the
+classifications resolve differently, and the depth columns show where.
+
+### Homonyms
+
+A name can match several taxa. A subgenus or subspecies with the same name as
+the taxon that contains it (the nominotypical subgenus *Mus (Mus)* inside the
+genus *Mus*) is not counted as a homonym, so such names resolve without
+ambiguity. True homonyms, such as *Drosophila* (a fly and a fungus in the NCBI
+Taxonomy), remain `"ambiguous"`; restrict them with `within` or pass an
+identifier.
+
+## Community analyses
+
+The examples use a small offline classification:
+
+```{r community-data}
+lineages <- list(
+  Canis   = c("Biota", "Animalia", "Chordata", "Mammalia", "Carnivora", "Canidae", "Canis"),
+  Vulpes  = c("Biota", "Animalia", "Chordata", "Mammalia", "Carnivora", "Canidae", "Vulpes"),
+  Felis   = c("Biota", "Animalia", "Chordata", "Mammalia", "Carnivora", "Felidae", "Felis"),
+  Homo    = c("Biota", "Animalia", "Chordata", "Mammalia", "Primates", "Hominidae", "Homo"),
+  Gallus  = c("Biota", "Animalia", "Chordata", "Aves", "Galliformes", "Phasianidae", "Gallus"),
+  Apis    = c("Biota", "Animalia", "Arthropoda", "Insecta", "Hymenoptera", "Apidae", "Apis"),
+  Bombus  = c("Biota", "Animalia", "Arthropoda", "Insecta", "Hymenoptera", "Apidae", "Bombus"),
+  Quercus = c("Biota", "Plantae", "Tracheophyta", "Magnoliopsida", "Fagales", "Fagaceae", "Quercus")
+)
+d <- distance_matrix(taxo_from_lineages(lineages), metric = "path", progress = FALSE)
+
+comm <- rbind(
+  forest  = c(Canis = 1, Vulpes = 0, Felis = 1, Homo = 0, Gallus = 1, Apis = 0, Bombus = 1, Quercus = 1),
+  meadow  = c(Canis = 0, Vulpes = 1, Felis = 0, Homo = 0, Gallus = 0, Apis = 1, Bombus = 0, Quercus = 0),
+  village = c(Canis = 1, Vulpes = 0, Felis = 1, Homo = 1, Gallus = 1, Apis = 1, Bombus = 0, Quercus = 0)
+)
+```
+
+### Taxonomic dissimilarity between samples
+
+The forest and the meadow have no taxon in common, so their Bray-Curtis
+dissimilarity is maximal. The taxonomic dissimilarities \(\Gamma^+\) and
+\(\Theta^+\) of Clarke, Somerfield and Chapman (2006) credit the close
+relatives they do share (a fox and a dog, a honey bee and a bumble bee):
+
+```{r dissimilarity}
+taxo_dissimilarity(comm, d)
+taxo_dissimilarity(comm, d, index = "theta_plus")
+```
+
+\(\Gamma^+\) is the mean distance from every taxon to its nearest relative in
+the other sample. On a flat classification, where all distinct taxa are
+equally distant, it reduces to the presence/absence Bray-Curtis (Sorensen)
+dissimilarity, and \(\Theta^+\) to the Kulczynski dissimilarity. The result is
+a `dist` object, ready for ordination, clustering, or PERMANOVA (for example
+`vegan::adonis2()`).
+
+### Clustering and overdispersion: NRI and NTI
+
+`taxo_ses()` compares the mean pairwise distance (MPD) or the mean
+nearest-taxon distance (MNTD) of each sample with random samples drawn from a
+species pool, as in Webb et al. (2002):
+
+```{r ses}
+set.seed(1)
+taxo_ses(comm, d, n_iter = 499)
+taxo_ses(comm, d, index = "mntd", n_iter = 499)
+```
+
+Positive NRI or NTI means that the taxa of a sample are more closely related
+than expected from the pool (clustering); negative values mean
+overdispersion. The pool defaults to every taxon of `d`; set `pool` to the
+taxa that could have occurred in the samples. The `"independent_swap"` null
+model instead randomizes all samples together while keeping the richness of
+each sample and the frequency of each taxon. With `abundance_weighted = TRUE`
+the indices follow the abundance-weighted definitions of the picante package.
+
+## References
+
+Clarke, K.R., Somerfield, P.J. & Chapman, M.G. (2006). On resemblance measures
+for ecological studies, including taxonomic dissimilarities and a
+zero-adjusted Bray-Curtis coefficient for denuded assemblages. *Journal of
+Experimental Marine Biology and Ecology* 330, 55-80.
+
+Rees, J.A. & Cranston, K. (2017). Automated assembly of a reference taxonomy
+for phylogenetic data synthesis. *Biodiversity Data Journal* 5, e12581.
+
+Schoch, C.L. et al. (2020). NCBI Taxonomy: a comprehensive update on curation,
+resources and tools. *Database* 2020, baaa062.
+
+Webb, C.O., Ackerly, D.D., McPeek, M.A. & Donoghue, M.J. (2002). Phylogenies
+and community ecology. *Annual Review of Ecology and Systematics* 33, 475-505.

@@ -10,6 +10,8 @@ S3method(print,taxodist_focal)
 S3method(print,taxodist_path)
 S3method(print,taxodist_resolution)
 S3method(print,taxodist_result)
+S3method(print,taxodist_ses)
+S3method(print,taxodist_source_comparison)
 S3method(summary,taxodist_ord)
 export(cache_info)
 export(check_coverage)
@@ -17,6 +19,7 @@ export(clear_cache)
 export(closest_relative)
 export(compare_bundles)
 export(compare_lineages)
+export(compare_sources)
 export(cross_distances)
 export(distance_matrix)
 export(filter_clade)
@@ -34,6 +37,7 @@ export(save_cache)
 export(shared_clades)
 export(taxo_bundle)
 export(taxo_cluster)
+export(taxo_dissimilarity)
 export(taxo_distance)
 export(taxo_distinctness)
 export(taxo_distinctness_test)
@@ -43,19 +47,27 @@ export(taxo_ordinate)
 export(taxo_path)
 export(taxo_resolve)
 export(taxo_search)
+export(taxo_ses)
+export(taxo_sources)
 export(taxo_tree)
 export(taxonomicon_available)
 export(write_taxodist_bundle)
-importFrom(httr,RETRY)
-importFrom(httr,add_headers)
-importFrom(httr,content)
-importFrom(httr,status_code)
-importFrom(rvest,html_attr)
-importFrom(rvest,html_element)
-importFrom(rvest,html_elements)
-importFrom(rvest,html_text)
-importFrom(rvest,read_html)
-importFrom(stringr,str_extract)
-importFrom(stringr,str_remove)
-importFrom(stringr,str_remove_all)
-importFrom(stringr,str_trim)
+importFrom(httr,
+  RETRY,
+  add_headers,
+  content,
+  status_code
+)
+importFrom(rvest,
+  html_attr,
+  html_element,
+  html_elements,
+  html_text,
+  read_html
+)
+importFrom(stringr,
+  str_extract,
+  str_remove,
+  str_remove_all,
+  str_trim
+)

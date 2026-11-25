@@ -26,12 +26,17 @@ if (is.null(taxobase$matrix)) {
 
 ## Overview
 
-`taxodist` retrieves ordered taxonomic lineages from The Taxonomicon and uses
-them to compare named nodes in a classification hierarchy.
+`taxodist` retrieves ordered taxonomic lineages from a classification and uses
+them to compare named nodes in its hierarchy. The default source, used
+throughout this vignette, is The Taxonomicon, a single curated classification
+with very deep lineages. The Open Tree of Life reference taxonomy and the NCBI
+Taxonomy are also available through the `source` argument of `taxo_resolve()`;
+see `vignette("sources-and-communities")`.
 
 The package provides functions for:
 
-- lineage retrieval;
+- lineage retrieval from The Taxonomicon, the Open Tree Taxonomy, or NCBI;
+- comparing classifications (`compare_sources()`);
 - most-recent-common-ancestor queries;
 - taxonomic hierarchy distances;
 - clade membership and filtering;
@@ -40,6 +45,8 @@ The package provides functions for:
 - pairwise distance matrices and distances between two sets of taxa;
 - classification trees whose internal nodes are named clades;
 - clustering and principal coordinates analysis;
+- taxonomic distinctness, taxonomic dissimilarity between samples, and
+  standardized effect sizes (NRI, NTI) of community structure;
 - portable analysis bundles that can be compared over time;
 - session and persistent cache management.
 
@@ -558,15 +565,17 @@ or server errors. The number of attempts can be changed with
 
 ## Interpretation and reproducibility
 
-The numerical distance depends on the classification supplied by The
-Taxonomicon. Changes in lineage resolution or taxonomic concepts can alter MRCA
-depths and therefore alter distances.
+The numerical distance depends on the classification it is computed from.
+Changes in lineage resolution or taxonomic concepts can alter MRCA depths and
+therefore alter distances, and different sources resolve the tree of life to
+different depths; `compare_sources()` shows how much a result depends on the
+source.
 
 A reproducible analysis should record:
 
 - the `taxodist` version;
 - the retrieval or dataset-generation date;
-- the source classification;
+- the source classification and, where available, its version;
 - numeric identifiers used to resolve ambiguous names;
 - missing or excluded taxa;
 - the distance definition;
@@ -585,17 +594,19 @@ after <- taxo_bundle(before$resolution$input)
 compare_bundles(before, after)
 ```
 
-## Data source and citation
+## Data sources and citation
 
-All retrieved lineage data originate from The Taxonomicon, based on *Systema
-Naturae 2000*.
+Lineages are retrieved from The Taxonomicon (Brands, 1989 onwards) by default,
+or from the Open Tree of Life reference taxonomy (Rees and Cranston, 2017) or
+the NCBI Taxonomy (Schoch et al., 2020). `taxo_sources()` lists their licences
+and citations, and every resolution and bundle records the source used.
 
-Formatted references for both the package and the data source are available
+Formatted references for the package and the data sources are available
 with:
 
 ```{r citation, eval=FALSE}
 citation("taxodist")
 ```
 
-Both the software and the underlying taxonomic source should be cited in
-published analyses.
+Both the software and the taxonomic source used should be cited in published
+analyses.
