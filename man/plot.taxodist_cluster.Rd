@@ -8,7 +8,7 @@
   x,
   main = "Taxonomic Clustering",
   xlab = "",
-  sub = paste("Method:", if (!is.null(x$hclust)) x$hclust$method else "None"),
+  sub = paste("Method:", x$hclust$method),
   ...
 )
 }
@@ -21,7 +21,7 @@
 
 \item{sub}{Subtitle. Default: clustering method used.}
 
-\item{...}{Additional arguments passed to \code{\link[stats:hclust]{stats::plot.hclust()}}.}
+\item{...}{Additional arguments passed to \code{\link[stats:plot.hclust]{stats::plot.hclust()}}.}
 }
 \value{
 Invisibly returns \code{x}. Called for side effects (plotting).

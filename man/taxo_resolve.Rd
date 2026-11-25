@@ -9,7 +9,8 @@ taxo_resolve(
   ambiguity = c("warn", "first", "error"),
   verbose = FALSE,
   progress = TRUE,
-  within = NULL
+  within = NULL,
+  source = "taxonomicon"
 )
 }
 \arguments{
@@ -29,7 +30,16 @@ after all inputs have been inspected.}
 lineage contains this clade are considered, which resolves many
 homonyms across kingdoms automatically. Matching is exact and
 case-insensitive. Names without any candidate inside the clade are
-reported as \code{"unresolved"}. Numeric IDs are not filtered.}
+reported as \code{"unresolved"}. Numeric IDs are not filtered. Clade names
+depend on the source (e.g. \code{"Animalia"} in The Taxonomicon, \code{"Metazoa"}
+in the Open Tree and NCBI taxonomies).}
+
+\item{source}{The taxonomic source: \code{"taxonomicon"} (default), \code{"ott"}
+(Open Tree Taxonomy), or \code{"ncbi"} (NCBI Taxonomy); see \code{\link[=taxo_sources]{taxo_sources()}}.
+Identifiers of the other sources carry a prefix (\code{"ott:770309"},
+\code{"ncbi:9606"}), which may be omitted in the input when \code{source} is set.
+The resolution records the source and, for the Open Tree Taxonomy, its
+version, so bundles built from it document their provenance.}
 }
 \value{
 A data frame of class \code{taxodist_resolution} with one row per input
@@ -67,6 +77,12 @@ distance_matrix(resolved)
 
 # Restrict homonyms to animals
 taxo_resolve("Nereis", within = "Animalia")
+
+\donttest{
+# Other sources
+taxo_resolve(c("Homo", "Pan", "Gorilla"), source = "ott")
+taxo_resolve(c("Homo", "Pan", "Gorilla"), source = "ncbi")
+}
 \dontshow{\}) # examplesIf}
 }
 \seealso{

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TaxaSet>
+  <Taxon>
+    <TaxId>6351</TaxId>
+    <ScientificName>Nereis</ScientificName>
+    <ParentTaxId>39820</ParentTaxId>
+    <Rank>genus</Rank>
+    <Division>Invertebrates</Division>
+    <GeneticCode>
+      <GCId>1</GCId>
+      <GCName>Standard</GCName>
+    </GeneticCode>
+    <MitoGeneticCode>
+      <MGCId>5</MGCId>
+      <MGCName>Invertebrate Mitochondrial</MGCName>
+    </MitoGeneticCode>
+    <Lineage>cellular organisms; Eukaryota; Opisthokonta; Metazoa; Eumetazoa; Bilateria; Protostomia; Spiralia; Lophotrochozoa; Annelida; Polychaeta; Errantia; Phyllodocida; Nereididae</Lineage>
+    <LineageEx>
+      <Taxon>
+        <TaxId>131567</TaxId>
+        <ScientificName>cellular organisms</ScientificName>
+        <Rank>cellular root</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>2759</TaxId>
+        <ScientificName>Eukaryota</ScientificName>
+        <Rank>domain</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>33154</TaxId>
+        <ScientificName>Opisthokonta</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>33208</TaxId>
+        <ScientificName>Metazoa</ScientificName>
+        <Rank>kingdom</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>6072</TaxId>
+        <ScientificName>Eumetazoa</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>33213</TaxId>
+        <ScientificName>Bilateria</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>33317</TaxId>
+        <ScientificName>Protostomia</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>2697495</TaxId>
+        <ScientificName>Spiralia</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>1206795</TaxId>
+        <ScientificName>Lophotrochozoa</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>6340</TaxId>
+        <ScientificName>Annelida</ScientificName>
+        <Rank>phylum</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>6341</TaxId>
+        <ScientificName>Polychaeta</ScientificName>
+        <Rank>class</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>105390</TaxId>
+        <ScientificName>Errantia</ScientificName>
+        <Rank>subclass</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>6348</TaxId>
+        <ScientificName>Phyllodocida</ScientificName>
+        <Rank>order</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>39820</TaxId>
+        <ScientificName>Nereididae</ScientificName>
+        <Rank>family</Rank>
+      </Taxon>
+    </LineageEx>
+    <CreateDate>1995/02/27 09:24:00</CreateDate>
+    <UpdateDate>2002/05/08 12:00:00</UpdateDate>
+    <PubDate>1996/02/02 00:00:00</PubDate>
+  </Taxon>
+</TaxaSet>

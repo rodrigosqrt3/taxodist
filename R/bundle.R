@@ -7,8 +7,8 @@
 #'
 #' @param taxa A character vector accepted by [taxo_resolve()] or an existing
 #'   `taxodist_resolution` object.
-#' @param ambiguity,verbose,progress,within Passed to [taxo_resolve()] when
-#'   `taxa` is a character vector.
+#' @param ambiguity,verbose,progress,within,source Passed to [taxo_resolve()]
+#'   when `taxa` is a character vector.
 #' @param metric Distance metric used for the stored matrix; see
 #'   [taxo_distance()]. The bundle records it, so the matrix can be verified
 #'   from the stored lineages (and, for `"ranked"`, the stored ranks).
@@ -27,7 +27,8 @@ taxo_bundle <- function(taxa,
                         verbose = FALSE,
                         progress = TRUE,
                         within = NULL,
-                        metric = "reciprocal") {
+                        metric = "reciprocal",
+                        source = "taxonomicon") {
   ambiguity <- match.arg(ambiguity)
   metric <- .match_metric(metric)
   resolution <- if (inherits(taxa, "taxodist_resolution")) {
@@ -38,7 +39,8 @@ taxo_bundle <- function(taxa,
       ambiguity = ambiguity,
       verbose = verbose,
       progress = progress,
-      within = within
+      within = within,
+      source = source
     )
   }
 
@@ -354,7 +356,9 @@ write_taxodist_bundle <- function(bundle, file, pretty = TRUE) {
     auto_unbox = TRUE,
     null = "null",
     na = "null",
-    digits = NA,
+    # 17 significant digits round-trip every double exactly, so distances
+    # read back are bit-identical, as with the Python and Julia writers.
+    digits = I(17),
     pretty = pretty
   )
   invisible(normalizePath(file, winslash = "/", mustWork = TRUE))
@@ -585,6 +589,10 @@ print.taxodist_bundle <- function(x, ...) {
 #'     bundles whose distance changed, with columns `taxon_a`, `taxon_b`,
 #'     `distance_old`, and `distance_new`.}
 #'   \item{`created_old`, `created_new`}{Creation timestamps of the bundles.}
+#'   \item{`metric_old`, `metric_new`}{Distance metric of each bundle.}
+#'   \item{`metric_changed`}{`TRUE` if the bundles use different metrics, or
+#'     the `"ranked"` metric with different rank levels. Their distances are
+#'     then not comparable, and every pair is usually reported as changed.}
 #' }
 #'
 #' @seealso [taxo_bundle()], [read_taxodist_bundle()]
@@ -687,12 +695,18 @@ compare_bundles <- function(old, new, tolerance = sqrt(.Machine$double.eps)) {
     rownames(distances) <- NULL
   }
 
+  metric_old <- .metric_from_spec(old$metric)
+  metric_new <- .metric_from_spec(new$metric)
+
   structure(
     list(
       taxa = taxa,
       distances = distances,
       created_old = old$created_at,
-      created_new = new$created_at
+      created_new = new$created_at,
+      metric_old = metric_old$metric,
+      metric_new = metric_new$metric,
+      metric_changed = !identical(metric_old, metric_new)
     ),
     class = "taxodist_bundle_comparison"
   )
@@ -714,6 +728,17 @@ print.taxodist_bundle_comparison <- function(x, ...) {
     "*" = "Taxa compared: {nrow(x$taxa)} ({nrow(changed)} changed)",
     "*" = "Distances changed: {nrow(x$distances)}"
   ))
+  if (isTRUE(x$metric_changed)) {
+    if (identical(x$metric_old, x$metric_new)) {
+      cli::cli_alert_warning(
+        "The bundles use different rank levels for the {.val {x$metric_new}} metric."
+      )
+    } else {
+      cli::cli_alert_warning(
+        "The bundles use different metrics: {.val {x$metric_old}} and {.val {x$metric_new}}."
+      )
+    }
+  }
   if (nrow(changed) > 0L) {
     cli::cli_text("")
     cli::cli_bullets(stats::setNames(

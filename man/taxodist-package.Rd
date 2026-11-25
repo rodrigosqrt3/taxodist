@@ -6,15 +6,19 @@
 \alias{taxodist}
 \title{taxodist: Taxonomic Hierarchy Distances and Lineage Analysis}
 \description{
-taxodist retrieves taxonomic lineages from The Taxonomicon (taxonomy.nl) or
-accepts user-supplied lineages, then computes distances from the depth of
-the most recent common ancestor.
+taxodist retrieves taxonomic lineages from The Taxonomicon (taxonomy.nl),
+the Open Tree of Life reference taxonomy, or the NCBI Taxonomy, or accepts
+user-supplied lineages, then computes distances from the depth of the most
+recent common ancestor.
 The resulting values describe separation within the source classification;
 they are not estimates of evolutionary time or phylogenetic branch length.
 \subsection{Core functions}{
 \itemize{
 \item \code{\link[=get_lineage]{get_lineage()}} — retrieve the full lineage of any taxon
-\item \code{\link[=taxo_resolve]{taxo_resolve()}} — resolve and audit a batch of names or IDs
+\item \code{\link[=taxo_resolve]{taxo_resolve()}} — resolve and audit a batch of names or IDs, in any
+source
+\item \code{\link[=taxo_sources]{taxo_sources()}} — list the supported taxonomic sources
+\item \code{\link[=compare_sources]{compare_sources()}} — compare the distances given by several sources
 \item \code{\link[=taxo_from_lineages]{taxo_from_lineages()}} — create an offline resolution from local lineages
 \item \code{\link[=taxo_distance]{taxo_distance()}} — compute the ultrametric distance between two taxa
 \item \code{\link[=mrca]{mrca()}} — find the most recent common ancestor
@@ -28,6 +32,10 @@ they are not estimates of evolutionary time or phylogenetic branch length.
 \item \code{\link[=filter_clade]{filter_clade()}} — filter taxa by clade membership
 \item \code{\link[=check_coverage]{check_coverage()}} — check Taxonomicon coverage for a list of taxa
 \item \code{\link[=lineage_depth]{lineage_depth()}} — get the lineage depth of a taxon
+\item \code{\link[=taxo_distinctness]{taxo_distinctness()}} / \code{\link[=taxo_distinctness_test]{taxo_distinctness_test()}} — taxonomic
+distinctness of samples
+\item \code{\link[=taxo_dissimilarity]{taxo_dissimilarity()}} — taxonomic dissimilarity between samples
+\item \code{\link[=taxo_ses]{taxo_ses()}} — standardized effect sizes of community structure (NRI, NTI)
 \item \code{\link[=taxo_bundle]{taxo_bundle()}} — preserve an analysis and its provenance
 \item \code{\link[=compare_bundles]{compare_bundles()}} — report what changed between two analyses
 \item \code{\link[=save_cache]{save_cache()}} / \code{\link[=load_cache]{load_cache()}} — persist retrieved lineages
@@ -51,22 +59,28 @@ taxonomic hierarchy. Its numerical values depend on the resolution of the
 classification returned by the data source.
 }
 
-\subsection{Data source}{
+\subsection{Data sources}{
 
 Online lineage data is sourced from The Taxonomicon (taxonomy.nl), based on
-Systema Naturae 2000 by S.J. Brands (1989 onwards). Please cite that
-resource when using its classifications, or record the relevant source when
-using \code{\link[=taxo_from_lineages]{taxo_from_lineages()}}.
+Systema Naturae 2000 by S.J. Brands (1989 onwards), by default; from the
+Open Tree Taxonomy (Rees and Cranston 2017) with \code{source = "ott"}; or from
+the NCBI Taxonomy (Schoch et al. 2020) with \code{source = "ncbi"}. Please cite
+the source used (see \code{\link[=taxo_sources]{taxo_sources()}} and \code{citation("taxodist")}), or record
+the relevant source when using \code{\link[=taxo_from_lineages]{taxo_from_lineages()}}.
 }
 
 \subsection{Options}{
 \itemize{
-\item \code{taxodist.max_tries}: number of attempts made for each request to The
-Taxonomicon (default \code{3}). Network errors and server errors (5xx) are
-retried with exponential backoff; client errors (4xx) are not.
+\item \code{taxodist.max_tries}: number of attempts made for each request (default
+\code{3}). Network errors, server errors (5xx), and refused requests (429) are
+retried with exponential backoff; other client errors (4xx) are not.
 \item \code{taxodist.min_interval}: minimum time in seconds between consecutive
-requests to The Taxonomicon (default \code{0.25}), so that large batches do
-not overload the server. Set to \code{0} to disable.
+requests to each source (default \code{0.25}), so that large batches do not
+overload the servers. Set to \code{0} to disable. NCBI requests are always
+spaced by at least 0.4 s (0.12 s with an API key).
+\item \code{taxodist.ncbi_api_key}: NCBI API key; defaults to the \code{NCBI_API_KEY}
+environment variable.
+\item \code{taxodist.rank_levels}: ranks used by the \code{"ranked"} metric.
 }
 }
 }
@@ -74,6 +88,14 @@ not overload the server. Set to \code{0} to disable.
 Brands, S.J. (1989 onwards). Systema Naturae 2000. Amsterdam,
 The Netherlands. Retrieved from The Taxonomicon,
 \url{http://taxonomicon.taxonomy.nl}.
+
+Rees, J.A. and Cranston, K. (2017). Automated assembly of a reference
+taxonomy for phylogenetic data synthesis. \emph{Biodiversity Data Journal}, 5,
+e12581. \doi{10.3897/BDJ.5.e12581}
+
+Schoch, C.L. et al. (2020). NCBI Taxonomy: a comprehensive update on
+curation, resources and tools. \emph{Database}, 2020, baaa062.
+\doi{10.1093/database/baaa062}
 }
 \seealso{
 Useful links:
@@ -85,5 +107,10 @@ Useful links:
 }
 \author{
 \strong{Maintainer}: Rodrigo Fonseca Villa \email{rodrigo03.villa@gmail.com} (\href{https://orcid.org/0009-0005-2938-2270}{ORCID})
+
+Authors:
+\itemize{
+  \item Rodrigo Fonseca Villa \email{rodrigo03.villa@gmail.com} (\href{https://orcid.org/0009-0005-2938-2270}{ORCID})
+}
 
 }

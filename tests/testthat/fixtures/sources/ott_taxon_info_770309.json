@@ -1,0 +1,580 @@
+{
+ "flags": [
+  "extinct_inherited",
+  "sibling_higher"
+ ],
+ "is_suppressed": false,
+ "is_suppressed_from_synth": false,
+ "lineage": [
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Homininae",
+   "ott_id": 312031,
+   "rank": "subfamily",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Homo/Pan/Gorilla group"
+   ],
+   "tax_sources": [
+    "ncbi:207598"
+   ],
+   "unique_name": "Homininae"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Hominidae",
+   "ott_id": 770311,
+   "rank": "family",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Dryopithecidae",
+    "Homo-simiadae",
+    "Pongidae"
+   ],
+   "tax_sources": [
+    "ncbi:9604",
+    "gbif:5483",
+    "gbif:3239570",
+    "irmng:100818",
+    "irmng:104861",
+    "irmng:104701"
+   ],
+   "unique_name": "Hominidae"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Hominoidea",
+   "ott_id": 386191,
+   "rank": "superfamily",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:314295"
+   ],
+   "unique_name": "Hominoidea"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Catarrhini",
+   "ott_id": 842867,
+   "rank": "parvorder",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:9526"
+   ],
+   "unique_name": "Catarrhini"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Simiiformes",
+   "ott_id": 386195,
+   "rank": "infraorder",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Anthropoidea"
+   ],
+   "tax_sources": [
+    "ncbi:314293"
+   ],
+   "unique_name": "Simiiformes"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Haplorrhini",
+   "ott_id": 702152,
+   "rank": "suborder",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:376913"
+   ],
+   "unique_name": "Haplorrhini"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Primates",
+   "ott_id": 913935,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Ceciliolemuridae",
+    "Primata",
+    "primate"
+   ],
+   "tax_sources": [
+    "ncbi:9443",
+    "gbif:798",
+    "irmng:11338"
+   ],
+   "unique_name": "Primates"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Primatomorpha",
+   "ott_id": 6520519,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "additions-6520519-6520519:6520519"
+   ],
+   "unique_name": "Primatomorpha"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Euarchontoglires",
+   "ott_id": 392222,
+   "rank": "superorder",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:314146"
+   ],
+   "unique_name": "Euarchontoglires"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Boreoeutheria",
+   "ott_id": 5334778,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Boreotheria"
+   ],
+   "tax_sources": [
+    "ncbi:1437010"
+   ],
+   "unique_name": "Boreoeutheria"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Eutheria",
+   "ott_id": 683263,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Placentalia"
+   ],
+   "tax_sources": [
+    "ncbi:9347"
+   ],
+   "unique_name": "Eutheria (in Deuterostomia)"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Theria",
+   "ott_id": 229558,
+   "rank": "subclass",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:32525",
+    "worms:380416"
+   ],
+   "unique_name": "Theria (subclass in Deuterostomia)"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Mammalia",
+   "ott_id": 244265,
+   "rank": "class",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Blaria",
+    "Protobradydae"
+   ],
+   "tax_sources": [
+    "ncbi:40674",
+    "worms:1837",
+    "gbif:359",
+    "irmng:1310"
+   ],
+   "unique_name": "Mammalia"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Amniota",
+   "ott_id": 229560,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:32524"
+   ],
+   "unique_name": "Amniota"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Tetrapoda",
+   "ott_id": 229562,
+   "rank": "superclass",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:32523",
+    "worms:1831"
+   ],
+   "unique_name": "Tetrapoda"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Dipnotetrapodomorpha",
+   "ott_id": 4940726,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:1338369"
+   ],
+   "unique_name": "Dipnotetrapodomorpha"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Sarcopterygii",
+   "ott_id": 458402,
+   "rank": "superclass",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:8287",
+    "worms:163509",
+    "gbif:238",
+    "irmng:1531"
+   ],
+   "unique_name": "Sarcopterygii"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Euteleostomi",
+   "ott_id": 114654,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Osteichthyes"
+   ],
+   "tax_sources": [
+    "ncbi:117571"
+   ],
+   "unique_name": "Euteleostomi"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Teleostomi",
+   "ott_id": 114656,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:117570"
+   ],
+   "unique_name": "Teleostomi"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Gnathostomata",
+   "ott_id": 278114,
+   "rank": "superclass",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:7776",
+    "worms:1828"
+   ],
+   "unique_name": "Gnathostomata (superclass in phylum Chordata)"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Vertebrata",
+   "ott_id": 801601,
+   "rank": "subphylum",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:7742",
+    "worms:146419"
+   ],
+   "unique_name": "Vertebrata (subphylum in Deuterostomia)"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Craniata",
+   "ott_id": 947318,
+   "rank": "subphylum",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:89593"
+   ],
+   "unique_name": "Craniata (subphylum in Deuterostomia)"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Chordata",
+   "ott_id": 125642,
+   "rank": "phylum",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Acanthopis"
+   ],
+   "tax_sources": [
+    "ncbi:7711",
+    "worms:1821",
+    "gbif:44",
+    "irmng:148"
+   ],
+   "unique_name": "Chordata"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Deuterostomia",
+   "ott_id": 147604,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:33511"
+   ],
+   "unique_name": "Deuterostomia"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Bilateria",
+   "ott_id": 117569,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:33213"
+   ],
+   "unique_name": "Bilateria"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Eumetazoa",
+   "ott_id": 641038,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:6072"
+   ],
+   "unique_name": "Eumetazoa"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Metazoa",
+   "ott_id": 691846,
+   "rank": "kingdom",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Animalia"
+   ],
+   "tax_sources": [
+    "silva:D14357/#4",
+    "ncbi:33208",
+    "worms:2",
+    "gbif:1",
+    "irmng:11"
+   ],
+   "unique_name": "Metazoa"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Holozoa",
+   "ott_id": 5246131,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "silva:D14357/#3"
+   ],
+   "unique_name": "Holozoa"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Opisthokonta",
+   "ott_id": 332573,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Fungi/Metazoa group",
+    "opisthokonts"
+   ],
+   "tax_sources": [
+    "silva:D11377/#2",
+    "ncbi:33154",
+    "irmng:183"
+   ],
+   "unique_name": "Opisthokonta"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Eukaryota",
+   "ott_id": 304358,
+   "rank": "domain",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "D4P07G08",
+    "DH147-EKD10",
+    "DH147-EKD23",
+    "Eucaryotae",
+    "Eukarya",
+    "Eukaryotae",
+    "LG25-05",
+    "NAMAKO-1",
+    "RT5iin25",
+    "SA1-3C06"
+   ],
+   "tax_sources": [
+    "silva:D11377/#1",
+    "ncbi:2759"
+   ],
+   "unique_name": "Eukaryota"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "cellular organisms",
+   "ott_id": 93302,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "biota"
+   ],
+   "tax_sources": [
+    "ncbi:131567"
+   ],
+   "unique_name": "cellular organisms"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "life",
+   "ott_id": 805080,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "all"
+   ],
+   "tax_sources": [
+    "silva:0",
+    "ncbi:1",
+    "gbif:0",
+    "irmng:0"
+   ],
+   "unique_name": "life"
+  }
+ ],
+ "name": "Homo",
+ "ott_id": 770309,
+ "rank": "genus",
+ "source": "ott3.7draft3",
+ "synonyms": [
+  "Africanthropus",
+  "Afrikanthropus",
+  "Anthropus",
+  "Archanthropus",
+  "Atlanthropus",
+  "Cyphanthropus",
+  "Eoanthropus",
+  "Epanthropos",
+  "Euranthropus",
+  "Europanthropus",
+  "Helacyton",
+  "Hemanthropus",
+  "Hemianthropus",
+  "Heoanthropus",
+  "Homopithecus",
+  "Javanthropus",
+  "Maueranthropus",
+  "Meganthropus",
+  "Metanthropos",
+  "Metanthropus",
+  "Nipponanthropus",
+  "Notanthropus",
+  "Palaeanthropus",
+  "Palaeoanthropus",
+  "Pithecanthropos",
+  "Pithecanthropus",
+  "Praanthropus",
+  "Praehomo",
+  "Proanthropus",
+  "Protanthropus",
+  "Pseudhomo",
+  "Sinanthropus",
+  "Tchadanthropus",
+  "Telanthropus"
+ ],
+ "tax_sources": [
+  "ncbi:9605",
+  "gbif:2436435",
+  "irmng:1000957",
+  "irmng:1209753",
+  "irmng:1160674",
+  "irmng:1035772"
+ ],
+ "unique_name": "Homo"
+}

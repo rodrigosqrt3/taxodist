@@ -25,6 +25,10 @@ bundle and columns \code{input}, \code{change}, \code{status_old}, \code{status_
 bundles whose distance changed, with columns \code{taxon_a}, \code{taxon_b},
 \code{distance_old}, and \code{distance_new}.}
 \item{\code{created_old}, \code{created_new}}{Creation timestamps of the bundles.}
+\item{\code{metric_old}, \code{metric_new}}{Distance metric of each bundle.}
+\item{\code{metric_changed}}{\code{TRUE} if the bundles use different metrics, or
+the \code{"ranked"} metric with different rank levels. Their distances are
+then not comparable, and every pair is usually reported as changed.}
 }
 }
 \description{

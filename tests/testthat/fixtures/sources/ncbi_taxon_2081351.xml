@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TaxaSet>
+  <Taxon>
+    <TaxId>2081351</TaxId>
+    <ScientificName>Drosophila</ScientificName>
+    <OtherNames>
+      <Name>
+        <ClassCDE>authority</ClassCDE>
+        <DispName>Drosophila Quél., 1886</DispName>
+      </Name>
+    </OtherNames>
+    <ParentTaxId>184208</ParentTaxId>
+    <Rank>genus</Rank>
+    <Division>Plants and Fungi</Division>
+    <GeneticCode>
+      <GCId>1</GCId>
+      <GCName>Standard</GCName>
+    </GeneticCode>
+    <MitoGeneticCode>
+      <MGCId>4</MGCId>
+      <MGCName>Mold Mitochondrial; Protozoan Mitochondrial; Coelenterate Mitochondrial; Mycoplasma; Spiroplasma</MGCName>
+    </MitoGeneticCode>
+    <Lineage>cellular organisms; Eukaryota; Opisthokonta; Fungi; Dikarya; Basidiomycota; Agaricomycotina; Agaricomycetes; Agaricomycetidae; Agaricales; Agaricineae; Psathyrellaceae</Lineage>
+    <LineageEx>
+      <Taxon>
+        <TaxId>131567</TaxId>
+        <ScientificName>cellular organisms</ScientificName>
+        <Rank>cellular root</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>2759</TaxId>
+        <ScientificName>Eukaryota</ScientificName>
+        <Rank>domain</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>33154</TaxId>
+        <ScientificName>Opisthokonta</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>4751</TaxId>
+        <ScientificName>Fungi</ScientificName>
+        <Rank>kingdom</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>451864</TaxId>
+        <ScientificName>Dikarya</ScientificName>
+        <Rank>subkingdom</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>5204</TaxId>
+        <ScientificName>Basidiomycota</ScientificName>
+        <Rank>phylum</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>5302</TaxId>
+        <ScientificName>Agaricomycotina</ScientificName>
+        <Rank>subphylum</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>155619</TaxId>
+        <ScientificName>Agaricomycetes</ScientificName>
+        <Rank>class</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>452333</TaxId>
+        <ScientificName>Agaricomycetidae</ScientificName>
+        <Rank>subclass</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>5338</TaxId>
+        <ScientificName>Agaricales</ScientificName>
+        <Rank>order</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>2982305</TaxId>
+        <ScientificName>Agaricineae</ScientificName>
+        <Rank>suborder</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>184208</TaxId>
+        <ScientificName>Psathyrellaceae</ScientificName>
+        <Rank>family</Rank>
+      </Taxon>
+    </LineageEx>
+    <CreateDate>2018/02/02 08:58:10</CreateDate>
+    <UpdateDate>2025/06/16 13:11:16</UpdateDate>
+    <PubDate>2018/02/22 01:00:43</PubDate>
+  </Taxon>
+</TaxaSet>

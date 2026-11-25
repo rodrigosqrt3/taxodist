@@ -1,0 +1,544 @@
+{
+ "flags": [],
+ "is_suppressed": false,
+ "is_suppressed_from_synth": false,
+ "lineage": [
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Drosophilini",
+   "ott_id": 396616,
+   "rank": "tribe",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:46877"
+   ],
+   "unique_name": "Drosophilini"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Drosophilinae",
+   "ott_id": 127994,
+   "rank": "subfamily",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:43845"
+   ],
+   "unique_name": "Drosophilinae"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Drosophilidae",
+   "ott_id": 34905,
+   "rank": "family",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:7214",
+    "worms:987176",
+    "gbif:5547",
+    "irmng:100842"
+   ],
+   "unique_name": "Drosophilidae"
+  },
+  {
+   "flags": [
+    "sibling_higher"
+   ],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Ephydroidea",
+   "ott_id": 758897,
+   "rank": "superfamily",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:43746",
+    "worms:712116"
+   ],
+   "unique_name": "Ephydroidea"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Acalyptratae",
+   "ott_id": 758894,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:43741"
+   ],
+   "unique_name": "Acalyptratae"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Schizophora",
+   "ott_id": 133926,
+   "rank": "section",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:43738",
+    "worms:150936"
+   ],
+   "unique_name": "Schizophora"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Cyclorrhapha",
+   "ott_id": 951146,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:480117"
+   ],
+   "unique_name": "Cyclorrhapha"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Eremoneura",
+   "ott_id": 951142,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:480118"
+   ],
+   "unique_name": "Eremoneura"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Muscomorpha",
+   "ott_id": 133916,
+   "rank": "infraorder",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Asilomorpha"
+   ],
+   "tax_sources": [
+    "ncbi:43733",
+    "worms:150923",
+    "worms:380396"
+   ],
+   "unique_name": "Muscomorpha"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Brachycera",
+   "ott_id": 555807,
+   "rank": "suborder",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:7203",
+    "worms:150921"
+   ],
+   "unique_name": "Brachycera"
+  },
+  {
+   "flags": [
+    "sibling_higher"
+   ],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Diptera",
+   "ott_id": 661378,
+   "rank": "order",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Cyphocera"
+   ],
+   "tax_sources": [
+    "ncbi:7147",
+    "worms:118088",
+    "gbif:811",
+    "irmng:10063"
+   ],
+   "unique_name": "Diptera"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Holometabola",
+   "ott_id": 1082885,
+   "rank": "cohort",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Endopterygota"
+   ],
+   "tax_sources": [
+    "ncbi:33392"
+   ],
+   "unique_name": "Holometabola"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Neoptera",
+   "ott_id": 815350,
+   "rank": "infraclass",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:33340"
+   ],
+   "unique_name": "Neoptera"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Pterygota",
+   "ott_id": 1048707,
+   "rank": "subclass",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:7496",
+    "worms:151152"
+   ],
+   "unique_name": "Pterygota (subclass in Opisthokonta)"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Dicondylia",
+   "ott_id": 983656,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:85512"
+   ],
+   "unique_name": "Dicondylia"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Insecta",
+   "ott_id": 1062253,
+   "rank": "class",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Ideloblattidae"
+   ],
+   "tax_sources": [
+    "ncbi:50557",
+    "worms:1307",
+    "gbif:216",
+    "irmng:1096"
+   ],
+   "unique_name": "Insecta"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Hexapoda",
+   "ott_id": 568991,
+   "rank": "subphylum",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:6960",
+    "worms:1278"
+   ],
+   "unique_name": "Hexapoda"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Pancrustacea",
+   "ott_id": 985906,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:197562"
+   ],
+   "unique_name": "Pancrustacea"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Mandibulata",
+   "ott_id": 985907,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:197563"
+   ],
+   "unique_name": "Mandibulata"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Arthropoda",
+   "ott_id": 632179,
+   "rank": "phylum",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:6656",
+    "worms:1065",
+    "gbif:54",
+    "irmng:235"
+   ],
+   "unique_name": "Arthropoda"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Panarthropoda",
+   "ott_id": 816442,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:88770"
+   ],
+   "unique_name": "Panarthropoda"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Ecdysozoa",
+   "ott_id": 611099,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:1206794"
+   ],
+   "unique_name": "Ecdysozoa"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Protostomia",
+   "ott_id": 189832,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:33317"
+   ],
+   "unique_name": "Protostomia"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Bilateria",
+   "ott_id": 117569,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:33213"
+   ],
+   "unique_name": "Bilateria"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Eumetazoa",
+   "ott_id": 641038,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:6072"
+   ],
+   "unique_name": "Eumetazoa"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Metazoa",
+   "ott_id": 691846,
+   "rank": "kingdom",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Animalia"
+   ],
+   "tax_sources": [
+    "silva:D14357/#4",
+    "ncbi:33208",
+    "worms:2",
+    "gbif:1",
+    "irmng:11"
+   ],
+   "unique_name": "Metazoa"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Holozoa",
+   "ott_id": 5246131,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "silva:D14357/#3"
+   ],
+   "unique_name": "Holozoa"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Opisthokonta",
+   "ott_id": 332573,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Fungi/Metazoa group",
+    "opisthokonts"
+   ],
+   "tax_sources": [
+    "silva:D11377/#2",
+    "ncbi:33154",
+    "irmng:183"
+   ],
+   "unique_name": "Opisthokonta"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Eukaryota",
+   "ott_id": 304358,
+   "rank": "domain",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "D4P07G08",
+    "DH147-EKD10",
+    "DH147-EKD23",
+    "Eucaryotae",
+    "Eukarya",
+    "Eukaryotae",
+    "LG25-05",
+    "NAMAKO-1",
+    "RT5iin25",
+    "SA1-3C06"
+   ],
+   "tax_sources": [
+    "silva:D11377/#1",
+    "ncbi:2759"
+   ],
+   "unique_name": "Eukaryota"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "cellular organisms",
+   "ott_id": 93302,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "biota"
+   ],
+   "tax_sources": [
+    "ncbi:131567"
+   ],
+   "unique_name": "cellular organisms"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "life",
+   "ott_id": 805080,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "all"
+   ],
+   "tax_sources": [
+    "silva:0",
+    "ncbi:1",
+    "gbif:0",
+    "irmng:0"
+   ],
+   "unique_name": "life"
+  }
+ ],
+ "name": "Drosophila",
+ "ott_id": 34907,
+ "rank": "genus",
+ "source": "ott3.7draft3",
+ "synonyms": [
+  "Acanthophila",
+  "Acanthopterna",
+  "Acrodrosophila",
+  "Antopocerus",
+  "Ateledrosophila",
+  "Chaetodrosophila",
+  "Chatodrosophilella",
+  "Chusqueophila",
+  "Dorsilopha",
+  "Dudaica",
+  "Engiscaptomyza",
+  "Hypenomyia",
+  "Idiomyia",
+  "Macropalpus",
+  "Nudidrosophila",
+  "Phloridosa",
+  "Psilodorha",
+  "Siphlodora",
+  "Sordophila",
+  "Spinodrosophila",
+  "Spinulophila",
+  "Trichotobregma"
+ ],
+ "tax_sources": [
+  "ncbi:7215",
+  "worms:987233",
+  "gbif:1522683",
+  "irmng:1304619",
+  "irmng:1189208",
+  "irmng:1346752",
+  "irmng:1364381",
+  "irmng:1376815",
+  "irmng:1063199",
+  "irmng:1195974",
+  "irmng:1194990"
+ ],
+ "unique_name": "Drosophila"
+}

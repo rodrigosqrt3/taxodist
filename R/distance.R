@@ -259,15 +259,14 @@ cross_distances <- function(x, y, verbose = FALSE, progress = TRUE,
   if (nx == 0L || ny == 0L) return(out)
 
   lineages <- c(input_x$lineages, input_y$lineages)
-  ids <- .prefix_node_ids(lineages)
-  lens <- lengths(lineages)
+  index <- .mrca_index(.prefix_node_ids(lineages))
   missing <- vapply(lineages, is.null, logical(1))
   x_idx <- seq_len(nx)
 
   for (j in seq_len(ny)) {
     col <- nx + j
     if (missing[[col]]) next
-    out[, j] <- .distances_to(ids, lens, x_idx, col, metric)
+    out[, j] <- .distances_to(index, x_idx, col, metric)
   }
   out[missing[x_idx], ] <- NA_real_
   out
@@ -683,12 +682,56 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
   ids
 }
 
-# Distances from the lineage in row `j` of `ids` to the lineages in rows `i`.
+# Index for MRCA-depth queries. Lineages are sorted lexicographically by
+# their node identifiers; in that order the common prefix of two lineages
+# is the minimum of the common prefixes of all adjacent pairs between them
+# (as in a suffix array's LCP table). The depths from one lineage to all
+# others therefore follow from two cumulative minima, in O(n) per lineage
+# instead of comparing every pair node by node.
+#   ids:  matrix from .prefix_node_ids()
+#   pos:  position of each lineage in the sorted order
+#   ord:  lineage at each sorted position
+#   adj:  common prefix of sorted neighbours (length n - 1)
+#   lens: number of nodes of each lineage
 #' @keywords internal
-.distances_to <- function(ids, lens, i, j, metric = "reciprocal") {
-  shared <- ids[i, , drop = FALSE] == rep(ids[j, ], each = length(i))
-  mrca_depth <- rowSums(shared, na.rm = TRUE)
-  .metric_values(mrca_depth, lens[i], lens[[j]], metric)
+.mrca_index <- function(ids) {
+  n <- nrow(ids)
+  depth <- ncol(ids)
+  lens <- if (depth > 0L) rowSums(!is.na(ids)) else integer(n)
+  if (n < 2L || depth == 0L) {
+    ord <- seq_len(n)
+    adj <- integer(max(n - 1L, 0L))
+  } else {
+    keys <- ids
+    keys[is.na(keys)] <- 0L
+    ord <- do.call(order, unname(as.data.frame(keys)))
+    sorted <- ids[ord, , drop = FALSE]
+    equal <- sorted[-1L, , drop = FALSE] == sorted[-n, , drop = FALSE]
+    adj <- as.integer(rowSums(equal, na.rm = TRUE))
+  }
+  pos <- integer(n)
+  pos[ord] <- seq_len(n)
+  list(ord = ord, pos = pos, adj = adj, lens = as.integer(lens), n = n)
+}
+
+# MRCA depths from lineage `j` to every lineage, in input order. The depth
+# of a lineage with itself is its length.
+#' @keywords internal
+.mrca_depths_from <- function(index, j) {
+  n <- index$n
+  p <- index$pos[[j]]
+  sorted <- integer(n)
+  sorted[p] <- index$lens[[j]]
+  if (p < n) sorted[(p + 1L):n] <- cummin(index$adj[p:(n - 1L)])
+  if (p > 1L) sorted[(p - 1L):1L] <- cummin(index$adj[(p - 1L):1L])
+  sorted[index$pos]
+}
+
+# Distances from lineage `j` to the lineages `i` (positions in `index`).
+#' @keywords internal
+.distances_to <- function(index, i, j, metric = "reciprocal") {
+  mrca_depth <- .mrca_depths_from(index, j)[i]
+  .metric_values(mrca_depth, index$lens[i], index$lens[[j]], metric)
 }
 
 # Lower-triangle distances in base `dist` storage order (column by column).
@@ -697,8 +740,7 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
 #' @keywords internal
 .pairwise_distances <- function(lineages, progress = FALSE, metric = "reciprocal") {
   n <- length(lineages)
-  ids <- .prefix_node_ids(lineages)
-  lens <- lengths(lineages)
+  index <- .mrca_index(.prefix_node_ids(lineages))
   missing <- vapply(lineages, is.null, logical(1))
 
   values <- numeric(n * (n - 1) / 2)
@@ -708,7 +750,7 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
   }
   for (column in seq_len(n - 1L)) {
     rows <- (column + 1L):n
-    block <- .distances_to(ids, lens, rows, column, metric)
+    block <- .distances_to(index, rows, column, metric)
     block[missing[rows] | missing[[column]]] <- NA_real_
     values[position + seq_along(rows)] <- block
     position <- position + length(rows)
@@ -727,12 +769,11 @@ taxo_ordinate <- function(taxa, k = 2, ...) {
 )
 
 .match_metric <- function(metric) {
-  if (!is.character(metric) || length(metric) < 1L || anyNA(metric)) {
+  if (!is.character(metric) || length(metric) != 1L || is.na(metric)) {
     cli::cli_abort(
-      "{.arg metric} must be one of {.or {.val {(.distance_metrics)}}}."
+      "{.arg metric} must be a single string, one of {.or {.val {(.distance_metrics)}}}."
     )
   }
-  if (length(metric) > 1L) metric <- metric[[1L]]
   if (!metric %in% .distance_metrics) {
     cli::cli_abort(c(
       "x" = "Unknown distance metric {.val {metric}}.",

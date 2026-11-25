@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TaxaSet>
+  <Taxon>
+    <TaxId>3511</TaxId>
+    <ScientificName>Quercus</ScientificName>
+    <OtherNames>
+      <Name>
+        <ClassCDE>authority</ClassCDE>
+        <DispName>Quercus L.</DispName>
+      </Name>
+    </OtherNames>
+    <ParentTaxId>3503</ParentTaxId>
+    <Rank>genus</Rank>
+    <Division>Plants and Fungi</Division>
+    <GeneticCode>
+      <GCId>1</GCId>
+      <GCName>Standard</GCName>
+    </GeneticCode>
+    <MitoGeneticCode>
+      <MGCId>1</MGCId>
+      <MGCName>Standard</MGCName>
+    </MitoGeneticCode>
+    <Lineage>cellular organisms; Eukaryota; Viridiplantae; Streptophyta; Streptophytina; Embryophyta; Tracheophyta; Euphyllophyta; Spermatophyta; Magnoliopsida; Mesangiospermae; eudicotyledons; Gunneridae; Pentapetalae; rosids; fabids; Fagales; Fagaceae</Lineage>
+    <LineageEx>
+      <Taxon>
+        <TaxId>131567</TaxId>
+        <ScientificName>cellular organisms</ScientificName>
+        <Rank>cellular root</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>2759</TaxId>
+        <ScientificName>Eukaryota</ScientificName>
+        <Rank>domain</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>33090</TaxId>
+        <ScientificName>Viridiplantae</ScientificName>
+        <Rank>kingdom</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>35493</TaxId>
+        <ScientificName>Streptophyta</ScientificName>
+        <Rank>phylum</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>131221</TaxId>
+        <ScientificName>Streptophytina</ScientificName>
+        <Rank>subphylum</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>3193</TaxId>
+        <ScientificName>Embryophyta</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>58023</TaxId>
+        <ScientificName>Tracheophyta</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>78536</TaxId>
+        <ScientificName>Euphyllophyta</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>58024</TaxId>
+        <ScientificName>Spermatophyta</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>3398</TaxId>
+        <ScientificName>Magnoliopsida</ScientificName>
+        <Rank>class</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>1437183</TaxId>
+        <ScientificName>Mesangiospermae</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>71240</TaxId>
+        <ScientificName>eudicotyledons</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>91827</TaxId>
+        <ScientificName>Gunneridae</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>1437201</TaxId>
+        <ScientificName>Pentapetalae</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>71275</TaxId>
+        <ScientificName>rosids</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>91835</TaxId>
+        <ScientificName>fabids</ScientificName>
+        <Rank>clade</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>3502</TaxId>
+        <ScientificName>Fagales</ScientificName>
+        <Rank>order</Rank>
+      </Taxon>
+      <Taxon>
+        <TaxId>3503</TaxId>
+        <ScientificName>Fagaceae</ScientificName>
+        <Rank>family</Rank>
+      </Taxon>
+    </LineageEx>
+    <Properties>
+      <Property>
+        <PropName>pgcode</PropName>
+        <PropValueInt>11</PropValueInt>
+      </Property>
+    </Properties>
+    <CreateDate>1995/02/27 09:24:00</CreateDate>
+    <UpdateDate>2015/07/27 15:23:02</UpdateDate>
+    <PubDate>1993/06/12 01:00:00</PubDate>
+  </Taxon>
+</TaxaSet>

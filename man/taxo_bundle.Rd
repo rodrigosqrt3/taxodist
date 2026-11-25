@@ -10,15 +10,16 @@ taxo_bundle(
   verbose = FALSE,
   progress = TRUE,
   within = NULL,
-  metric = "reciprocal"
+  metric = "reciprocal",
+  source = "taxonomicon"
 )
 }
 \arguments{
 \item{taxa}{A character vector accepted by \code{\link[=taxo_resolve]{taxo_resolve()}} or an existing
 \code{taxodist_resolution} object.}
 
-\item{ambiguity, verbose, progress, within}{Passed to \code{\link[=taxo_resolve]{taxo_resolve()}} when
-\code{taxa} is a character vector.}
+\item{ambiguity, verbose, progress, within, source}{Passed to \code{\link[=taxo_resolve]{taxo_resolve()}}
+when \code{taxa} is a character vector.}
 
 \item{metric}{Distance metric used for the stored matrix; see
 \code{\link[=taxo_distance]{taxo_distance()}}. The bundle records it, so the matrix can be verified

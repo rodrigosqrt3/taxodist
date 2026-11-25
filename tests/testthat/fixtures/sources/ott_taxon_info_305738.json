@@ -1,0 +1,310 @@
+{
+ "flags": [
+  "sibling_higher"
+ ],
+ "is_suppressed": false,
+ "is_suppressed_from_synth": false,
+ "lineage": [
+  {
+   "flags": [
+    "sibling_higher"
+   ],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Nereididae",
+   "ott_id": 741326,
+   "rank": "family",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Lycoridae",
+    "Nereidae",
+    "Notophycidae"
+   ],
+   "tax_sources": [
+    "ncbi:39820",
+    "worms:22496",
+    "gbif:6972",
+    "irmng:104778"
+   ],
+   "unique_name": "Nereididae"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Phyllodocida",
+   "ott_id": 153423,
+   "rank": "order",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:6348",
+    "worms:892",
+    "gbif:1079",
+    "irmng:12234"
+   ],
+   "unique_name": "Phyllodocida"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Aciculata",
+   "ott_id": 717916,
+   "rank": "infraclass",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Errantia"
+   ],
+   "tax_sources": [
+    "ncbi:105390",
+    "worms:754174",
+    "irmng:12063"
+   ],
+   "unique_name": "Aciculata"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Palpata",
+   "ott_id": 143667,
+   "rank": "subclass",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:105389",
+    "worms:183606"
+   ],
+   "unique_name": "Palpata"
+  },
+  {
+   "flags": [
+    "sibling_higher"
+   ],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Polychaeta",
+   "ott_id": 941618,
+   "rank": "class",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Lysareunicidae"
+   ],
+   "tax_sources": [
+    "ncbi:6341",
+    "worms:883",
+    "gbif:256",
+    "irmng:1321"
+   ],
+   "unique_name": "Polychaeta (class in Lophotrochozoa)"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Annelida",
+   "ott_id": 941620,
+   "rank": "phylum",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:6340",
+    "worms:882",
+    "gbif:42",
+    "irmng:234"
+   ],
+   "unique_name": "Annelida"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Lophotrochozoa",
+   "ott_id": 155737,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:1206795"
+   ],
+   "unique_name": "Lophotrochozoa"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Protostomia",
+   "ott_id": 189832,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:33317"
+   ],
+   "unique_name": "Protostomia"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Bilateria",
+   "ott_id": 117569,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:33213"
+   ],
+   "unique_name": "Bilateria"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Eumetazoa",
+   "ott_id": 641038,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "ncbi:6072"
+   ],
+   "unique_name": "Eumetazoa"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Metazoa",
+   "ott_id": 691846,
+   "rank": "kingdom",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Animalia"
+   ],
+   "tax_sources": [
+    "silva:D14357/#4",
+    "ncbi:33208",
+    "worms:2",
+    "gbif:1",
+    "irmng:11"
+   ],
+   "unique_name": "Metazoa"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Holozoa",
+   "ott_id": 5246131,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [],
+   "tax_sources": [
+    "silva:D14357/#3"
+   ],
+   "unique_name": "Holozoa"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Opisthokonta",
+   "ott_id": 332573,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "Fungi/Metazoa group",
+    "opisthokonts"
+   ],
+   "tax_sources": [
+    "silva:D11377/#2",
+    "ncbi:33154",
+    "irmng:183"
+   ],
+   "unique_name": "Opisthokonta"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "Eukaryota",
+   "ott_id": 304358,
+   "rank": "domain",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "D4P07G08",
+    "DH147-EKD10",
+    "DH147-EKD23",
+    "Eucaryotae",
+    "Eukarya",
+    "Eukaryotae",
+    "LG25-05",
+    "NAMAKO-1",
+    "RT5iin25",
+    "SA1-3C06"
+   ],
+   "tax_sources": [
+    "silva:D11377/#1",
+    "ncbi:2759"
+   ],
+   "unique_name": "Eukaryota"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "cellular organisms",
+   "ott_id": 93302,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "biota"
+   ],
+   "tax_sources": [
+    "ncbi:131567"
+   ],
+   "unique_name": "cellular organisms"
+  },
+  {
+   "flags": [],
+   "is_suppressed": false,
+   "is_suppressed_from_synth": false,
+   "name": "life",
+   "ott_id": 805080,
+   "rank": "no rank",
+   "source": "ott3.7draft3",
+   "synonyms": [
+    "all"
+   ],
+   "tax_sources": [
+    "silva:0",
+    "ncbi:1",
+    "gbif:0",
+    "irmng:0"
+   ],
+   "unique_name": "life"
+  }
+ ],
+ "name": "Nereis",
+ "ott_id": 305738,
+ "rank": "genus",
+ "source": "ott3.7draft3",
+ "synonyms": [
+  "Lycoris",
+  "Naumachius",
+  "Neireis",
+  "Nereida",
+  "Nevis",
+  "Thoosa"
+ ],
+ "tax_sources": [
+  "ncbi:6351",
+  "worms:129379",
+  "gbif:2308106",
+  "irmng:1109425",
+  "irmng:1200278"
+ ],
+ "unique_name": "Nereis"
+}

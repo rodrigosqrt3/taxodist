@@ -9,7 +9,7 @@ save_cache(file = NULL)
 \arguments{
 \item{file}{Path to the \code{.rds} file to write. If \code{NULL} (default), the
 cache is written to a persistent per-user location given by
-\code{\link[tools:userdir]{tools::R_user_dir()}}, which is created if necessary.}
+\code{\link[tools:R_user_dir]{tools::R_user_dir()}}, which is created if necessary.}
 }
 \value{
 Invisibly returns the path of the written file.
