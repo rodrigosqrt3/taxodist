@@ -207,7 +207,7 @@ filter_clade <- function(taxa, clade, verbose = FALSE) {
 #' plot(cl)
 plot.taxodist_cluster <- function(x, main = "Taxonomic Clustering",
                                   xlab = "",
-                                  sub  = paste("Method:", if(!is.null(x$hclust)) x$hclust$method else "None"),
+                                  sub  = paste("Method:", x$hclust$method),
                                   ...) {
   if (is.null(x$hclust)) return(invisible(x))
   plot(x$hclust, main = main, xlab = xlab, sub = sub, ...)
@@ -234,7 +234,7 @@ plot.taxodist_cluster <- function(x, main = "Taxonomic Clustering",
 plot.taxodist_ord <- function(x, main   = "Taxonomic Ordination (PCoA)",
                               xlab   = "PC1",
                               ylab   = "PC2",
-                              labels = if(!is.null(x$points)) rownames(x$points) else NULL,
+                              labels = rownames(x$points),
                               ...) {
   if (is.null(x$points)) return(invisible(x))
   gof <- round(x$GOF[1], 3)

@@ -22,18 +22,19 @@ regexEscape <- function(x) gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", x)
 # Taxonomicon, so that large batches do not overload the server.
 .last_request <- new.env(parent = emptyenv())
 
-.throttle <- function() {
-  interval <- getOption("taxodist.min_interval", 0.25)
+# Each source (host) is spaced independently.
+.throttle <- function(source = "taxonomicon",
+                      interval = getOption("taxodist.min_interval", 0.25)) {
   if (!is.numeric(interval) || length(interval) != 1L || is.na(interval) ||
       interval <= 0) {
     return(invisible(NULL))
   }
-  last <- .last_request$time
+  last <- .last_request[[source]]
   if (!is.null(last)) {
     wait <- interval - as.numeric(difftime(Sys.time(), last, units = "secs"))
     if (wait > 0) Sys.sleep(wait)
   }
-  .last_request$time <- Sys.time()
+  .last_request[[source]] <- Sys.time()
   invisible(NULL)
 }
 
@@ -42,7 +43,7 @@ regexEscape <- function(x) gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", x)
     as.character(utils::packageVersion("taxodist")),
     error = function(e) "development"
   )
-  paste("taxodist R package", version)
+  paste0("taxodist/", version, " (R; +https://taxodist.github.io)")
 }
 
 # Number of attempts made for each HTTP request. Transient failures (network
@@ -87,9 +88,11 @@ taxonomicon_available <- function(timeout = 3) {
 }
 
 # Collapse internal runs of whitespace and trim the ends, so that
-# "Homo  sapiens " and "Homo sapiens" query and cache the same name.
+# "Homo  sapiens " and "Homo sapiens" query and cache the same name. Unicode
+# horizontal and vertical whitespace (e.g. the no-break space) counts as
+# whitespace.
 .normalize_taxon <- function(taxon) {
-  gsub("\\s+", " ", trimws(taxon))
+  gsub("[\\h\\v]+", " ", trimws(taxon, whitespace = "[\\h\\v]"), perl = TRUE)
 }
 
 # Text scraped from The Taxonomicon is interpolated into cli messages, where
@@ -653,7 +656,13 @@ get_taxonomicon_id <- function(taxon, verbose = FALSE) {
     if (any(matched)) {
       bio_ids <- bio_ids[matched]
       bio_text <- bio_text[matched]
+      bio_lineages <- bio_lineages[matched]
     }
+    # As in taxo_resolve(): a nominotypical subgenus or subspecies nested in a
+    # candidate of the same name is not a homonym.
+    outer <- .outermost_candidates(bio_lineages)
+    bio_ids <- bio_ids[outer]
+    bio_text <- bio_text[outer]
     preferred <- .candidate_order(bio_text)
     bio_ids <- bio_ids[preferred]
     bio_text <- bio_text[preferred]
@@ -884,7 +893,9 @@ get_lineage_by_id <- function(taxon_id, clean = TRUE, verbose = FALSE) {
   if (!is.na(current_name) && !inherits(content_node, "xml_missing")) {
     tree_text <- rvest::html_text(content_node, trim = TRUE)
     raw_lines <- strsplit(tree_text, "\n")[[1]]
-    raw_lines <- trimws(raw_lines)
+    # The page indents the tree with no-break spaces, which trimws() keeps by
+    # default; they would hide rank prefixes from the cleaning below.
+    raw_lines <- trimws(raw_lines, whitespace = "[\\h\\v]")
     raw_lines <- raw_lines[nzchar(raw_lines)]
     tree_start <- grep("^Natura", raw_lines)[1]
     if (!is.na(tree_start)) raw_lines <- raw_lines[tree_start:length(raw_lines)]
@@ -1159,7 +1170,15 @@ taxo_search <- function(taxon, verbose = FALSE) {
 #'   lineage contains this clade are considered, which resolves many
 #'   homonyms across kingdoms automatically. Matching is exact and
 #'   case-insensitive. Names without any candidate inside the clade are
-#'   reported as `"unresolved"`. Numeric IDs are not filtered.
+#'   reported as `"unresolved"`. Numeric IDs are not filtered. Clade names
+#'   depend on the source (e.g. `"Animalia"` in The Taxonomicon, `"Metazoa"`
+#'   in the Open Tree and NCBI taxonomies).
+#' @param source The taxonomic source: `"taxonomicon"` (default), `"ott"`
+#'   (Open Tree Taxonomy), or `"ncbi"` (NCBI Taxonomy); see [taxo_sources()].
+#'   Identifiers of the other sources carry a prefix (`"ott:770309"`,
+#'   `"ncbi:9606"`), which may be omitted in the input when `source` is set.
+#'   The resolution records the source and, for the Open Tree Taxonomy, its
+#'   version, so bundles built from it document their provenance.
 #'
 #' @return A data frame of class `taxodist_resolution` with one row per input
 #'   and columns `input`, `resolved_name`, `id`, `status`, `n_candidates`,
@@ -1190,12 +1209,20 @@ taxo_search <- function(taxon, verbose = FALSE) {
 #'
 #' # Restrict homonyms to animals
 #' taxo_resolve("Nereis", within = "Animalia")
+#'
+#' \donttest{
+#' # Other sources
+#' taxo_resolve(c("Homo", "Pan", "Gorilla"), source = "ott")
+#' taxo_resolve(c("Homo", "Pan", "Gorilla"), source = "ncbi")
+#' }
 taxo_resolve <- function(taxa,
                          ambiguity = c("warn", "first", "error"),
                          verbose = FALSE,
                          progress = TRUE,
-                         within = NULL) {
+                         within = NULL,
+                         source = "taxonomicon") {
   ambiguity <- match.arg(ambiguity)
+  source <- .match_source(source)
 
   if (!is.character(taxa)) {
     cli::cli_abort("{.arg taxa} must be a character vector.")
@@ -1306,6 +1333,13 @@ taxo_resolve <- function(taxa,
         candidates <- candidates[exact, , drop = FALSE]
         candidate_lineages <- candidate_lineages[exact]
       }
+      # A nominotypical subgenus or subspecies nested in a candidate of the
+      # same name is not a homonym.
+      outer <- .outermost_candidates(candidate_lineages)
+      candidates <- candidates[outer, , drop = FALSE]
+      candidate_lineages <- candidate_lineages[outer]
+    }
+    if (nrow(candidates) > 1L) {
       preferred <- .candidate_order(candidates$name)
       candidates <- candidates[preferred, , drop = FALSE]
       candidate_lineages <- candidate_lineages[preferred]
@@ -1336,20 +1370,27 @@ taxo_resolve <- function(taxa,
 
   keys <- .normalize_taxon(taxa)
   unique_keys <- unique(keys)
-  progress_id <- NULL
-  if (progress && length(unique_keys) > 0L) {
-    progress_id <- cli::cli_progress_bar(
-      "Resolving taxa",
-      total = length(unique_keys)
+  if (identical(source, "taxonomicon")) {
+    progress_id <- NULL
+    if (progress && length(unique_keys) > 0L) {
+      progress_id <- cli::cli_progress_bar(
+        "Resolving taxa",
+        total = length(unique_keys)
+      )
+    }
+    resolved_unique <- lapply(unique_keys, function(taxon) {
+      result <- resolve_one(taxon)
+      if (progress) cli::cli_progress_update(id = progress_id)
+      result
+    })
+    if (progress && length(unique_keys) > 0L) {
+      cli::cli_progress_done(id = progress_id)
+    }
+  } else {
+    resolved_unique <- .resolve_external(
+      unique_keys, source, within_clade, verbose = verbose,
+      progress = progress, failed = failed
     )
-  }
-  resolved_unique <- lapply(unique_keys, function(taxon) {
-    result <- resolve_one(taxon)
-    if (progress) cli::cli_progress_update(id = progress_id)
-    result
-  })
-  if (progress && length(unique_keys) > 0L) {
-    cli::cli_progress_done(id = progress_id)
   }
   resolved <- resolved_unique[match(keys, unique_keys)]
 
@@ -1366,8 +1407,9 @@ taxo_resolve <- function(taxa,
   result$candidates <- I(lapply(resolved, `[[`, "candidates"))
   result$ranks <- I(lapply(resolved, `[[`, "ranks"))
   class(result) <- c("taxodist_resolution", "data.frame")
-  attr(result, "source") <- "The Taxonomicon"
-  attr(result, "source_url") <- "http://taxonomicon.taxonomy.nl"
+  metadata <- .source_metadata(source)
+  attr(result, "source") <- metadata$name
+  attr(result, "source_url") <- metadata$url
   attr(result, "retrieved_at") <- format(Sys.time(), tz = "UTC", usetz = TRUE)
 
   ambiguous_inputs <- result$input[result$status == "ambiguous"]
